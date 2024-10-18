@@ -112,6 +112,7 @@ class DraggableListWidget(QListWidget):
         self.addItem(item)
 
 
+
 class SelectedDataPanel(QGroupBox):
     def __init__(self, include_retract_button=False, parent=None):
         super().__init__("Selected Data", parent)
@@ -140,7 +141,7 @@ class SelectedDataPanel(QGroupBox):
             self.layout.addWidget(self.retract_button)
 
         # Draggable and Selectable List Widget
-        self.selected_files_list = DraggableListWidget()
+        self.selected_files_list = DraggableListWidget()  # Changed from QListWidget to DraggableListWidget
 
         # Scroll Area for the List Widget
         self.scroll_area = QScrollArea()
@@ -174,15 +175,34 @@ class SelectedDataPanel(QGroupBox):
             "All Files (*)"
         )
         if file_paths:
-            self.add_file_to_panel(file_paths)
+            self.add_files(file_paths)
             # Update last_directory to the directory of the last selected file
             self.last_directory = os.path.dirname(file_paths[-1])
 
-    def add_files(self):
+    def add_files(self, file_paths):
         """
-        Alias for choose_files to maintain consistency.
+        Add one or multiple files to the Selected Data Panel.
         """
-        self.choose_files()
+        if isinstance(file_paths, str):
+            file_paths = [file_paths]
+        for file_path in file_paths:
+            self.add_file_to_panel(file_path)
+
+    def add_file_to_panel(self, file_path):
+        """
+        Add a single file to the panel if it's not already present.
+        """
+        if not self.is_file_in_list(file_path):
+            self.selected_files_list.add_file_to_panel(file_path)  # Use DraggableListWidget's method
+
+    def is_file_in_list(self, file_path):
+        """
+        Check if a file is already in the list.
+        """
+        for index in range(self.selected_files_list.count()):
+            if os.path.abspath(file_path) == os.path.abspath(self.selected_files_list.item(index).data(Qt.UserRole)):
+                return True
+        return False
 
     def toggle_select_all(self):
         """
@@ -211,22 +231,7 @@ class SelectedDataPanel(QGroupBox):
             item for item in self.selected_files_list.findItems("*", Qt.MatchWildcard)
             if item.checkState() == Qt.Checked
         ]
-        return [item.data(Qt.UserRole) for item in selected_items]
-
-    def add_file_to_panel(self, file_paths):
-        """
-        Add one or multiple files to the Selected Data Panel.
-        """
-        if isinstance(file_paths, str):
-            file_paths = [file_paths]
-        for file_path in file_paths:
-            self.selected_files_list.add_file_to_panel(file_path)
-
-    def select_files(self, file_paths):
-        """
-        Programmatically select and add multiple files to the panel.
-        """
-        self.add_file_to_panel(file_paths)
+        return [item.data(Qt.UserRole) for item in selected_items]  # Retrieve from Qt.UserRole
 
     def remove_selected_files(self):
         """
@@ -1010,27 +1015,27 @@ class NormalizationMethodPanel(QWidget):
     def init_ui(self):
         self.layout = QVBoxLayout()
 
-        # Help Button
+        # 1. Help Button
         help_button = QPushButton("Help")
         help_button.setIcon(QIcon('gui/resources/help_icon.png'))
         help_button.clicked.connect(self.show_help)
         self.layout.addWidget(help_button)
 
-        # Method-Specific UI
+        # 2. Apply and Save Buttons (Created Before Method-Specific UI)
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.apply_button.setEnabled(False)  # Initially disabled
+        self.save_button.setEnabled(False)   # Initially disabled
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        self.layout.addLayout(button_layout)
+
+        # 3. Method-Specific UI
         if self.method_name == "Min-Max Normalization":
             self.init_min_max_normalization_ui()
         else:
             self.layout.addWidget(QLabel("No normalization methods available."))
-
-        # Apply and Save Buttons
-        button_layout = QHBoxLayout()
-        self.apply_button = QPushButton("Apply")
-        self.save_button = QPushButton("Save")
-        self.apply_button.setEnabled(False)  # Disabled until parameters are set
-        self.save_button.setEnabled(False)
-        button_layout.addWidget(self.apply_button)
-        button_layout.addWidget(self.save_button)
-        self.layout.addLayout(button_layout)
 
         self.setLayout(self.layout)
 
@@ -1092,16 +1097,37 @@ class NormalizationMethodPanel(QWidget):
         self.custom_min_spinbox.valueChanged.connect(self.enable_apply_button)
         self.custom_max_spinbox.valueChanged.connect(self.enable_apply_button)
 
+        # **Bug Fix: Enable Apply Button by Default**
+        # If "Use custom min-max values" is unchecked, Apply should be enabled
+        self.apply_button.setEnabled(True)
+
     def toggle_custom_range(self, state):
         enabled = state == Qt.Checked
         self.custom_min_spinbox.setEnabled(enabled)
         self.custom_max_spinbox.setEnabled(enabled)
-        self.apply_button.setEnabled(True)  # Enable Apply button when method is selected
         self.save_button.setEnabled(False)  # Disable Save until normalization is applied
 
+        if not enabled:
+            # If not using custom range, ensure Apply is enabled
+            self.apply_button.setEnabled(True)
+        else:
+            # If using custom range, validate inputs before enabling Apply
+            self.enable_apply_button()
+
     def enable_apply_button(self):
-        self.apply_button.setEnabled(True)
-        self.save_button.setEnabled(False)
+        if self.method_name == "Min-Max Normalization":
+            if self.use_custom_range_checkbox.isChecked():
+                custom_min = self.custom_min_spinbox.value()
+                custom_max = self.custom_max_spinbox.value()
+                if custom_max > custom_min:
+                    self.apply_button.setEnabled(True)
+                else:
+                    self.apply_button.setEnabled(False)
+            else:
+                # If not using custom range, Apply should be enabled
+                self.apply_button.setEnabled(True)
+        else:
+            self.apply_button.setEnabled(True)
 
 class GeneratedCSVFilesPanel(QGroupBox):
     def __init__(self, parent=None):
