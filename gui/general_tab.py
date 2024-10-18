@@ -1,4 +1,4 @@
-# general_tab.py
+# gui/general_tab.py
 
 
 from PyQt5.QtWidgets import (

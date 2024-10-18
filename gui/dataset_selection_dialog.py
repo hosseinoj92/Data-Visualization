@@ -1,4 +1,4 @@
-# dataset_selection_dialog.py
+#gui/ dataset_selection_dialog.py
 
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QListWidget, QListWidgetItem, QPushButton, QHBoxLayout, QMessageBox
 from PyQt5.QtCore import Qt
