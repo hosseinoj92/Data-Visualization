@@ -20,7 +20,8 @@ import matplotlib.pyplot as plt
 from gui.help_dialog import HelpDialog
 from gui.help_content import (MIN_MAX_NORMALIZATION_HELP,Z_SCORE_NORMALIZATION_HELP, 
                               ROBUST_SCALING_NORMALIZATION_HELP,AUC_NORMALIZATION_HELP,INTERVAL_AUC_NORMALIZATION_HELP,
-                              TOTAL_INTENSITY_NORMALIZATION_HELP,
+                              TOTAL_INTENSITY_NORMALIZATION_HELP,REFERENCE_PEAK_NORMALIZATION_HELP,
+
                               )
 
 class DraggableListWidget(QListWidget):
@@ -814,7 +815,93 @@ class TotalIntensityNormalizationPanel(BaseNormalizationMethodPanel):
             params['desired_total_intensity'] = 1.0  # Default scaling factor
 
         return params
+###############################################################
 
+
+class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
+    def __init__(self, parent=None):
+        super().__init__("Reference Peak Normalization", parent)
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.apply_button.setEnabled(False)   # Disabled until valid input
+        self.save_button.setEnabled(False)    # Disabled by default
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        self.layout.addLayout(button_layout)
+
+        # Parameters for Reference Peak Normalization
+        self.layout.addWidget(QLabel("Reference Peak Normalization Parameters:"))
+
+        # Reference Peak X-Value Input
+        ref_peak_layout = QHBoxLayout()
+        ref_peak_layout.addWidget(QLabel("Reference Peak X-Value:"))
+        self.ref_peak_input = QLineEdit()
+        self.ref_peak_input.setPlaceholderText("e.g., 5.0")
+        ref_peak_layout.addWidget(self.ref_peak_input)
+        self.layout.addLayout(ref_peak_layout)
+
+        # Desired Reference Intensity Input
+        desired_intensity_layout = QHBoxLayout()
+        desired_intensity_layout.addWidget(QLabel("Desired Reference Intensity:"))
+        self.desired_intensity_input = QDoubleSpinBox()
+        self.desired_intensity_input.setRange(0.0001, 1e6)
+        self.desired_intensity_input.setValue(1.0)
+        desired_intensity_layout.addWidget(self.desired_intensity_input)
+        self.layout.addLayout(desired_intensity_layout)
+
+        # Connect signals for validation
+        self.ref_peak_input.textChanged.connect(self.validate_inputs)
+        self.desired_intensity_input.valueChanged.connect(self.validate_inputs)
+
+        self.setLayout(self.layout)
+
+    def show_help(self):
+        help_content = REFERENCE_PEAK_NORMALIZATION_HELP
+        dialog = HelpDialog("Reference Peak Normalization Help", help_content, self)
+        dialog.exec_()
+
+    def validate_inputs(self):
+        ref_peak_text = self.ref_peak_input.text()
+        desired_intensity = self.desired_intensity_input.value()
+
+        try:
+            ref_peak = float(ref_peak_text)
+            if desired_intensity > 0:
+                self.apply_button.setEnabled(True)
+            else:
+                self.apply_button.setEnabled(False)
+        except ValueError:
+            self.apply_button.setEnabled(False)
+
+    def get_parameters(self):
+        params = {}
+        ref_peak_text = self.ref_peak_input.text()
+        desired_intensity = self.desired_intensity_input.value()
+
+        try:
+            ref_peak = float(ref_peak_text)
+            if desired_intensity <= 0:
+                QMessageBox.warning(self, "Invalid Intensity", "Desired Reference Intensity must be greater than zero.")
+                return None
+            params['reference_peak_x'] = ref_peak
+            params['desired_reference_intensity'] = desired_intensity
+            return params
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter a valid numerical value for the Reference Peak X-Value.")
+            return None
+###############################################################
 class DatasetSelectionDialog(QDialog):
     def __init__(self, structure, parent=None):
         super().__init__(parent)
