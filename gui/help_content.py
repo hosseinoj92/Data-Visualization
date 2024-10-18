@@ -391,7 +391,7 @@ TOTAL_INTENSITY_NORMALIZATION_HELP = """
     <title>Total Intensity Normalization Help</title>
     <!-- MathJax Configuration -->
     <script type="text/javascript"
-        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js">
     </script>
     <style>
         body {
@@ -408,56 +408,141 @@ TOTAL_INTENSITY_NORMALIZATION_HELP = """
         ul {
             margin-left: 20px;
         }
-        img {
-            max-width: 100%;
-            height: auto;
-        }
     </style>
 </head>
 <body>
     <h1>Total Intensity Normalization</h1>
     <p>
-        Total Intensity Normalization scales the entire dataset so that the sum of all Y-values equals a specified desired total intensity. This method is particularly useful for standardizing datasets, allowing for meaningful comparisons across datasets with varying magnitudes.
+        Total Intensity Normalization is a technique used to scale data so that the sum (or total intensity) of the data values matches a specific desired total. It is often applied in fields such as spectrometry, bioinformatics, and other experimental data where different datasets may have varying overall magnitudes, but the relative values need to be preserved.
     </p>
     <h2>Formula:</h2>
     <p>
-        Given Y-values \( y_1, y_2, \ldots, y_n \), the normalized Y-values \( y'_i \) are calculated as:
+        The normalization process involves dividing each data point by the total sum of all data points and multiplying by the desired total intensity:
     </p>
     <p>
         \\[
-        y'_i = y_i \times \left( \frac{\text{Desired Total Intensity}}{\sum_{j=1}^{n} y_j} \right)
+        y'_i = y_i \times \frac{T_{\text{desired}}}{T_{\text{current}}}
         \\]
     </p>
+    <p>
+        Where:
+    </p>
+    <ul>
+        <li>\(y'_i\) is the normalized value.</li>
+        <li>\(y_i\) is the original value.</li>
+        <li>\(T_{\text{desired}}\) is the target total intensity specified by the user.</li>
+        <li>\(T_{\text{current}}\) is the sum of all current data points (i.e., the total intensity of the original dataset).</li>
+    </ul>
+
     <h2>Usage:</h2>
     <ul>
-        <li>Standardizing datasets for comparative analysis.</li>
-        <li>Preparing data for machine learning algorithms that require feature scaling.</li>
+        <li><strong>Data normalization:</strong> Total Intensity Normalization is often used in scenarios where the overall magnitude of the data may vary between datasets, but you want to make sure the sum of the values is consistent across all datasets.</li>
+        <li><strong>Spectrometry:</strong> It is frequently used in mass spectrometry and other signal-based data where the total intensity or signal across a dataset needs to be normalized for comparative analysis.</li>
+        <li><strong>Bioinformatics and gene expression:</strong> This method can also be used to normalize gene expression levels across different samples to account for varying total RNA levels in each sample.</li>
     </ul>
+
     <h2>Advantages:</h2>
     <ul>
-        <li>Ensures consistency across datasets.</li>
-        <li>Simplifies the comparison of datasets with different scales.</li>
+        <li><strong>Preserves relative proportions:</strong> The method maintains the relative proportions of the data points while normalizing the overall magnitude.</li>
+        <li><strong>Simple to apply:</strong> It is straightforward to calculate and apply, as it only requires computing the sum of the dataset and applying a scaling factor.</li>
+        <li><strong>Ensures comparability:</strong> It allows for direct comparison of datasets by ensuring that they all have the same total intensity or sum.</li>
     </ul>
+
     <h2>Disadvantages:</h2>
     <ul>
-        <li>Does not account for the distribution of data within the dataset.</li>
-        <li>May not be suitable for datasets where the total intensity is not a meaningful metric.</li>
+        <li><strong>Sensitive to outliers:</strong> If the dataset contains extreme outliers, they will disproportionately affect the total intensity and may distort the normalization.</li>
+        <li><strong>Does not account for distribution differences:</strong> While the total sum is normalized, the underlying distribution of values might still vary between datasets.</li>
+        <li><strong>Not suitable for zero-sum data:</strong> If the sum of the original data points is zero or near zero, this method cannot be applied, as division by zero would occur.</li>
     </ul>
-    <h2>Example:</h2>
+
+    <h2>When to Use:</h2>
+    <ul>
+        <li><strong>Comparing datasets:</strong> When comparing datasets with different overall magnitudes, Total Intensity Normalization ensures that they can be directly compared on a common scale.</li>
+        <li><strong>Signal-based data:</strong> Useful in signal-based datasets, such as spectrometry or chromatography, where you want to normalize the total signal intensity.</li>
+        <li><strong>Biological data:</strong> In fields such as bioinformatics or genomics, it is used to normalize experimental data like gene expression levels for cross-sample comparison.</li>
+    </ul>
+</body>
+</html>
+"""
+
+
+REFERENCE_PEAK_NORMALIZATION_HELP = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Reference Peak Normalization Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js">
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #2E8B57;
+        }
+        p, ul {
+            font-size: 16px;
+        }
+        ul {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Reference Peak Normalization</h1>
     <p>
-        Consider a dataset with Y-values: [2, 4, 6, 8, 10]. To normalize this dataset to a desired total intensity of 1, each Y-value is scaled as follows:
+        Reference Peak Normalization is a technique used to rescale data by normalizing all values relative to a specific reference peak within the dataset. This method ensures that the intensity of the reference peak is consistent across different datasets, allowing for easier comparison. It is commonly used in fields such as chromatography, mass spectrometry, and spectroscopy.
+    </p>
+    <h2>Formula:</h2>
+    <p>
+        The normalization process involves dividing each data point by the value of the reference peak:
     </p>
     <p>
-        \[
-        \text{Desired Total Intensity} = 1
-        \]
-        \[
-        \sum_{j=1}^{5} y_j = 2 + 4 + 6 + 8 + 10 = 30
-        \]
-        \[
-        y'_i = y_i \times \left( \frac{1}{30} \right) = \left[ \frac{2}{30}, \frac{4}{30}, \frac{6}{30}, \frac{8}{30}, \frac{10}{30} \right] = [0.0667, 0.1333, 0.2000, 0.2667, 0.3333]
-        \]
+        \\[
+        y'_i = \frac{y_i}{y_{\text{ref}}}
+        \\]
     </p>
+    <p>
+        Where:
+    </p>
+    <ul>
+        <li>\(y'_i\) is the normalized value.</li>
+        <li>\(y_i\) is the original value.</li>
+        <li>\(y_{\text{ref}}\) is the intensity of the reference peak.</li>
+    </ul>
+
+    <h2>Usage:</h2>
+    <ul>
+        <li><strong>Peak-based data:</strong> Reference Peak Normalization is often used in data types where individual peaks or signals are important, such as chromatography, mass spectrometry, or spectroscopy.</li>
+        <li><strong>Comparing datasets:</strong> It helps standardize datasets by normalizing to a common reference point, typically the most intense or biologically relevant peak.</li>
+        <li><strong>Signal correction:</strong> It can be used to correct for variations in signal intensity due to experimental conditions or instrument sensitivity.</li>
+    </ul>
+
+    <h2>Advantages:</h2>
+    <ul>
+        <li><strong>Consistent scaling:</strong> By normalizing to a reference peak, the method ensures that the relative intensities of peaks or features are consistent across datasets.</li>
+        <li><strong>Simple and effective:</strong> It is straightforward to calculate and implement, especially when a clear reference peak is present in all datasets.</li>
+        <li><strong>Accounts for experimental variation:</strong> Normalizing to a reference peak can help reduce variability introduced by differences in sample preparation or instrument sensitivity.</li>
+    </ul>
+
+    <h2>Disadvantages:</h2>
+    <ul>
+        <li><strong>Dependent on the reference peak:</strong> The method assumes that the reference peak is stable and not affected by experimental conditions, which may not always be the case.</li>
+        <li><strong>Inapplicable to datasets without a clear peak:</strong> If the dataset does not have a well-defined reference peak, this method cannot be used.</li>
+        <li><strong>Distorted normalization if the reference peak is noisy:</strong> If the reference peak has significant noise or variability, the normalization may distort the rest of the dataset.</li>
+    </ul>
+
+    <h2>When to Use:</h2>
+    <ul>
+        <li><strong>Peak-based data:</strong> When working with data that has distinct peaks or signals (e.g., chromatography or mass spectrometry), Reference Peak Normalization provides a simple and effective way to standardize datasets.</li>
+        <li><strong>Standardizing experimental results:</strong> In situations where experimental variability is present (e.g., changes in instrument sensitivity or sample preparation), Reference Peak Normalization helps reduce the impact of such variability.</li>
+        <li><strong>Comparing multiple datasets:</strong> If you are comparing datasets from different runs or conditions, this method can ensure that all data are scaled relative to a common reference point.</li>
+    </ul>
 </body>
 </html>
 """

@@ -13,7 +13,8 @@ from gui.panels import (
     SelectedDataPanel, AxisDetailsPanel, AdditionalTextPanel,
     CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, 
     MinMaxNormalizationPanel, ZScoreNormalizationPanel, RobustScalingNormalizationPanel,
-    AUCNormalizationPanel,IntervalAUCNormalizationPanel,TotalIntensityNormalizationPanel
+    AUCNormalizationPanel,IntervalAUCNormalizationPanel,TotalIntensityNormalizationPanel,
+    ReferencePeakNormalizationPanel
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -122,9 +123,9 @@ class NormalizationTab(QWidget):
             ("Robust Scaling Normalization", RobustScalingNormalizationPanel),
             ("AUC Normalization", AUCNormalizationPanel), 
             ("Interval AUC Normalization", IntervalAUCNormalizationPanel),
-            ("Total Intensity Normalization", TotalIntensityNormalizationPanel),  # New method
-
-            # Add tuples of (Method Name, Panel Class) here for future methods
+            ("Total Intensity Normalization", TotalIntensityNormalizationPanel),
+            ("Reference Peak Normalization", ReferencePeakNormalizationPanel), 
+            
         ]
 
         self.normalization_sections = []
@@ -357,6 +358,16 @@ class NormalizationTab(QWidget):
             scaling_factor = desired_total_intensity / current_total
             y_normalized = y * scaling_factor
             return y_normalized
+        def reference_peak_normalization(y, x, reference_peak_x, desired_reference_intensity):
+            # Find the index closest to the reference_peak_x
+            ref_index = np.argmin(np.abs(x - reference_peak_x))
+            y_ref = y[ref_index]
+            if y_ref == 0:
+                QMessageBox.warning(None, "Invalid Reference Peak", "Reference Peak intensity is zero. Cannot normalize.")
+                return None
+            scaling_factor = desired_reference_intensity / y_ref
+            y_normalized = y * scaling_factor
+            return y_normalized
     
         self.normalization_functions = [
             min_max_normalization,          # Index 0
@@ -365,6 +376,7 @@ class NormalizationTab(QWidget):
             auc_normalization,      
             interval_auc_normalization,
             total_intensity_normalization,  
+            reference_peak_normalization,
             # Add other normalization functions here as implemented
         ]
             
@@ -374,8 +386,9 @@ class NormalizationTab(QWidget):
             return self.normalization_functions[method_index]
         else:
             return None
-
+        
     def apply_normalization(self, panel):
+
         # Get the selected data files
         data_files = self.selected_data_panel.get_selected_files()
         if not data_files:
@@ -403,7 +416,7 @@ class NormalizationTab(QWidget):
             return  # Error message already shown
 
         # Define which methods accept the 'x' parameter
-        methods_accepting_x = ["AUC Normalization", "Interval AUC Normalization"]
+        methods_accepting_x = ["AUC Normalization", "Interval AUC Normalization", "Reference Peak Normalization"]
 
         # Apply normalization to each selected file
         self.normalized_data = {}  # Reset normalized data
@@ -426,6 +439,14 @@ class NormalizationTab(QWidget):
                             desired_auc=params['desired_auc'],
                             interval_start=params['interval_start'],
                             interval_end=params['interval_end']
+                        )
+                    elif panel.method_name == "Reference Peak Normalization":
+                        # For Reference Peak Normalization, pass reference_peak_x and desired_reference_intensity
+                        y_normalized = method_func(
+                            y,
+                            x=x,
+                            reference_peak_x=params['reference_peak_x'],
+                            desired_reference_intensity=params['desired_reference_intensity']
                         )
                     else:
                         # For AUC Normalization, pass 'x' along with other parameters
@@ -452,7 +473,9 @@ class NormalizationTab(QWidget):
 
         # Update the plot with normalized data
         self.update_normalized_plot()
-        panel.save_button.setEnabled(True) 
+        panel.save_button.setEnabled(True)
+
+
     def save_normalized_data(self, panel):
         print("save_normalized_data called")
         if not self.normalized_data:
