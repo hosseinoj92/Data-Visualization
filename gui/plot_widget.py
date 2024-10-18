@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog,
-    QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QFrame, QShortcut
+    QTableWidget, QTableWidgetItem, QHeaderView, QLabel, QFrame, QShortcut,QMessageBox
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QIcon, QKeySequence
@@ -119,6 +119,8 @@ class PlotWidget(QWidget):
         self.axis_details_panel = axis_details_panel
         self.plot_visuals_panel = plot_visuals_panel
         self.additional_text_panel = additional_text_panel
+        self.additional_text_panel.add_text_button.clicked.connect(self.add_text_to_plot)
+        self.additional_text_panel.color_changed.connect(self.update_last_text_color)
         self.custom_annotations_panel = custom_annotations_panel
 
         self.setObjectName("PlotWidget")
@@ -203,6 +205,32 @@ class PlotWidget(QWidget):
         # Shortcuts
         self.delete_shortcut = QShortcut(QKeySequence("Delete"), self)
         self.delete_shortcut.activated.connect(self.delete_selected_file)
+
+    def add_text_to_plot(self):
+        text_details = self.additional_text_panel.get_text_details()
+        text = text_details['text']
+        x_pos = text_details['x_pos']
+        y_pos = text_details['y_pos']
+        size = text_details['size']
+        color = text_details['color']
+
+        try:
+            x = float(x_pos)
+            y = float(y_pos)
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter valid numerical values for X and Y positions.")
+            return
+
+        ax = self.figure.gca()
+        text_item = ax.text(x, y, text, fontsize=size, color=color)
+        self.text_items.append(text_item)
+        self.canvas.draw_idle()
+
+    def update_last_text_color(self, color):
+        if self.text_items:
+            last_text_item = self.text_items[-1]
+            last_text_item.set_color(color)
+            self.canvas.draw_idle()
 
     def update_plot(self):
         # Gather all parameters from panels

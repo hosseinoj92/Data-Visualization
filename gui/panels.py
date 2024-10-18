@@ -11,6 +11,7 @@ from PyQt5.QtGui import QIcon, QColor
 from utils import read_numeric_data  # Ensure this import is correct
 import h5py
 import pandas as pd
+from PyQt5.QtCore import pyqtSignal
 
 class DraggableListWidget(QListWidget):
     def __init__(self, parent=None):
@@ -804,10 +805,12 @@ class AxisDetailsPanel(QGroupBox):
 
 
 class AdditionalTextPanel(QGroupBox):
+    color_changed = pyqtSignal(str)  # Signal to emit the new color
+
     def __init__(self, parent=None):
         super().__init__("Additional Text", parent)
-        self.init_ui()
         self.text_color = 'black'  # Default text color
+        self.init_ui()
 
     def init_ui(self):
         self.layout = QGridLayout()
@@ -833,6 +836,12 @@ class AdditionalTextPanel(QGroupBox):
         self.layout.addWidget(QLabel("Text Color:"), 4, 0)
         self.text_color_button = QPushButton("Choose Color")
         self.layout.addWidget(self.text_color_button, 4, 1)
+
+        # Add a QLabel to display the selected color
+        self.color_display = QLabel()
+        self.color_display.setFixedSize(30, 30)
+        self.color_display.setStyleSheet(f"background-color: {self.text_color}; border: 1px solid black;")
+        self.layout.addWidget(self.color_display, 4, 2)
 
         self.add_text_button = QPushButton("Add to Plot")
         self.delete_text_button = QPushButton("Delete from Plot")
@@ -864,8 +873,10 @@ class AdditionalTextPanel(QGroupBox):
         color = QColorDialog.getColor(initial=QColor(self.text_color), parent=self, title="Select Text Color")
         if color.isValid():
             self.set_text_color(color.name())
-            # Optionally, update button color to reflect selection
-            self.text_color_button.setStyleSheet(f"background-color: {color.name()}")
+            # Update the color display label
+            self.color_display.setStyleSheet(f"background-color: {color.name()}; border: 1px solid black;")
+            # Emit the signal with the new color
+            self.color_changed.emit(color.name())
         else:
             QMessageBox.information(self, "Color Selection Cancelled", "No color was selected.")
 
