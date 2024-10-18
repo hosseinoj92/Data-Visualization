@@ -19,7 +19,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from gui.help_dialog import HelpDialog
 from gui.help_content import (MIN_MAX_NORMALIZATION_HELP,Z_SCORE_NORMALIZATION_HELP, 
-                              ROBUST_SCALING_NORMALIZATION_HELP,AUC_NORMALIZATION_HELP)
+                              ROBUST_SCALING_NORMALIZATION_HELP,AUC_NORMALIZATION_HELP,INTERVAL_AUC_NORMALIZATION_HELP,
+                              )
 
 class DraggableListWidget(QListWidget):
     def __init__(self, parent=None):
@@ -621,6 +622,117 @@ class AUCNormalizationPanel(BaseNormalizationMethodPanel):
         # Check if sorting is enabled
         params['sort_data'] = self.sort_checkbox.isChecked()
         return params
+########################################################
+
+class IntervalAUCNormalizationPanel(BaseNormalizationMethodPanel):
+    def __init__(self, parent=None):
+        super().__init__("Interval AUC Normalization", parent)
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.apply_button.setEnabled(False)   # Disabled until valid input
+        self.save_button.setEnabled(False)    # Disabled by default
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        self.layout.addLayout(button_layout)
+
+        # Parameters for Interval AUC Normalization
+        self.layout.addWidget(QLabel("Interval AUC Normalization Parameters:"))
+
+        # Checkbox to enable/disable Desired AUC
+        self.enable_desired_auc_checkbox = QCheckBox("Enable Desired AUC")
+        self.enable_desired_auc_checkbox.setChecked(True)  # Enabled by default
+        self.layout.addWidget(self.enable_desired_auc_checkbox)
+
+        # Desired AUC Input
+        desired_auc_layout = QHBoxLayout()
+        desired_auc_layout.addWidget(QLabel("Desired AUC:"))
+        self.desired_auc_input = QDoubleSpinBox()
+        self.desired_auc_input.setRange(0.0001, 1e6)
+        self.desired_auc_input.setValue(1.0)
+        desired_auc_layout.addWidget(self.desired_auc_input)
+        self.layout.addLayout(desired_auc_layout)
+
+        # Interval Start Input
+        interval_start_layout = QHBoxLayout()
+        interval_start_layout.addWidget(QLabel("Interval Start (x):"))
+        self.interval_start_input = QDoubleSpinBox()
+        self.interval_start_input.setRange(-1e6, 1e6)
+        self.interval_start_input.setValue(0.0)
+        interval_start_layout.addWidget(self.interval_start_input)
+        self.layout.addLayout(interval_start_layout)
+
+        # Interval End Input
+        interval_end_layout = QHBoxLayout()
+        interval_end_layout.addWidget(QLabel("Interval End (x):"))
+        self.interval_end_input = QDoubleSpinBox()
+        self.interval_end_input.setRange(-1e6, 1e6)
+        self.interval_end_input.setValue(10.0)
+        interval_end_layout.addWidget(self.interval_end_input)
+        self.layout.addLayout(interval_end_layout)
+
+        # Connect signals for validation and checkbox state
+        self.enable_desired_auc_checkbox.stateChanged.connect(self.toggle_desired_auc)
+        self.desired_auc_input.valueChanged.connect(self.validate_inputs)
+        self.interval_start_input.valueChanged.connect(self.validate_inputs)
+        self.interval_end_input.valueChanged.connect(self.validate_inputs)
+
+        self.setLayout(self.layout)
+
+    def show_help(self):
+        help_content = INTERVAL_AUC_NORMALIZATION_HELP
+        dialog = HelpDialog("Interval AUC Normalization Help", help_content, self)
+        dialog.exec_()
+
+    def toggle_desired_auc(self, state):
+        enabled = state == Qt.Checked
+        self.desired_auc_input.setEnabled(enabled)
+        self.save_button.setEnabled(False)  # Disable Save until normalization is applied
+        self.validate_inputs()
+
+    def validate_inputs(self):
+        start = self.interval_start_input.value()
+        end = self.interval_end_input.value()
+        desired_auc = self.desired_auc_input.value() if self.enable_desired_auc_checkbox.isChecked() else 1.0
+
+        if end > start and desired_auc > 0:
+            self.apply_button.setEnabled(True)
+        else:
+            self.apply_button.setEnabled(False)
+
+    def get_parameters(self):
+        params = {}
+        enabled = self.enable_desired_auc_checkbox.isChecked()
+        if enabled:
+            desired_auc = self.desired_auc_input.value()
+            if desired_auc <= 0:
+                QMessageBox.warning(self, "Invalid AUC", "Desired AUC must be greater than zero.")
+                return None
+            params['desired_auc'] = desired_auc
+        else:
+            params['desired_auc'] = 1.0  # Default scaling factor
+
+        start = self.interval_start_input.value()
+        end = self.interval_end_input.value()
+        if end <= start:
+            QMessageBox.warning(self, "Invalid Interval", "Interval End must be greater than Interval Start.")
+            return None
+        params['interval_start'] = start
+        params['interval_end'] = end
+
+        return params
+    
 ########################################################
 
 

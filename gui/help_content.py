@@ -300,3 +300,85 @@ AUC_NORMALIZATION_HELP = """
 </html>
 """
 
+INTERVAL_AUC_NORMALIZATION_HELP = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Interval AUC Normalization Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js">
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #2E8B57;
+        }
+        p, ul {
+            font-size: 16px;
+        }
+        ul {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Interval Area Under the Curve (AUC) Normalization</h1>
+    <p>
+        Interval AUC Normalization is a technique that rescales data based on the desired area under the curve (AUC) over a specified interval. This method is often used in time series data, signal processing, or experimental data where the total magnitude of the curve needs to be standardized across different datasets.
+    </p>
+    <h2>Formula:</h2>
+    <p>
+        First, the current area under the curve for the given interval is calculated using the Trapezoidal Rule:
+    </p>
+    <p>
+        \\[
+        \sum_{i=a}^{b-1} (x_{i+1} - x_i) \times \frac{(y_i + y_{i+1})}{2}
+        \\]
+    </p>
+    <p>
+        Where \(a\) and \(b\) represent the start and end indices of the selected interval, respectively.
+    </p>
+    <p>
+        To normalize the curve to match the desired area under the curve (AUC), the following scaling is applied to the y-values:
+    </p>
+    <p>
+        \\[
+        y'_i = y_i \times \frac{\text{AUC}_{\text{desired}}}{\text{AUC}_{\text{current}}}
+        \\]
+    </p>
+    <h2>Usage:</h2>
+    <ul>
+        <li><strong>Signal normalization:</strong> Interval AUC Normalization is often used to normalize signal intensity over a specified time or frequency interval to a desired AUC value.</li>
+        <li><strong>Experimental data comparison:</strong> In fields like biology or chemistry, it allows researchers to compare datasets by adjusting the total magnitude of a response or signal within a specific range.</li>
+        <li><strong>Time series data scaling:</strong> This method can be applied to normalize the amplitude of time series data over a specific time window.</li>
+    </ul>
+
+    <h2>Advantages:</h2>
+    <ul>
+        <li><strong>Adjusts for varying magnitudes:</strong> It ensures that data from different experiments or signals can be compared by scaling them to a common desired AUC value.</li>
+        <li><strong>Focuses on specific intervals:</strong> The normalization is applied only to the selected interval, allowing for targeted scaling of data.</li>
+        <li><strong>Maintains the overall shape of the curve:</strong> The method preserves the relative distribution and shape of the data points while scaling the magnitude.</li>
+    </ul>
+
+    <h2>Disadvantages:</h2>
+    <ul>
+        <li><strong>Sensitive to interval selection:</strong> The effectiveness of this method depends on the selection of the interval \(a\) to \(b\), and poor choices can lead to inaccurate normalization.</li>
+        <li><strong>Requires accurate integration:</strong> Calculating the current AUC accurately is critical, and errors in this calculation can affect the final normalized values.</li>
+        <li><strong>Not suitable for non-continuous data:</strong> This method assumes continuous data between the points; it may not work well for sparse or noisy data.</li>
+    </ul>
+
+    <h2>When to Use:</h2>
+    <ul>
+        <li><strong>Comparing datasets:</strong> When comparing datasets from different experiments, normalizing to the same AUC ensures comparability, especially when different datasets have different magnitudes.</li>
+        <li><strong>Signal processing:</strong> Useful for signals with varying intensities where you want to normalize them over a specific interval.</li>
+        <li><strong>Standardizing experiments:</strong> In experiments where a common response magnitude is required for different cases, this method can ensure consistency.</li>
+    </ul>
+</body>
+</html>
+"""
