@@ -17,7 +17,9 @@ import pandas as pd
 from PyQt5.QtCore import pyqtSignal
 import numpy as np
 import matplotlib.pyplot as plt
-
+from gui.help_dialog import HelpDialog
+from gui.help_content import (MIN_MAX_NORMALIZATION_HELP,Z_SCORE_NORMALIZATION_HELP, 
+                              ROBUST_SCALING_NORMALIZATION_HELP,AUC_NORMALIZATION_HELP)
 
 class DraggableListWidget(QListWidget):
     def __init__(self, parent=None):
@@ -332,8 +334,9 @@ class MinMaxNormalizationPanel(BaseNormalizationMethodPanel):
         self.setLayout(self.layout)
 
     def show_help(self):
-        explanation = "Min-Max Normalization rescales the data to a fixed range, typically [0, 1]."
-        QMessageBox.information(self, f"{self.method_name} Help", explanation)
+        help_content = MIN_MAX_NORMALIZATION_HELP
+        dialog = HelpDialog("Min-Max Normalization Help", help_content, self)
+        dialog.exec_()
 
     def toggle_custom_range(self, state):
         enabled = state == Qt.Checked
@@ -420,8 +423,9 @@ class ZScoreNormalizationPanel(BaseNormalizationMethodPanel):
         self.setLayout(self.layout)
 
     def show_help(self):
-        explanation = "Z-score Normalization standardizes the data by removing the mean and scaling to unit variance."
-        QMessageBox.information(self, f"{self.method_name} Help", explanation)
+        help_content = Z_SCORE_NORMALIZATION_HELP
+        dialog = HelpDialog("Z-score Normalization Help", help_content, self)
+        dialog.exec_()
 
     def validate_inputs(self):
         mean_text = self.mean_input.text()
@@ -507,8 +511,9 @@ class RobustScalingNormalizationPanel(BaseNormalizationMethodPanel):
         self.setLayout(self.layout)
 
     def show_help(self):
-        explanation = "Robust Scaling Normalization scales data using statistics that are robust to outliers, such as the median and the interquartile range."
-        QMessageBox.information(self, f"{self.method_name} Help", explanation)
+        help_content = ROBUST_SCALING_NORMALIZATION_HELP
+        dialog = HelpDialog("Robust Scaling Normalization Help", help_content, self)
+        dialog.exec_()
 
     def validate_inputs(self):
         min_text = self.quantile_min_input.text()
@@ -564,6 +569,60 @@ class RobustScalingNormalizationPanel(BaseNormalizationMethodPanel):
             QMessageBox.warning(self, "Invalid Input", "Please enter valid numerical values for quantiles.")
             return None
 ###############################################
+
+class AUCNormalizationPanel(BaseNormalizationMethodPanel):
+    def __init__(self, parent=None):
+        super().__init__("AUC Normalization", parent)
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.apply_button.setEnabled(True)   # Enabled by default
+        self.save_button.setEnabled(False)   # Disabled by default
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        self.layout.addLayout(button_layout)
+
+        # Parameters for AUC Normalization
+        self.layout.addWidget(QLabel("AUC Normalization Parameters:"))
+
+        # Input for Sorting (optional, to ensure x-values are sorted)
+        self.sort_checkbox = QCheckBox("Sort data by X-axis")
+        self.sort_checkbox.setChecked(True)  # Enabled by default
+        self.layout.addWidget(self.sort_checkbox)
+
+        # Connect signals
+        self.sort_checkbox.stateChanged.connect(self.on_sort_checkbox_changed)
+
+        self.setLayout(self.layout)
+
+    def show_help(self):
+        help_content = AUC_NORMALIZATION_HELP
+        dialog = HelpDialog("AUC Normalization Help", help_content, self)
+        dialog.exec_()
+
+    def on_sort_checkbox_changed(self, state):
+        # If the user unchecks sorting, ensure that Apply can still proceed
+        self.save_button.setEnabled(False)  # Disable Save until normalization is applied
+        self.apply_button.setEnabled(True)  # Enable Apply button
+
+    def get_parameters(self):
+        params = {}
+        # Check if sorting is enabled
+        params['sort_data'] = self.sort_checkbox.isChecked()
+        return params
+########################################################
+
 
 class DatasetSelectionDialog(QDialog):
     def __init__(self, structure, parent=None):
