@@ -113,9 +113,6 @@ class NormalizationTab(QWidget):
 
         # Column 1: Normalization Functionalities with Collapsible Sections
 
-        # Define normalization functions
-        self.define_normalization_functions()
-
         # Define normalization methods
         self.normalization_methods = [
             "Min-Max Normalization",
@@ -144,7 +141,6 @@ class NormalizationTab(QWidget):
             # Connect Apply and Save buttons using default arguments to capture current panel
             panel.apply_button.clicked.connect(lambda checked, p=panel: self.apply_normalization(p))
             panel.save_button.clicked.connect(lambda checked, p=panel: self.save_normalized_data(p))
-
 
         # QGroupBox for Normalization Methods
         self.normalization_methods_groupbox = QGroupBox("Normalization Methods")
@@ -268,6 +264,10 @@ class NormalizationTab(QWidget):
                 background-color: #ffffff;  /* Set to white */
             }
         """)
+
+        # Define normalization functions
+        self.define_normalization_functions()
+
         
 
     def define_normalization_functions(self):
@@ -297,7 +297,6 @@ class NormalizationTab(QWidget):
             return self.normalization_functions[method_index]
         else:
             return None
-
 
     def apply_normalization(self, panel):
         # Get the selected data files
@@ -346,7 +345,7 @@ class NormalizationTab(QWidget):
 
         # Update the plot with normalized data
         self.update_normalized_plot()
-        panel.save_button.setEnabled(True)
+        panel.save_button.setEnabled(True)  # Enable Save button after normalization
 
     def save_normalized_data(self, panel):
         print("save_normalized_data called")
@@ -364,6 +363,8 @@ class NormalizationTab(QWidget):
         if not directory:
             print("No directory selected for saving.")
             return
+
+        normalized_file_paths = []  # To store paths of saved normalized files
 
         for file_path, (x, y_normalized) in self.normalized_data.items():
             try:
@@ -385,9 +386,16 @@ class NormalizationTab(QWidget):
                 df.to_csv(new_file_path, index=False)
                 print(f"File saved: {new_file_path}")
 
+                normalized_file_paths.append(new_file_path)  # Add to list
+
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
                 print(f"Error saving file {new_file_path}: {e}")
+
+        if normalized_file_paths:
+            # **Feature: Add Normalized Files to Selected Data Panel**
+            self.selected_data_panel.add_files(normalized_file_paths)  # Assuming this method exists
+            print(f"Normalized files added to Selected Data panel: {normalized_file_paths}")
 
         QMessageBox.information(self, "Save Successful", f"Normalized data saved to {directory}")
         print("All normalized files saved successfully.")
