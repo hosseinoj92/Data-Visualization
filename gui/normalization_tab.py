@@ -617,7 +617,7 @@ class NormalizationTab(QWidget):
         self.selected_data_panel.file_selector_button.clicked.connect(self.choose_files)
         self.selected_data_panel.add_file_button.clicked.connect(self.add_files)
         self.selected_data_panel.select_all_button.clicked.connect(self.toggle_select_all_files)
-        self.additional_text_panel.text_color_button.clicked.connect(self.choose_text_color)
+        #self.additional_text_panel.text_color_button.clicked.connect(self.choose_text_color)
         self.additional_text_panel.add_text_button.clicked.connect(self.add_text_to_plot)
         self.additional_text_panel.delete_text_button.clicked.connect(self.delete_text_from_plot)
         self.custom_annotations_panel.apply_changes_button.clicked.connect(self.apply_changes)
@@ -715,12 +715,12 @@ class NormalizationTab(QWidget):
         for item in selected_items:
             self.selected_data_panel.selected_files_list.takeItem(self.selected_data_panel.selected_files_list.row(item))
 
-    def choose_text_color(self):
+    '''def choose_text_color(self):
         color = QColorDialog.getColor()
         if color.isValid():
             self.text_color = color.name()
             self.additional_text_panel.set_text_color(self.text_color)
-
+'''
     def add_text_to_plot(self):
         text_details = self.additional_text_panel.get_text_details()
         if text_details['text'] and self.plot_type == "2D":
