@@ -4,7 +4,8 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QLabel, QToolButton, QScrollArea, QSizePolicy,
     QPushButton, QHBoxLayout, QFrame, QFileDialog, QListWidgetItem, QColorDialog, QTableWidget, QHeaderView, QTableWidgetItem,
-    QMessageBox, QButtonGroup, QGroupBox, QVBoxLayout, QDialog, QComboBox, QSpinBox, QCheckBox, QLineEdit
+    QMessageBox, QButtonGroup, QGroupBox,QTextEdit,
+      QVBoxLayout, QDialog, QComboBox, QSpinBox, QCheckBox, QLineEdit,QMessageBox
 
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QEvent
@@ -32,6 +33,7 @@ from matplotlib import style
 from matplotlib import font_manager as fm
 import sys
 from fontTools.ttLib import TTFont
+from functools import partial  # Import at the top
 
 ################################################################
 
@@ -330,7 +332,7 @@ class GeneralTab(QWidget):
                 table = QTableWidget()
                 table.setRowCount(len(df_head))
                 table.setColumnCount(len(df_head.columns))
-                table.setHorizontalHeaderLabels([f"Column {i+1}" for i in range(len(df_head.columns))])
+                table.setHorizontalHeaderLabels(df_head.columns.tolist())
                 table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
                 for i in range(len(df_head)):
@@ -339,12 +341,47 @@ class GeneralTab(QWidget):
 
                 self.data_layout.addWidget(QLabel(f"File: {item.text()}"))
                 self.data_layout.addWidget(table)
+
+                # Add Show Raw Data button
+                show_raw_data_button = QPushButton("Show Raw Data")
+                show_raw_data_button.clicked.connect(partial(self.show_raw_data, file_path))
+                self.data_layout.addWidget(show_raw_data_button)
+
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Error loading file {file_path}: {e}")
 
         self.data_window.setLayout(self.data_layout)
         self.data_window.setGeometry(150, 150, 800, 600)
         self.data_window.show()
+
+    def show_raw_data(self, file_path):
+        try:
+            # Read the first 20 lines of the raw data file
+            with open(file_path, 'r') as f:
+                lines = [next(f) for _ in range(20)]
+            raw_data = ''.join(lines)
+
+            # Create a new window to display the raw data
+            raw_data_window = QWidget()
+            raw_data_window.setWindowTitle(f"Raw Data - {os.path.basename(file_path)}")
+            layout = QVBoxLayout(raw_data_window)
+            text_edit = QTextEdit()
+            text_edit.setReadOnly(True)
+            text_edit.setPlainText(raw_data)
+            layout.addWidget(text_edit)
+            raw_data_window.setLayout(layout)
+            raw_data_window.setGeometry(200, 200, 600, 400)
+            raw_data_window.show()
+
+            # Keep a reference to the window
+            if not hasattr(self, 'raw_data_windows'):
+                self.raw_data_windows = []
+            self.raw_data_windows.append(raw_data_window)
+
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Error reading raw data from {file_path}: {e}")
+
+
 
     def eventFilter(self, obj, event):
         if obj == self.canvas and event.type() == QEvent.KeyPress:
