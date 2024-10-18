@@ -12,7 +12,8 @@ from PyQt5.QtGui import QIcon
 from gui.panels import (
     SelectedDataPanel, AxisDetailsPanel, AdditionalTextPanel,
     CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, 
-    MinMaxNormalizationPanel, ZScoreNormalizationPanel, RobustScalingNormalizationPanel    # Import new panels
+    MinMaxNormalizationPanel, ZScoreNormalizationPanel, RobustScalingNormalizationPanel,
+    AUCNormalizationPanel   
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -119,6 +120,7 @@ class NormalizationTab(QWidget):
             ("Min-Max Normalization", MinMaxNormalizationPanel),
             ("Z-score Normalization", ZScoreNormalizationPanel),
             ("Robust Scaling Normalization", RobustScalingNormalizationPanel),
+            ("AUC Normalization", AUCNormalizationPanel), 
             # Add tuples of (Method Name, Panel Class) here for future methods
         ]
 
@@ -308,6 +310,33 @@ class NormalizationTab(QWidget):
             min_max_normalization,          # Index 0
             z_score_normalization,          # Index 1
             robust_scaling_normalization,   # Index 2
+            # Add other normalization functions here as implemented
+        ]
+
+        def auc_normalization(y, sort_data=True):
+            if sort_data:
+                # Sort y based on x-values; assuming y corresponds to sorted x
+                sorted_indices = np.argsort(y)
+                y_sorted = y[sorted_indices]
+            else:
+                y_sorted = y
+
+            # Calculate AUC using the Trapezoidal Rule
+            auc = np.trapz(y_sorted, dx=1)  # Assuming uniform spacing; adjust 'dx' as needed
+            if auc == 0:
+                QMessageBox.warning(None, "Invalid AUC", "Area Under Curve is zero. Cannot normalize.")
+                return np.zeros_like(y)
+
+            # Normalize y
+            y_normalized = y / auc
+            return y_normalized
+
+        # Add normalization functions in the order of normalization_methods
+        self.normalization_functions = [
+            min_max_normalization,          # Index 0
+            z_score_normalization,          # Index 1
+            robust_scaling_normalization,   # Index 2
+            auc_normalization,              # Index 3
             # Add other normalization functions here as implemented
         ]
     
