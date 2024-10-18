@@ -4,14 +4,20 @@ import os
 from PyQt5.QtWidgets import (
     QGroupBox, QVBoxLayout, QGridLayout, QLabel, QLineEdit, QPushButton,
     QListWidget, QScrollArea, QCheckBox, QSpinBox, QComboBox, QHBoxLayout,
-    QListWidgetItem, QColorDialog, QMessageBox, QFileDialog, QWidget, QMenu, QDialog
+    QListWidgetItem, QColorDialog, QMessageBox, QFileDialog, QWidget, QMenu, QDialog,QDoubleSpinBox
 )
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QColor
 from utils import read_numeric_data  # Ensure this import is correct
 import h5py
 import pandas as pd
 from PyQt5.QtCore import pyqtSignal
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 class DraggableListWidget(QListWidget):
     def __init__(self, parent=None):
@@ -995,110 +1001,107 @@ class PlotDetailsPanel(QGroupBox):
             'scale_type': self.scale_type_combo.currentText(),
         }
 
-
 class NormalizationMethodPanel(QWidget):
-    def __init__(self, method_name):
-        super().__init__()
+    def __init__(self, method_name, parent=None):
+        super().__init__(parent)
         self.method_name = method_name
         self.init_ui()
 
     def init_ui(self):
         self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Method-Specific UI
+        if self.method_name == "Min-Max Normalization":
+            self.init_min_max_normalization_ui()
+        else:
+            self.layout.addWidget(QLabel("No normalization methods available."))
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.apply_button.setEnabled(False)  # Disabled until parameters are set
+        self.save_button.setEnabled(False)
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        self.layout.addLayout(button_layout)
+
         self.setLayout(self.layout)
 
-        # Add input fields based on method_name
-        if self.method_name == "Area Within a Specific Interval":
-            self.layout.addWidget(QLabel("Start Interval:"))
-            self.start_interval_input = QLineEdit()
-            self.layout.addWidget(self.start_interval_input)
-
-            self.layout.addWidget(QLabel("End Interval:"))
-            self.end_interval_input = QLineEdit()
-            self.layout.addWidget(self.end_interval_input)
-        
-        elif self.method_name == "Normalization to a Reference Peak":
-            self.layout.addWidget(QLabel("Reference Peak Index:"))
-            self.reference_peak_index_input = QLineEdit()
-            self.layout.addWidget(self.reference_peak_index_input)
-        
-        elif self.method_name == "Multiplicative Scatter Correction (MSC)":
-            self.layout.addWidget(QLabel("Reference Spectrum File:"))
-            self.reference_spectrum_button = QPushButton("Choose Reference Spectrum")
-            self.layout.addWidget(self.reference_spectrum_button)
-            self.reference_spectrum_button.clicked.connect(self.choose_reference_spectrum)
-        
-        elif self.method_name == "Baseline Correction Normalization":
-            self.layout.addWidget(QLabel("Baseline File:"))
-            self.baseline_file_button = QPushButton("Choose Baseline File")
-            self.layout.addWidget(self.baseline_file_button)
-            self.baseline_file_button.clicked.connect(self.choose_baseline_file)
-        
-        elif self.method_name == "Normalization Within a Moving Window":
-            self.layout.addWidget(QLabel("Window Size:"))
-            self.window_size_input = QLineEdit()
-            self.layout.addWidget(self.window_size_input)
-        
-        # Add Apply and Save buttons
-        self.apply_button = QPushButton("Apply Normalization")
-        self.save_button = QPushButton("Save Normalized Data")
-        self.layout.addWidget(self.apply_button)
-        self.layout.addWidget(self.save_button)
-
-    def choose_reference_spectrum(self):
-        file_dialog = QFileDialog()
-        file_dialog.setFileMode(QFileDialog.ExistingFile)
-        file_dialog.setDirectory(os.path.dirname(self.reference_spectrum_button.text()) if hasattr(self, 'reference_spectrum_button') else os.path.expanduser("~"))
-        file_path, _ = file_dialog.getOpenFileName(self, "Select Reference Spectrum", self.parent().selected_data_panel.last_directory, "CSV Files (*.csv);;All Files (*)")
-        if file_path:
-            self.reference_spectrum_file = file_path
-            self.reference_spectrum_button.setText(os.path.basename(file_path))
-            # Update last_directory
-            self.parent().selected_data_panel.last_directory = os.path.dirname(file_path)
-
-    def choose_baseline_file(self):
-        file_dialog = QFileDialog()
-        file_dialog.setFileMode(QFileDialog.ExistingFile)
-        file_dialog.setDirectory(os.path.dirname(self.baseline_file_button.text()) if hasattr(self, 'baseline_file_button') else os.path.expanduser("~"))
-        file_path, _ = file_dialog.getOpenFileName(self, "Select Baseline File", self.parent().selected_data_panel.last_directory, "CSV Files (*.csv);;All Files (*)")
-        if file_path:
-            self.baseline_file = file_path
-            self.baseline_file_button.setText(os.path.basename(file_path))
-            # Update last_directory
-            self.parent().selected_data_panel.last_directory = os.path.dirname(file_path)
+    def show_help(self):
+        explanations = {
+            "Min-Max Normalization": "Rescales data to a fixed range, typically [0, 1].",
+            # Add explanations for other methods here when implemented
+        }
+        explanation = explanations.get(self.method_name, "No explanation available.")
+        QMessageBox.information(self, f"{self.method_name} Help", explanation)
 
     def get_parameters(self):
+        # Return method-specific parameters
         params = {}
-        try:
-            if self.method_name == "Area Within a Specific Interval":
-                start = float(self.start_interval_input.text())
-                end = float(self.end_interval_input.text())
-                params['interval'] = (start, end)
-            
-            elif self.method_name == "Normalization to a Reference Peak":
-                reference_peak_index = int(self.reference_peak_index_input.text())
-                params['reference_peak_index'] = reference_peak_index
-            
-            elif self.method_name == "Multiplicative Scatter Correction (MSC)":
-                if not hasattr(self, 'reference_spectrum_file'):
-                    QMessageBox.warning(self, "Missing Reference", "Please choose a reference spectrum file.")
+        if self.method_name == "Min-Max Normalization":
+            params['use_custom'] = self.use_custom_range_checkbox.isChecked()
+            if params['use_custom']:
+                custom_min = self.custom_min_spinbox.value()
+                custom_max = self.custom_max_spinbox.value()
+                if custom_max <= custom_min:
+                    QMessageBox.warning(self, "Invalid Range", "Custom Max must be greater than Custom Min.")
                     return None
-                params['reference'] = self.reference_spectrum_file
-            
-            elif self.method_name == "Baseline Correction Normalization":
-                if not hasattr(self, 'baseline_file'):
-                    QMessageBox.warning(self, "Missing Baseline", "Please choose a baseline file.")
-                    return None
-                params['baseline'] = self.baseline_file
-            
-            elif self.method_name == "Normalization Within a Moving Window":
-                window_size = int(self.window_size_input.text())
-                params['window_size'] = window_size
-            
-        except ValueError:
-            QMessageBox.warning(self, "Invalid Parameters", "Please enter valid parameter values.")
-            return None
-
+                params['custom_min'] = custom_min
+                params['custom_max'] = custom_max
+            else:
+                params['custom_min'] = None
+                params['custom_max'] = None
+        else:
+            pass  # Other methods may not require extra parameters
         return params
+
+    def init_min_max_normalization_ui(self):
+        # Checkbox to toggle custom min-max values
+        self.use_custom_range_checkbox = QCheckBox("Use custom min-max values")
+        self.layout.addWidget(self.use_custom_range_checkbox)
+
+        # Layout for custom min and max spin boxes
+        custom_range_layout = QHBoxLayout()
+        custom_range_layout.addWidget(QLabel("Min:"))
+        self.custom_min_spinbox = QDoubleSpinBox()
+        self.custom_min_spinbox.setEnabled(False)
+        self.custom_min_spinbox.setRange(-1e6, 1e6)
+        self.custom_min_spinbox.setValue(0.0)  # Default min
+        custom_range_layout.addWidget(self.custom_min_spinbox)
+
+        custom_range_layout.addWidget(QLabel("Max:"))
+        self.custom_max_spinbox = QDoubleSpinBox()
+        self.custom_max_spinbox.setEnabled(False)
+        self.custom_max_spinbox.setRange(-1e6, 1e6)
+        self.custom_max_spinbox.setValue(1.0)  # Default max
+        custom_range_layout.addWidget(self.custom_max_spinbox)
+
+        self.layout.addLayout(custom_range_layout)
+
+        # Connect the checkbox to enable/disable spin boxes
+        self.use_custom_range_checkbox.stateChanged.connect(self.toggle_custom_range)
+
+        # Connect spin boxes to enable Apply button
+        self.custom_min_spinbox.valueChanged.connect(self.enable_apply_button)
+        self.custom_max_spinbox.valueChanged.connect(self.enable_apply_button)
+
+    def toggle_custom_range(self, state):
+        enabled = state == Qt.Checked
+        self.custom_min_spinbox.setEnabled(enabled)
+        self.custom_max_spinbox.setEnabled(enabled)
+        self.apply_button.setEnabled(True)  # Enable Apply button when method is selected
+        self.save_button.setEnabled(False)  # Disable Save until normalization is applied
+
+    def enable_apply_button(self):
+        self.apply_button.setEnabled(True)
+        self.save_button.setEnabled(False)
 
 class GeneratedCSVFilesPanel(QGroupBox):
     def __init__(self, parent=None):
