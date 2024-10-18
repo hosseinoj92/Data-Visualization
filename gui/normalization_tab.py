@@ -13,7 +13,7 @@ from gui.panels import (
     SelectedDataPanel, AxisDetailsPanel, AdditionalTextPanel,
     CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, 
     MinMaxNormalizationPanel, ZScoreNormalizationPanel, RobustScalingNormalizationPanel,
-    AUCNormalizationPanel   
+    AUCNormalizationPanel,IntervalAUCNormalizationPanel
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -121,6 +121,7 @@ class NormalizationTab(QWidget):
             ("Z-score Normalization", ZScoreNormalizationPanel),
             ("Robust Scaling Normalization", RobustScalingNormalizationPanel),
             ("AUC Normalization", AUCNormalizationPanel), 
+            ("Interval AUC Normalization", IntervalAUCNormalizationPanel),
             # Add tuples of (Method Name, Panel Class) here for future methods
         ]
 
@@ -313,7 +314,7 @@ class NormalizationTab(QWidget):
             # Add other normalization functions here as implemented
         ]
 
-        def auc_normalization(y, sort_data=True):
+        def auc_normalization(y,x=None, sort_data=True):
             if sort_data:
                 # Sort y based on x-values; assuming y corresponds to sorted x
                 sorted_indices = np.argsort(y)
@@ -339,6 +340,45 @@ class NormalizationTab(QWidget):
             auc_normalization,              # Index 3
             # Add other normalization functions here as implemented
         ]
+
+
+        def interval_auc_normalization(y, x, desired_auc, interval_start, interval_end):
+            # Sort data based on x-values
+            sorted_indices = np.argsort(x)
+            x_sorted = x[sorted_indices]
+            y_sorted = y[sorted_indices]
+
+            # Find indices within the interval
+            interval_mask = (x_sorted >= interval_start) & (x_sorted <= interval_end)
+            if not np.any(interval_mask):
+                QMessageBox.warning(None, "Invalid Interval", "No data points found within the specified interval.")
+                return None
+
+            x_interval = x_sorted[interval_mask]
+            y_interval = y_sorted[interval_mask]
+
+            # Calculate current AUC within the interval
+            current_auc = np.trapz(y_interval, x_interval)
+            if current_auc == 0:
+                QMessageBox.warning(None, "Invalid AUC", "Current AUC within the interval is zero. Cannot normalize.")
+                return None
+
+            # Calculate scaling factor
+            scaling_factor = desired_auc / current_auc
+
+            # Scale all y-values
+            y_normalized = y * scaling_factor
+            return y_normalized
+        
+        self.normalization_functions = [
+            min_max_normalization,          # Index 0
+            z_score_normalization,          # Index 1
+            robust_scaling_normalization,   # Index 2
+            auc_normalization,      
+            interval_auc_normalization        # Index 3
+            # Add other normalization functions here as implemented
+        ]
+            
     
     def get_normalization_function(self, method_index):
         if 0 <= method_index < len(self.normalization_functions):
@@ -373,18 +413,38 @@ class NormalizationTab(QWidget):
         if params is None:
             return  # Error message already shown
 
+        # Define which methods accept the 'x' parameter
+        methods_accepting_x = ["AUC Normalization", "Interval AUC Normalization"]
+
         # Apply normalization to each selected file
         self.normalized_data = {}  # Reset normalized data
         for file_path in data_files:
             try:
                 df = pd.read_csv(file_path)
-                x_col = int(self.plot_details_panel.get_plot_details()['x_axis_col']) - 1
-                y_col = int(self.plot_details_panel.get_plot_details()['y_axis_col']) - 1
+                plot_details = self.plot_details_panel.get_plot_details()
+                x_col = int(plot_details['x_axis_col']) - 1
+                y_col = int(plot_details['y_axis_col']) - 1
                 x = df.iloc[:, x_col].values
                 y = df.iloc[:, y_col].values
 
-                # Apply normalization
-                y_normalized = method_func(y, **params)
+                # Determine if 'x' should be passed based on the method
+                if panel.method_name in methods_accepting_x:
+                    if panel.method_name == "Interval AUC Normalization":
+                        # For Interval AUC Normalization, pass additional parameters
+                        y_normalized = method_func(
+                            y,
+                            x=x,
+                            desired_auc=params['desired_auc'],
+                            interval_start=params['interval_start'],
+                            interval_end=params['interval_end']
+                        )
+                    else:
+                        # For AUC Normalization, pass 'x' along with other parameters
+                        y_normalized = method_func(y, x=x, **params)
+                else:
+                    # For other normalization methods, do not pass 'x'
+                    y_normalized = method_func(y, **params)
+
                 if y_normalized is None:
                     continue
 
@@ -396,7 +456,7 @@ class NormalizationTab(QWidget):
 
         # Update the plot with normalized data
         self.update_normalized_plot()
-        panel.save_button.setEnabled(True)  # Enable Save button after normalization
+        panel.save_button.setEnabled(True)  
 
     def save_normalized_data(self, panel):
         print("save_normalized_data called")
