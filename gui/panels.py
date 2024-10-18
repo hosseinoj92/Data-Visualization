@@ -256,442 +256,314 @@ class SelectedDataPanel(QGroupBox):
         # Implementation as per your application logic
         pass
 
-
-class H5DataHandlingPanel(QGroupBox):
-    def __init__(self, selected_data_panel, parent=None):
-        super().__init__("H5 Data Handling", parent)
-        self.selected_data_panel = selected_data_panel
-        self.parent_widget = parent  # Reference to DataHandlingTab
+class BaseNormalizationMethodPanel(QWidget):
+    """
+    Abstract base class for normalization method panels.
+    Each normalization method should inherit from this class and implement the required methods.
+    """
+    def __init__(self, method_name, parent=None):
+        super().__init__(parent)
+        self.method_name = method_name
         self.init_ui()
+    
+    def init_ui(self):
+        """
+        Initialize the UI components. Must be implemented by subclasses.
+        """
+        raise NotImplementedError("Must implement init_ui in subclass")
+    
+    def get_parameters(self):
+        """
+        Retrieve method-specific parameters. Must be implemented by subclasses.
+        """
+        raise NotImplementedError("Must implement get_parameters in subclass")
 
+####################################################################
+
+class MinMaxNormalizationPanel(BaseNormalizationMethodPanel):
+    def __init__(self, parent=None):
+        super().__init__("Min-Max Normalization", parent)
+    
     def init_ui(self):
         self.layout = QVBoxLayout()
 
-        # Collapsible Local Processing Section
-        self.local_processing_group = QGroupBox("Local Processing Selected H5 Files")
-        self.local_processing_group.setCheckable(True)
-        self.local_processing_group.setChecked(True)
-        local_layout = QVBoxLayout()
-        self.local_processing_group.setLayout(local_layout)
+        # Help Button
+        help_button = QPushButton("Help")
+        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
 
-        # Select H5 Files Button
-        self.select_h5_files_button = QPushButton("Select H5 Files")
-        self.select_h5_files_button.setIcon(QIcon('gui/resources/select_h5_icon.png'))  # Ensure the icon exists
-        self.select_h5_files_button.clicked.connect(self.select_h5_files)
-        local_layout.addWidget(self.select_h5_files_button)
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.apply_button.setEnabled(True)   # Enabled by default
+        self.save_button.setEnabled(False)   # Disabled by default
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        self.layout.addLayout(button_layout)
 
-        # List of Selected H5 Files
-        self.h5_files_list = QListWidget()
-        local_layout.addWidget(self.h5_files_list)
+        # Custom Min-Max Range
+        self.use_custom_range_checkbox = QCheckBox("Use custom min-max values")
+        self.layout.addWidget(self.use_custom_range_checkbox)
 
-        # Select Datasets Button
-        self.select_datasets_button = QPushButton("Select Datasets")
-        self.select_datasets_button.setIcon(QIcon('gui/resources/select_datasets_icon.png'))  # Ensure the icon exists
-        self.select_datasets_button.clicked.connect(self.select_datasets)
-        local_layout.addWidget(self.select_datasets_button)
+        custom_range_layout = QHBoxLayout()
+        custom_range_layout.addWidget(QLabel("Min:"))
+        self.custom_min_spinbox = QDoubleSpinBox()
+        self.custom_min_spinbox.setEnabled(False)
+        self.custom_min_spinbox.setRange(-1e6, 1e6)
+        self.custom_min_spinbox.setValue(0.0)
+        custom_range_layout.addWidget(self.custom_min_spinbox)
 
-        # List of Selected Datasets
-        self.selected_datasets_list = QListWidget()
-        local_layout.addWidget(self.selected_datasets_list)
+        custom_range_layout.addWidget(QLabel("Max:"))
+        self.custom_max_spinbox = QDoubleSpinBox()
+        self.custom_max_spinbox.setEnabled(False)
+        self.custom_max_spinbox.setRange(-1e6, 1e6)
+        self.custom_max_spinbox.setValue(1.0)
+        custom_range_layout.addWidget(self.custom_max_spinbox)
 
-        # Combine and Export Button
-        self.combine_export_button = QPushButton("Combine and Export")
-        self.combine_export_button.setIcon(QIcon('gui/resources/combine_export_icon.png'))  # Ensure the icon exists
-        self.combine_export_button.clicked.connect(self.combine_and_export)
-        self.combine_export_button.setEnabled(False)  # Disabled until datasets are selected
-        local_layout.addWidget(self.combine_export_button)
+        self.layout.addLayout(custom_range_layout)
 
-        # Generated CSV Files Label and List
-        self.csv_files_label = QLabel("Generated CSV Files:")
-        local_layout.addWidget(self.csv_files_label)
-        #self.csv_files_list = QListWidget()
-        #local_layout.addWidget(self.csv_files_list)
-
-        # Send to Local Tabs Section
-        self.send_to_tabs_group = QGroupBox("Send to Local Tabs")
-        send_to_tabs_layout = QHBoxLayout()
-        self.send_to_tabs_group.setLayout(send_to_tabs_layout)
-
-        self.general_tab_checkbox = QCheckBox("General Tab")
-        self.normalization_tab_checkbox = QCheckBox("Normalization Tab")
-        send_to_tabs_layout.addWidget(self.general_tab_checkbox)
-        send_to_tabs_layout.addWidget(self.normalization_tab_checkbox)
-
-        local_layout.addWidget(self.send_to_tabs_group)
-
-        # Apply Button for Sending CSV Files
-        self.apply_send_button = QPushButton("Send to Selected Tabs")
-        self.apply_send_button.clicked.connect(self.send_csv_files_to_tabs)
-        self.apply_send_button.setEnabled(False)  # Disabled until CSV files are generated
-        local_layout.addWidget(self.apply_send_button)
-
-        # Add the Local Processing section to the main layout
-        self.layout.addWidget(self.local_processing_group)
-
-        # Collapsible Batch Processing Section
-        self.batch_processing_group = QGroupBox("Batch Processing H5 Files")
-        self.batch_processing_group.setCheckable(True)
-        self.batch_processing_group.setChecked(False)
-        batch_layout = QVBoxLayout()
-        self.batch_processing_group.setLayout(batch_layout)
-
-        # Select Directory Button
-        self.select_directory_button = QPushButton("Select Directory")
-        self.select_directory_button.setIcon(QIcon('gui/resources/select_directory_icon.png'))  # Ensure the icon exists
-        self.select_directory_button.clicked.connect(self.select_directory)
-        batch_layout.addWidget(self.select_directory_button)
-
-        # Directory Label
-        self.directory_label = QLabel("No directory selected.")
-        batch_layout.addWidget(self.directory_label)
-
-        # Include All Subfolders Checkbox
-        self.include_subfolders_checkbox = QCheckBox("Include All Subfolders")
-        batch_layout.addWidget(self.include_subfolders_checkbox)
-
-        # Select Datasets Button
-        self.batch_select_datasets_button = QPushButton("Select Datasets")
-        self.batch_select_datasets_button.setIcon(QIcon('gui/resources/select_datasets_icon.png'))  # Ensure the icon exists
-        self.batch_select_datasets_button.clicked.connect(self.batch_select_datasets)
-        batch_layout.addWidget(self.batch_select_datasets_button)
-
-        # Combine and Export Button for Batch Processing
-        self.batch_combine_export_button = QPushButton("Combine and Export")
-        self.batch_combine_export_button.setIcon(QIcon('gui/resources/combine_export_icon.png'))  # Ensure the icon exists
-        self.batch_combine_export_button.clicked.connect(self.batch_combine_and_export)
-        self.batch_combine_export_button.setEnabled(False)  # Disabled until datasets are selected
-        batch_layout.addWidget(self.batch_combine_export_button)
-
-        # Add the Batch Processing section to the main layout
-        self.layout.addWidget(self.batch_processing_group)
+        # Connect signals
+        self.use_custom_range_checkbox.stateChanged.connect(self.toggle_custom_range)
+        self.custom_min_spinbox.valueChanged.connect(self.validate_inputs)
+        self.custom_max_spinbox.valueChanged.connect(self.validate_inputs)
 
         self.setLayout(self.layout)
 
-    # ----------------- Local Processing Methods -----------------
+    def show_help(self):
+        explanation = "Min-Max Normalization rescales the data to a fixed range, typically [0, 1]."
+        QMessageBox.information(self, f"{self.method_name} Help", explanation)
 
-    def select_h5_files(self):
-        files, _ = QFileDialog.getOpenFileNames(self, "Select H5 Files", "", "H5 Files (*.h5 *.hdf5);;All Files (*)")
-        if files:
-            self.h5_files_list.clear()
-            for file in files:
-                item = QListWidgetItem(os.path.basename(file))
-                item.setData(Qt.UserRole, file)
-                self.h5_files_list.addItem(item)
-            self.combine_export_button.setEnabled(True)
+    def toggle_custom_range(self, state):
+        enabled = state == Qt.Checked
+        self.custom_min_spinbox.setEnabled(enabled)
+        self.custom_max_spinbox.setEnabled(enabled)
+        self.save_button.setEnabled(False)  # Disable Save until normalization is applied
 
-    def select_datasets(self):
-        # Get selected H5 files
-        h5_files = [self.h5_files_list.item(i).data(Qt.UserRole) for i in range(self.h5_files_list.count())]
-        if not h5_files:
-            QMessageBox.warning(self, "No H5 Files Selected", "Please select H5 files first.")
-            return
+        # Enable Apply button based on input validity
+        self.validate_inputs()
 
-        # Assume structural consistency and select datasets from the first file
-        try:
-            with h5py.File(h5_files[0], 'r') as h5_file:
-                structure = self.get_h5_structure(h5_file)
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to read H5 file {h5_files[0]}:\n{e}")
-            return
-
-        # Open a dialog to select datasets
-        selected_datasets = self.show_structure_and_get_datasets(structure)
-        if selected_datasets:
-            self.selected_datasets_list.clear()
-            for dataset in selected_datasets:
-                item = QListWidgetItem(dataset)
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-                item.setCheckState(Qt.Checked)
-                self.selected_datasets_list.addItem(item)
-            self.combine_export_button.setEnabled(True)
-        else:
-            self.selected_datasets_list.clear()
-            self.combine_export_button.setEnabled(False)
-
-    def show_structure_and_get_datasets(self, structure):
-        # Display the structure and allow the user to select datasets
-        dialog = DatasetSelectionDialog(structure, self)
-        if dialog.exec_() == QDialog.Accepted:
-            selected_datasets = dialog.get_selected_datasets()
-            return selected_datasets
-        else:
-            return []
-
-    def combine_and_export(self):
-        # Get selected datasets from the list
-        selected_datasets = [
-            self.selected_datasets_list.item(i).text()
-            for i in range(self.selected_datasets_list.count())
-            if self.selected_datasets_list.item(i).checkState() == Qt.Checked
-        ]
-
-        if not selected_datasets:
-            QMessageBox.warning(self, "No Datasets Selected", "Please select at least one dataset to combine.")
-            return
-
-        # Get selected H5 files
-        h5_files = [self.h5_files_list.item(i).data(Qt.UserRole) for i in range(self.h5_files_list.count())]
-        if not h5_files:
-            QMessageBox.warning(self, "No H5 Files Selected", "Please select H5 files first.")
-            return
-
-        # Initialize list to store CSV file paths
-        csv_files = []
-
-        # Process each H5 file
-        for file in h5_files:
-            try:
-                with h5py.File(file, 'r') as h5_file:
-                    data = self.extract_datasets(h5_file, selected_datasets)
-                
-                # Combine datasets into a single CSV
-                combined_csv = self.combine_datasets_to_csv(data, file)
-                csv_files.append(combined_csv)
-                
-                # Add generated CSV to the CSV Files List
-                #self.csv_files_list.add_item(combined_csv)
-                
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Failed to process H5 file {file}:\n{e}")
-                continue  # Proceed to next file
-
-        if csv_files:
-            QMessageBox.information(self, "Export Complete", "Selected datasets have been combined and exported as CSV files.")
-            self.apply_send_button.setEnabled(True)
-        else:
-            QMessageBox.warning(self, "No CSV Created", "No CSV files were created.")
-
-    def extract_datasets(self, h5_file, datasets):
-        # Extract selected datasets
-        data = {}
-        for dataset_name in datasets:
-            if dataset_name in h5_file:
-                data[dataset_name] = h5_file[dataset_name][:]
+    def validate_inputs(self):
+        if self.use_custom_range_checkbox.isChecked():
+            custom_min = self.custom_min_spinbox.value()
+            custom_max = self.custom_max_spinbox.value()
+            if custom_max > custom_min:
+                self.apply_button.setEnabled(True)
             else:
-                raise KeyError(f"Dataset {dataset_name} not found in H5 file.")
-        return data
-
-    def combine_datasets_to_csv(self, data, h5_file_path):
-        # Combine datasets into a DataFrame
-        df = pd.DataFrame()
-        for dataset_name, values in data.items():
-            # Handle datasets based on dimensions
-            if values.ndim == 1:
-                df[dataset_name] = values
-            elif values.ndim == 2:
-                # For 2D datasets, flatten columns
-                for i in range(values.shape[1]):
-                    col_name = f"{dataset_name}_{i}"
-                    df[col_name] = values[:, i]
-            else:
-                # Skip datasets with higher dimensions
-                continue
-
-        # Define the CSV file path
-        base_name = os.path.splitext(os.path.basename(h5_file_path))[0]
-        csv_file_name = f"{base_name}_combined.csv"
-        csv_file_path = os.path.join(os.path.dirname(h5_file_path), csv_file_name)
-
-        # Save DataFrame to CSV
-        df.to_csv(csv_file_path, index=False)
-        return csv_file_path
-
-    def add_item(self, csv_file_path):
-        """
-        Add a CSV file to the CSV Files List.
-        """
-        file_name = os.path.basename(csv_file_path)
-        item = QListWidgetItem(file_name)
-        item.setData(Qt.UserRole, csv_file_path)
-        item.setFlags(item.flags() | Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-        self.csv_files_list.addItem(item)
-
-    def delete_selected_csv_files(self):
-        """
-        Delete selected CSV files from the list.
-        """
-        selected_items = self.csv_files_list.selectedItems()
-        if not selected_items:
-            QMessageBox.information(self, "No Selection", "No CSV files selected to delete.")
-            return
-        reply = QMessageBox.question(
-            self, 'Confirm Deletion',
-            f"Are you sure you want to delete the selected {len(selected_items)} CSV file(s)?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-        )
-        if reply == QMessageBox.Yes:
-            for item in selected_items:
-                csv_file_path = item.data(Qt.UserRole)
-                try:
-                    os.remove(csv_file_path)
-                except Exception as e:
-                    QMessageBox.warning(self, "Error", f"Failed to delete {csv_file_path}:\n{e}")
-                    continue
-                self.csv_files_list.takeItem(self.csv_files_list.row(item))
-            QMessageBox.information(self, "Deletion Successful", f"Deleted {len(selected_items)} CSV file(s).")
-
-    def send_csv_files_to_tabs(self):
-        selected_items = self.csv_files_list.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "No CSV Files Selected", "Please select CSV files to send.")
-            return
-
-        target_tabs = []
-        if self.general_tab_checkbox.isChecked():
-            target_tabs.append(self.parent_widget.parent().general_tab)  # Adjust according to your tab structure
-        if self.normalization_tab_checkbox.isChecked():
-            target_tabs.append(self.parent_widget.parent().normalization_tab)  # Adjust accordingly
-
-        if not target_tabs:
-            QMessageBox.warning(self, "No Tabs Selected", "Please select at least one tab to send files to.")
-            return
-
-        for item in selected_items:
-            file_path = item.data(Qt.UserRole)
-            for tab in target_tabs:
-                tab.selected_data_panel.add_file_to_panel([file_path])
-
-        QMessageBox.information(self, "Send Successful", "Selected CSV files have been sent to the chosen tabs.")
-
-    # ----------------- Batch Processing Methods -----------------
-
-    def select_directory(self):
-        directory = QFileDialog.getExistingDirectory(self, "Select Directory Containing H5 Files")
-        if directory:
-            self.selected_directory = directory
-            self.directory_label.setText(f"Selected Directory: {directory}")
-            self.batch_combine_export_button.setEnabled(True)
+                self.apply_button.setEnabled(False)
         else:
-            self.selected_directory = None
-            self.directory_label.setText("No directory selected.")
-            self.batch_combine_export_button.setEnabled(False)
-
-    def batch_select_datasets(self):
-        if not hasattr(self, 'selected_directory') or not self.selected_directory:
-            QMessageBox.warning(self, "No Directory Selected", "Please select a directory first.")
-            return
-
-        # Collect all H5 files in the directory (and subdirectories if checked)
-        include_subfolders = self.include_subfolders_checkbox.isChecked()
-        h5_files = []
-        if include_subfolders:
-            for root, dirs, files in os.walk(self.selected_directory):
-                for file in files:
-                    if file.endswith('.h5') or file.endswith('.hdf5'):
-                        h5_files.append(os.path.join(root, file))
+            # If not using custom range, Apply should be enabled
+            self.apply_button.setEnabled(True)
+    
+    def get_parameters(self):
+        params = {}
+        params['use_custom'] = self.use_custom_range_checkbox.isChecked()
+        if params['use_custom']:
+            custom_min = self.custom_min_spinbox.value()
+            custom_max = self.custom_max_spinbox.value()
+            if custom_max <= custom_min:
+                QMessageBox.warning(self, "Invalid Range", "Custom Max must be greater than Custom Min.")
+                return None
+            params['custom_min'] = custom_min
+            params['custom_max'] = custom_max
         else:
-            for file in os.listdir(self.selected_directory):
-                if file.endswith('.h5') or file.endswith('.hdf5'):
-                    h5_files.append(os.path.join(self.selected_directory, file))
+            params['custom_min'] = None
+            params['custom_max'] = None
+        return params
 
-        if not h5_files:
-            QMessageBox.warning(self, "No H5 Files Found", "No H5 files found in the selected directory.")
-            return
 
-        # Assume structural consistency and select datasets from the first file
-        try:
-            with h5py.File(h5_files[0], 'r') as h5_file:
-                structure = self.get_h5_structure(h5_file)
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to read H5 file {h5_files[0]}:\n{e}")
-            return
+##################################################################
 
-        # Open a dialog to select datasets
-        selected_datasets = self.show_structure_and_get_datasets(structure)
-        if selected_datasets:
-            self.selected_datasets_list.clear()
-            for dataset in selected_datasets:
-                item = QListWidgetItem(dataset)
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable | Qt.ItemIsEnabled)
-                item.setCheckState(Qt.Checked)
-                self.selected_datasets_list.addItem(item)
-            self.batch_combine_export_button.setEnabled(True)
-        else:
-            self.selected_datasets_list.clear()
-            self.batch_combine_export_button.setEnabled(False)
+class ZScoreNormalizationPanel(BaseNormalizationMethodPanel):
+    def __init__(self, parent=None):
+        super().__init__("Z-score Normalization", parent)
+    
+    def init_ui(self):
+        self.layout = QVBoxLayout()
 
-    def batch_combine_and_export(self):
-        # Get selected datasets from the list
-        selected_datasets = [
-            self.selected_datasets_list.item(i).text()
-            for i in range(self.selected_datasets_list.count())
-            if self.selected_datasets_list.item(i).checkState() == Qt.Checked
-        ]
+        # Help Button
+        help_button = QPushButton("Help")
+        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
 
-        if not selected_datasets:
-            QMessageBox.warning(self, "No Datasets Selected", "Please select at least one dataset to combine.")
-            return
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.apply_button.setEnabled(True)   # Enabled by default
+        self.save_button.setEnabled(False)   # Disabled by default
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        self.layout.addLayout(button_layout)
 
-        if not hasattr(self, 'selected_directory') or not self.selected_directory:
-            QMessageBox.warning(self, "No Directory Selected", "Please select a directory first.")
-            return
+        # Parameters for Z-score
+        self.layout.addWidget(QLabel("Z-score Parameters:"))
 
-        # Collect all H5 files
-        include_subfolders = self.include_subfolders_checkbox.isChecked()
-        h5_files = []
-        if include_subfolders:
-            for root, dirs, files in os.walk(self.selected_directory):
-                for file in files:
-                    if file.endswith('.h5') or file.endswith('.hdf5'):
-                        h5_files.append(os.path.join(root, file))
-        else:
-            for file in os.listdir(self.selected_directory):
-                if file.endswith('.h5') or file.endswith('.hdf5'):
-                    h5_files.append(os.path.join(self.selected_directory, file))
+        # Input for Mean
+        self.mean_input = QLineEdit()
+        self.mean_input.setPlaceholderText("Leave blank for data mean")
+        self.layout.addWidget(QLabel("Mean:"))
+        self.layout.addWidget(self.mean_input)
 
-        if not h5_files:
-            QMessageBox.warning(self, "No H5 Files Found", "No H5 files found in the selected directory.")
-            return
+        # Input for Standard Deviation
+        self.std_input = QLineEdit()
+        self.std_input.setPlaceholderText("Leave blank for data std")
+        self.layout.addWidget(QLabel("Standard Deviation:"))
+        self.layout.addWidget(self.std_input)
 
-        # Initialize list to store CSV file paths
-        csv_files = []
+        # Connect inputs to enable Apply button
+        self.mean_input.textChanged.connect(self.validate_inputs)
+        self.std_input.textChanged.connect(self.validate_inputs)
 
-        # Process each H5 file
-        for file in h5_files:
+        self.setLayout(self.layout)
+
+    def show_help(self):
+        explanation = "Z-score Normalization standardizes the data by removing the mean and scaling to unit variance."
+        QMessageBox.information(self, f"{self.method_name} Help", explanation)
+
+    def validate_inputs(self):
+        mean_text = self.mean_input.text()
+        std_text = self.std_input.text()
+        valid = True
+
+        # If mean is provided, it must be a valid float
+        if mean_text:
             try:
-                with h5py.File(file, 'r') as h5_file:
-                    data = self.extract_datasets(h5_file, selected_datasets)
-                
-                # Combine datasets into a single CSV
-                combined_csv = self.combine_datasets_to_csv(data, file)
-                csv_files.append(combined_csv)
-                
-                # Add generated CSV to the CSV Files List
-                self.csv_files_list.add_item(combined_csv)
-                
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Failed to process H5 file {file}:\n{e}")
-                continue  # Proceed to next file
+                float(mean_text)
+            except ValueError:
+                valid = False
 
-        if csv_files:
-            QMessageBox.information(self, "Export Complete", "Selected datasets have been combined and exported as CSV files.")
-            self.apply_send_button.setEnabled(True)
+        # If std is provided, it must be a valid float and not zero
+        if std_text:
+            try:
+                std_val = float(std_text)
+                if std_val == 0:
+                    valid = False
+            except ValueError:
+                valid = False
+
+        # Enable Apply button if inputs are valid
+        self.apply_button.setEnabled(valid)
+
+    def get_parameters(self):
+        params = {}
+        mean_text = self.mean_input.text()
+        std_text = self.std_input.text()
+        try:
+            params['mean'] = float(mean_text) if mean_text else None
+            params['std'] = float(std_text) if std_text else None
+            if params['std'] is not None and params['std'] == 0:
+                QMessageBox.warning(self, "Invalid Standard Deviation", "Standard deviation cannot be zero.")
+                return None
+            return params
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter valid numerical values for mean and standard deviation.")
+            return None
+###########################################################
+
+class RobustScalingNormalizationPanel(BaseNormalizationMethodPanel):
+    def __init__(self, parent=None):
+        super().__init__("Robust Scaling Normalization", parent)
+    
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.apply_button.setEnabled(True)   # Enabled by default
+        self.save_button.setEnabled(False)   # Disabled by default
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        self.layout.addLayout(button_layout)
+
+        # Parameters for Robust Scaling
+        self.layout.addWidget(QLabel("Robust Scaling Parameters:"))
+
+        # Input for Quantile Range
+        self.quantile_min_input = QLineEdit()
+        self.quantile_min_input.setPlaceholderText("e.g., 25")
+        self.layout.addWidget(QLabel("Quantile Min (%):"))
+        self.layout.addWidget(self.quantile_min_input)
+
+        self.quantile_max_input = QLineEdit()
+        self.quantile_max_input.setPlaceholderText("e.g., 75")
+        self.layout.addWidget(QLabel("Quantile Max (%):"))
+        self.layout.addWidget(self.quantile_max_input)
+
+        # Connect inputs to enable Apply button
+        self.quantile_min_input.textChanged.connect(self.validate_inputs)
+        self.quantile_max_input.textChanged.connect(self.validate_inputs)
+
+        self.setLayout(self.layout)
+
+    def show_help(self):
+        explanation = "Robust Scaling Normalization scales data using statistics that are robust to outliers, such as the median and the interquartile range."
+        QMessageBox.information(self, f"{self.method_name} Help", explanation)
+
+    def validate_inputs(self):
+        min_text = self.quantile_min_input.text()
+        max_text = self.quantile_max_input.text()
+        valid = True
+
+        # If min is provided, it must be a valid float between 0 and 100
+        if min_text:
+            try:
+                min_val = float(min_text)
+                if not (0 <= min_val < 100):
+                    valid = False
+            except ValueError:
+                valid = False
+
+        # If max is provided, it must be a valid float between 0 and 100
+        if max_text:
+            try:
+                max_val = float(max_text)
+                if not (0 < max_val <= 100):
+                    valid = False
+            except ValueError:
+                valid = False
+
+        # If both min and max are provided, ensure max > min
+        if min_text and max_text:
+            try:
+                min_val = float(min_text)
+                max_val = float(max_text)
+                if max_val <= min_val:
+                    valid = False
+            except ValueError:
+                valid = False
+
+        # Enable Apply button if inputs are valid or if inputs are empty (use inherent stats)
+        if (not min_text and not max_text) or valid:
+            self.apply_button.setEnabled(True)
         else:
-            QMessageBox.warning(self, "No CSV Created", "No CSV files were created.")
+            self.apply_button.setEnabled(False)
 
-    # ----------------- Common Methods -----------------
-
-    def get_h5_structure(self, h5_file):
-        # Recursively get the structure of the H5 file
-        structure = {}
-        
-        def visitor(name, node):
-            if isinstance(node, h5py.Dataset):
-                structure[name] = node.shape  # Store dataset name and shape
-        
-        h5_file.visititems(visitor)
-        return structure
-
-    # ----------------- CSV Management Methods -----------------
-
-    def combine_and_export(self):
-        # This method is already implemented above
-        pass
-
-    def batch_combine_and_export(self):
-        # This method is already implemented above
-        pass
-
+    def get_parameters(self):
+        params = {}
+        min_text = self.quantile_min_input.text()
+        max_text = self.quantile_max_input.text()
+        try:
+            params['quantile_min'] = float(min_text) if min_text else 25.0  # Default to 25%
+            params['quantile_max'] = float(max_text) if max_text else 75.0  # Default to 75%
+            if not (0 <= params['quantile_min'] < params['quantile_max'] <= 100):
+                QMessageBox.warning(self, "Invalid Quantile Range", "Quantile Min must be less than Quantile Max and both between 0 and 100.")
+                return None
+            return params
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter valid numerical values for quantiles.")
+            return None
+###############################################
 
 class DatasetSelectionDialog(QDialog):
     def __init__(self, structure, parent=None):

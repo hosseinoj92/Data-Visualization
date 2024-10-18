@@ -11,7 +11,8 @@ from PyQt5.QtGui import QIcon
 
 from gui.panels import (
     SelectedDataPanel, AxisDetailsPanel, AdditionalTextPanel,
-    CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, NormalizationMethodPanel
+    CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, 
+    MinMaxNormalizationPanel, ZScoreNormalizationPanel, RobustScalingNormalizationPanel    # Import new panels
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -113,32 +114,24 @@ class NormalizationTab(QWidget):
 
         # Column 1: Normalization Functionalities with Collapsible Sections
 
-        # Define normalization methods
+        # Define normalization methods and their corresponding panels
         self.normalization_methods = [
-            "Min-Max Normalization",
-            # Future normalization methods can be added here
-            # "Max Normalization",
-            # "Area Under Curve (AUC) Normalization",
-            # "Area Within a Specific Interval",
-            # "Vector (Euclidean) Normalization",
-            # "Standard Score (Z-score) Normalization",
-            # "Total Intensity Normalization",
-            # "Normalization to a Reference Peak",
-            # "Multiplicative Scatter Correction (MSC)",
-            # "Baseline Correction Normalization",
-            # "Normalization Within a Moving Window"
+            ("Min-Max Normalization", MinMaxNormalizationPanel),
+            ("Z-score Normalization", ZScoreNormalizationPanel),
+            ("Robust Scaling Normalization", RobustScalingNormalizationPanel),
+            # Add tuples of (Method Name, Panel Class) here for future methods
         ]
 
         self.normalization_sections = []
 
         # Create NormalizationMethodPanel for each method
-        for method_name in self.normalization_methods:
-            panel = NormalizationMethodPanel(method_name)
+        for method_name, panel_class in self.normalization_methods:
+            panel = panel_class()
             section = CollapsibleSection(method_name, panel)
             section.section_expanded.connect(self.on_normalization_section_expanded)
             self.normalization_sections.append(section)
 
-            # Connect Apply and Save buttons using default arguments to capture current panel
+            # Connect Apply and Save buttons to the respective methods
             panel.apply_button.clicked.connect(lambda checked, p=panel: self.apply_normalization(p))
             panel.save_button.clicked.connect(lambda checked, p=panel: self.save_normalized_data(p))
 
@@ -268,8 +261,6 @@ class NormalizationTab(QWidget):
         # Define normalization functions
         self.define_normalization_functions()
 
-        
-
     def define_normalization_functions(self):
         # Normalization functions defined within the class
 
@@ -285,13 +276,41 @@ class NormalizationTab(QWidget):
                 return np.zeros_like(y)
             return (y - y_min) / (y_max - y_min)
 
-        # Placeholder for other normalization functions
+        def z_score_normalization(y, mean=None, std=None):
+            if mean is None:
+                mean = np.mean(y)
+            if std is None:
+                std = np.std(y)
+            if std == 0:
+                QMessageBox.warning(None, "Invalid Standard Deviation", "Standard deviation is zero. Cannot normalize.")
+                return np.zeros_like(y)
+            return (y - mean) / std
 
+        # Add normalization functions in the order of normalization_methods
         self.normalization_functions = [
-            min_max_normalization,             # 0
+            min_max_normalization,  # Index 0
+            z_score_normalization,  # Index 1
             # Add other normalization functions here as implemented
         ]
 
+        def robust_scaling_normalization(y, quantile_min=25.0, quantile_max=75.0):
+            median = np.median(y)
+            q_min = np.percentile(y, quantile_min)
+            q_max = np.percentile(y, quantile_max)
+            iqr = q_max - q_min
+            if iqr == 0:
+                QMessageBox.warning(None, "Invalid IQR", "Interquartile range is zero. Cannot normalize.")
+                return np.zeros_like(y)
+            return (y - median) / iqr
+
+        # Add normalization functions in the order of normalization_methods
+        self.normalization_functions = [
+            min_max_normalization,          # Index 0
+            z_score_normalization,          # Index 1
+            robust_scaling_normalization,   # Index 2
+            # Add other normalization functions here as implemented
+        ]
+    
     def get_normalization_function(self, method_index):
         if 0 <= method_index < len(self.normalization_functions):
             return self.normalization_functions[method_index]
@@ -307,8 +326,11 @@ class NormalizationTab(QWidget):
 
         # Get normalization method index
         try:
-            method_index = self.normalization_methods.index(panel.method_name)
-        except ValueError:
+            method_index = next(
+                index for index, (name, cls) in enumerate(self.normalization_methods)
+                if name == panel.method_name
+            )
+        except StopIteration:
             QMessageBox.warning(self, "Invalid Method", "Selected normalization method is not recognized.")
             return
 
@@ -399,7 +421,6 @@ class NormalizationTab(QWidget):
 
         QMessageBox.information(self, "Save Successful", f"Normalized data saved to {directory}")
         print("All normalized files saved successfully.")
-
 
     def update_normalized_plot(self):
         if not self.normalized_data:
