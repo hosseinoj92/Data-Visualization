@@ -1,4 +1,4 @@
-# data_handling_tab.py
+# gui/data_handling_tab.py
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,

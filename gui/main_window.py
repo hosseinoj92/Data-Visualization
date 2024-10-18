@@ -1,4 +1,4 @@
-# main_window.py
+#gui/ main_window.py
 
 from PyQt5.QtWidgets import QMainWindow, QTabWidget
 from PyQt5.QtGui import QIcon

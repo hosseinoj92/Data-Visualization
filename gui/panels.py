@@ -4,11 +4,13 @@ import os
 from PyQt5.QtWidgets import (
     QGroupBox, QVBoxLayout, QGridLayout, QLabel, QLineEdit, QPushButton,
     QListWidget, QScrollArea, QCheckBox, QSpinBox, QComboBox, QHBoxLayout,
-    QListWidgetItem, QColorDialog, QMessageBox, QFileDialog, QWidget, QMenu
+    QListWidgetItem, QColorDialog, QMessageBox, QFileDialog, QWidget, QMenu, QDialog
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QColor
-
+from utils import read_numeric_data  # Ensure this import is correct
+import h5py
+import pandas as pd
 
 class DraggableListWidget(QListWidget):
     def __init__(self, parent=None):
@@ -241,6 +243,497 @@ class SelectedDataPanel(QGroupBox):
     def retract_from_general(self):
         # Implementation as per your application logic
         pass
+
+
+class H5DataHandlingPanel(QGroupBox):
+    def __init__(self, selected_data_panel, parent=None):
+        super().__init__("H5 Data Handling", parent)
+        self.selected_data_panel = selected_data_panel
+        self.parent_widget = parent  # Reference to DataHandlingTab
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Collapsible Local Processing Section
+        self.local_processing_group = QGroupBox("Local Processing Selected H5 Files")
+        self.local_processing_group.setCheckable(True)
+        self.local_processing_group.setChecked(True)
+        local_layout = QVBoxLayout()
+        self.local_processing_group.setLayout(local_layout)
+
+        # Select H5 Files Button
+        self.select_h5_files_button = QPushButton("Select H5 Files")
+        self.select_h5_files_button.setIcon(QIcon('gui/resources/select_h5_icon.png'))  # Ensure the icon exists
+        self.select_h5_files_button.clicked.connect(self.select_h5_files)
+        local_layout.addWidget(self.select_h5_files_button)
+
+        # List of Selected H5 Files
+        self.h5_files_list = QListWidget()
+        local_layout.addWidget(self.h5_files_list)
+
+        # Select Datasets Button
+        self.select_datasets_button = QPushButton("Select Datasets")
+        self.select_datasets_button.setIcon(QIcon('gui/resources/select_datasets_icon.png'))  # Ensure the icon exists
+        self.select_datasets_button.clicked.connect(self.select_datasets)
+        local_layout.addWidget(self.select_datasets_button)
+
+        # List of Selected Datasets
+        self.selected_datasets_list = QListWidget()
+        local_layout.addWidget(self.selected_datasets_list)
+
+        # Combine and Export Button
+        self.combine_export_button = QPushButton("Combine and Export")
+        self.combine_export_button.setIcon(QIcon('gui/resources/combine_export_icon.png'))  # Ensure the icon exists
+        self.combine_export_button.clicked.connect(self.combine_and_export)
+        self.combine_export_button.setEnabled(False)  # Disabled until datasets are selected
+        local_layout.addWidget(self.combine_export_button)
+
+        # Generated CSV Files Label and List
+        self.csv_files_label = QLabel("Generated CSV Files:")
+        local_layout.addWidget(self.csv_files_label)
+        #self.csv_files_list = QListWidget()
+        #local_layout.addWidget(self.csv_files_list)
+
+        # Send to Local Tabs Section
+        self.send_to_tabs_group = QGroupBox("Send to Local Tabs")
+        send_to_tabs_layout = QHBoxLayout()
+        self.send_to_tabs_group.setLayout(send_to_tabs_layout)
+
+        self.general_tab_checkbox = QCheckBox("General Tab")
+        self.normalization_tab_checkbox = QCheckBox("Normalization Tab")
+        send_to_tabs_layout.addWidget(self.general_tab_checkbox)
+        send_to_tabs_layout.addWidget(self.normalization_tab_checkbox)
+
+        local_layout.addWidget(self.send_to_tabs_group)
+
+        # Apply Button for Sending CSV Files
+        self.apply_send_button = QPushButton("Send to Selected Tabs")
+        self.apply_send_button.clicked.connect(self.send_csv_files_to_tabs)
+        self.apply_send_button.setEnabled(False)  # Disabled until CSV files are generated
+        local_layout.addWidget(self.apply_send_button)
+
+        # Add the Local Processing section to the main layout
+        self.layout.addWidget(self.local_processing_group)
+
+        # Collapsible Batch Processing Section
+        self.batch_processing_group = QGroupBox("Batch Processing H5 Files")
+        self.batch_processing_group.setCheckable(True)
+        self.batch_processing_group.setChecked(False)
+        batch_layout = QVBoxLayout()
+        self.batch_processing_group.setLayout(batch_layout)
+
+        # Select Directory Button
+        self.select_directory_button = QPushButton("Select Directory")
+        self.select_directory_button.setIcon(QIcon('gui/resources/select_directory_icon.png'))  # Ensure the icon exists
+        self.select_directory_button.clicked.connect(self.select_directory)
+        batch_layout.addWidget(self.select_directory_button)
+
+        # Directory Label
+        self.directory_label = QLabel("No directory selected.")
+        batch_layout.addWidget(self.directory_label)
+
+        # Include All Subfolders Checkbox
+        self.include_subfolders_checkbox = QCheckBox("Include All Subfolders")
+        batch_layout.addWidget(self.include_subfolders_checkbox)
+
+        # Select Datasets Button
+        self.batch_select_datasets_button = QPushButton("Select Datasets")
+        self.batch_select_datasets_button.setIcon(QIcon('gui/resources/select_datasets_icon.png'))  # Ensure the icon exists
+        self.batch_select_datasets_button.clicked.connect(self.batch_select_datasets)
+        batch_layout.addWidget(self.batch_select_datasets_button)
+
+        # Combine and Export Button for Batch Processing
+        self.batch_combine_export_button = QPushButton("Combine and Export")
+        self.batch_combine_export_button.setIcon(QIcon('gui/resources/combine_export_icon.png'))  # Ensure the icon exists
+        self.batch_combine_export_button.clicked.connect(self.batch_combine_and_export)
+        self.batch_combine_export_button.setEnabled(False)  # Disabled until datasets are selected
+        batch_layout.addWidget(self.batch_combine_export_button)
+
+        # Add the Batch Processing section to the main layout
+        self.layout.addWidget(self.batch_processing_group)
+
+        self.setLayout(self.layout)
+
+    # ----------------- Local Processing Methods -----------------
+
+    def select_h5_files(self):
+        files, _ = QFileDialog.getOpenFileNames(self, "Select H5 Files", "", "H5 Files (*.h5 *.hdf5);;All Files (*)")
+        if files:
+            self.h5_files_list.clear()
+            for file in files:
+                item = QListWidgetItem(os.path.basename(file))
+                item.setData(Qt.UserRole, file)
+                self.h5_files_list.addItem(item)
+            self.combine_export_button.setEnabled(True)
+
+    def select_datasets(self):
+        # Get selected H5 files
+        h5_files = [self.h5_files_list.item(i).data(Qt.UserRole) for i in range(self.h5_files_list.count())]
+        if not h5_files:
+            QMessageBox.warning(self, "No H5 Files Selected", "Please select H5 files first.")
+            return
+
+        # Assume structural consistency and select datasets from the first file
+        try:
+            with h5py.File(h5_files[0], 'r') as h5_file:
+                structure = self.get_h5_structure(h5_file)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to read H5 file {h5_files[0]}:\n{e}")
+            return
+
+        # Open a dialog to select datasets
+        selected_datasets = self.show_structure_and_get_datasets(structure)
+        if selected_datasets:
+            self.selected_datasets_list.clear()
+            for dataset in selected_datasets:
+                item = QListWidgetItem(dataset)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                item.setCheckState(Qt.Checked)
+                self.selected_datasets_list.addItem(item)
+            self.combine_export_button.setEnabled(True)
+        else:
+            self.selected_datasets_list.clear()
+            self.combine_export_button.setEnabled(False)
+
+    def show_structure_and_get_datasets(self, structure):
+        # Display the structure and allow the user to select datasets
+        dialog = DatasetSelectionDialog(structure, self)
+        if dialog.exec_() == QDialog.Accepted:
+            selected_datasets = dialog.get_selected_datasets()
+            return selected_datasets
+        else:
+            return []
+
+    def combine_and_export(self):
+        # Get selected datasets from the list
+        selected_datasets = [
+            self.selected_datasets_list.item(i).text()
+            for i in range(self.selected_datasets_list.count())
+            if self.selected_datasets_list.item(i).checkState() == Qt.Checked
+        ]
+
+        if not selected_datasets:
+            QMessageBox.warning(self, "No Datasets Selected", "Please select at least one dataset to combine.")
+            return
+
+        # Get selected H5 files
+        h5_files = [self.h5_files_list.item(i).data(Qt.UserRole) for i in range(self.h5_files_list.count())]
+        if not h5_files:
+            QMessageBox.warning(self, "No H5 Files Selected", "Please select H5 files first.")
+            return
+
+        # Initialize list to store CSV file paths
+        csv_files = []
+
+        # Process each H5 file
+        for file in h5_files:
+            try:
+                with h5py.File(file, 'r') as h5_file:
+                    data = self.extract_datasets(h5_file, selected_datasets)
+                
+                # Combine datasets into a single CSV
+                combined_csv = self.combine_datasets_to_csv(data, file)
+                csv_files.append(combined_csv)
+                
+                # Add generated CSV to the CSV Files List
+                #self.csv_files_list.add_item(combined_csv)
+                
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to process H5 file {file}:\n{e}")
+                continue  # Proceed to next file
+
+        if csv_files:
+            QMessageBox.information(self, "Export Complete", "Selected datasets have been combined and exported as CSV files.")
+            self.apply_send_button.setEnabled(True)
+        else:
+            QMessageBox.warning(self, "No CSV Created", "No CSV files were created.")
+
+    def extract_datasets(self, h5_file, datasets):
+        # Extract selected datasets
+        data = {}
+        for dataset_name in datasets:
+            if dataset_name in h5_file:
+                data[dataset_name] = h5_file[dataset_name][:]
+            else:
+                raise KeyError(f"Dataset {dataset_name} not found in H5 file.")
+        return data
+
+    def combine_datasets_to_csv(self, data, h5_file_path):
+        # Combine datasets into a DataFrame
+        df = pd.DataFrame()
+        for dataset_name, values in data.items():
+            # Handle datasets based on dimensions
+            if values.ndim == 1:
+                df[dataset_name] = values
+            elif values.ndim == 2:
+                # For 2D datasets, flatten columns
+                for i in range(values.shape[1]):
+                    col_name = f"{dataset_name}_{i}"
+                    df[col_name] = values[:, i]
+            else:
+                # Skip datasets with higher dimensions
+                continue
+
+        # Define the CSV file path
+        base_name = os.path.splitext(os.path.basename(h5_file_path))[0]
+        csv_file_name = f"{base_name}_combined.csv"
+        csv_file_path = os.path.join(os.path.dirname(h5_file_path), csv_file_name)
+
+        # Save DataFrame to CSV
+        df.to_csv(csv_file_path, index=False)
+        return csv_file_path
+
+    def add_item(self, csv_file_path):
+        """
+        Add a CSV file to the CSV Files List.
+        """
+        file_name = os.path.basename(csv_file_path)
+        item = QListWidgetItem(file_name)
+        item.setData(Qt.UserRole, csv_file_path)
+        item.setFlags(item.flags() | Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        self.csv_files_list.addItem(item)
+
+    def delete_selected_csv_files(self):
+        """
+        Delete selected CSV files from the list.
+        """
+        selected_items = self.csv_files_list.selectedItems()
+        if not selected_items:
+            QMessageBox.information(self, "No Selection", "No CSV files selected to delete.")
+            return
+        reply = QMessageBox.question(
+            self, 'Confirm Deletion',
+            f"Are you sure you want to delete the selected {len(selected_items)} CSV file(s)?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            for item in selected_items:
+                csv_file_path = item.data(Qt.UserRole)
+                try:
+                    os.remove(csv_file_path)
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Failed to delete {csv_file_path}:\n{e}")
+                    continue
+                self.csv_files_list.takeItem(self.csv_files_list.row(item))
+            QMessageBox.information(self, "Deletion Successful", f"Deleted {len(selected_items)} CSV file(s).")
+
+    def send_csv_files_to_tabs(self):
+        selected_items = self.csv_files_list.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "No CSV Files Selected", "Please select CSV files to send.")
+            return
+
+        target_tabs = []
+        if self.general_tab_checkbox.isChecked():
+            target_tabs.append(self.parent_widget.parent().general_tab)  # Adjust according to your tab structure
+        if self.normalization_tab_checkbox.isChecked():
+            target_tabs.append(self.parent_widget.parent().normalization_tab)  # Adjust accordingly
+
+        if not target_tabs:
+            QMessageBox.warning(self, "No Tabs Selected", "Please select at least one tab to send files to.")
+            return
+
+        for item in selected_items:
+            file_path = item.data(Qt.UserRole)
+            for tab in target_tabs:
+                tab.selected_data_panel.add_file_to_panel([file_path])
+
+        QMessageBox.information(self, "Send Successful", "Selected CSV files have been sent to the chosen tabs.")
+
+    # ----------------- Batch Processing Methods -----------------
+
+    def select_directory(self):
+        directory = QFileDialog.getExistingDirectory(self, "Select Directory Containing H5 Files")
+        if directory:
+            self.selected_directory = directory
+            self.directory_label.setText(f"Selected Directory: {directory}")
+            self.batch_combine_export_button.setEnabled(True)
+        else:
+            self.selected_directory = None
+            self.directory_label.setText("No directory selected.")
+            self.batch_combine_export_button.setEnabled(False)
+
+    def batch_select_datasets(self):
+        if not hasattr(self, 'selected_directory') or not self.selected_directory:
+            QMessageBox.warning(self, "No Directory Selected", "Please select a directory first.")
+            return
+
+        # Collect all H5 files in the directory (and subdirectories if checked)
+        include_subfolders = self.include_subfolders_checkbox.isChecked()
+        h5_files = []
+        if include_subfolders:
+            for root, dirs, files in os.walk(self.selected_directory):
+                for file in files:
+                    if file.endswith('.h5') or file.endswith('.hdf5'):
+                        h5_files.append(os.path.join(root, file))
+        else:
+            for file in os.listdir(self.selected_directory):
+                if file.endswith('.h5') or file.endswith('.hdf5'):
+                    h5_files.append(os.path.join(self.selected_directory, file))
+
+        if not h5_files:
+            QMessageBox.warning(self, "No H5 Files Found", "No H5 files found in the selected directory.")
+            return
+
+        # Assume structural consistency and select datasets from the first file
+        try:
+            with h5py.File(h5_files[0], 'r') as h5_file:
+                structure = self.get_h5_structure(h5_file)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to read H5 file {h5_files[0]}:\n{e}")
+            return
+
+        # Open a dialog to select datasets
+        selected_datasets = self.show_structure_and_get_datasets(structure)
+        if selected_datasets:
+            self.selected_datasets_list.clear()
+            for dataset in selected_datasets:
+                item = QListWidgetItem(dataset)
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+                item.setCheckState(Qt.Checked)
+                self.selected_datasets_list.addItem(item)
+            self.batch_combine_export_button.setEnabled(True)
+        else:
+            self.selected_datasets_list.clear()
+            self.batch_combine_export_button.setEnabled(False)
+
+    def batch_combine_and_export(self):
+        # Get selected datasets from the list
+        selected_datasets = [
+            self.selected_datasets_list.item(i).text()
+            for i in range(self.selected_datasets_list.count())
+            if self.selected_datasets_list.item(i).checkState() == Qt.Checked
+        ]
+
+        if not selected_datasets:
+            QMessageBox.warning(self, "No Datasets Selected", "Please select at least one dataset to combine.")
+            return
+
+        if not hasattr(self, 'selected_directory') or not self.selected_directory:
+            QMessageBox.warning(self, "No Directory Selected", "Please select a directory first.")
+            return
+
+        # Collect all H5 files
+        include_subfolders = self.include_subfolders_checkbox.isChecked()
+        h5_files = []
+        if include_subfolders:
+            for root, dirs, files in os.walk(self.selected_directory):
+                for file in files:
+                    if file.endswith('.h5') or file.endswith('.hdf5'):
+                        h5_files.append(os.path.join(root, file))
+        else:
+            for file in os.listdir(self.selected_directory):
+                if file.endswith('.h5') or file.endswith('.hdf5'):
+                    h5_files.append(os.path.join(self.selected_directory, file))
+
+        if not h5_files:
+            QMessageBox.warning(self, "No H5 Files Found", "No H5 files found in the selected directory.")
+            return
+
+        # Initialize list to store CSV file paths
+        csv_files = []
+
+        # Process each H5 file
+        for file in h5_files:
+            try:
+                with h5py.File(file, 'r') as h5_file:
+                    data = self.extract_datasets(h5_file, selected_datasets)
+                
+                # Combine datasets into a single CSV
+                combined_csv = self.combine_datasets_to_csv(data, file)
+                csv_files.append(combined_csv)
+                
+                # Add generated CSV to the CSV Files List
+                self.csv_files_list.add_item(combined_csv)
+                
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to process H5 file {file}:\n{e}")
+                continue  # Proceed to next file
+
+        if csv_files:
+            QMessageBox.information(self, "Export Complete", "Selected datasets have been combined and exported as CSV files.")
+            self.apply_send_button.setEnabled(True)
+        else:
+            QMessageBox.warning(self, "No CSV Created", "No CSV files were created.")
+
+    # ----------------- Common Methods -----------------
+
+    def get_h5_structure(self, h5_file):
+        # Recursively get the structure of the H5 file
+        structure = {}
+        
+        def visitor(name, node):
+            if isinstance(node, h5py.Dataset):
+                structure[name] = node.shape  # Store dataset name and shape
+        
+        h5_file.visititems(visitor)
+        return structure
+
+    # ----------------- CSV Management Methods -----------------
+
+    def combine_and_export(self):
+        # This method is already implemented above
+        pass
+
+    def batch_combine_and_export(self):
+        # This method is already implemented above
+        pass
+
+
+class DatasetSelectionDialog(QDialog):
+    def __init__(self, structure, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Select Datasets")
+        self.structure = structure
+        self.selected_datasets = []
+        self.init_ui()
+    
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+        
+        # Instruction Label
+        instruction_label = QLabel("Select the datasets to combine:")
+        self.layout.addWidget(instruction_label)
+        
+        # List Widget with Checkboxes
+        self.list_widget = QListWidget()
+        for dataset_name in sorted(self.structure.keys()):
+            item = QListWidgetItem(dataset_name)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            item.setCheckState(Qt.Unchecked)
+            self.list_widget.addItem(item)
+        self.layout.addWidget(self.list_widget)
+        
+        # Buttons
+        buttons_layout = QHBoxLayout()
+        self.ok_button = QPushButton("OK")
+        self.cancel_button = QPushButton("Cancel")
+        buttons_layout.addStretch()
+        buttons_layout.addWidget(self.ok_button)
+        buttons_layout.addWidget(self.cancel_button)
+        self.layout.addLayout(buttons_layout)
+        
+        # Connections
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+    
+    def accept(self):
+        self.selected_datasets = []
+        for index in range(self.list_widget.count()):
+            item = self.list_widget.item(index)
+            if item.checkState() == Qt.Checked:
+                self.selected_datasets.append(item.text())
+        
+        if not self.selected_datasets:
+            QMessageBox.warning(self, "No Datasets Selected", "Please select at least one dataset.")
+            return  # Do not close the dialog
+        
+        super().accept()
+    
+    def get_selected_datasets(self):
+        return self.selected_datasets
 
 
 class AxisDetailsPanel(QGroupBox):
@@ -595,3 +1088,208 @@ class NormalizationMethodPanel(QWidget):
             return None
 
         return params
+
+class GeneratedCSVFilesPanel(QGroupBox):
+    def __init__(self, parent=None):
+        super().__init__("Generated CSV Files", parent)
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+
+        # Draggable and Selectable List Widget for CSV Files
+        self.csv_files_list = DraggableListWidget()
+        self.layout.addWidget(self.csv_files_list)
+
+        # Buttons for Managing CSV Files
+        buttons_layout = QHBoxLayout()
+        self.delete_csv_button = QPushButton("Delete Selected CSV Files")
+        self.delete_csv_button.setIcon(QIcon('gui/resources/delete_icon.png'))  # Ensure the icon exists
+        self.delete_csv_button.clicked.connect(self.delete_selected_csv_files)
+        buttons_layout.addWidget(self.delete_csv_button)
+        buttons_layout.addStretch()
+        self.layout.addLayout(buttons_layout)
+
+    def add_csv_file(self, csv_file_path):
+        file_name = os.path.basename(csv_file_path)
+        item = QListWidgetItem(file_name)
+        item.setData(Qt.UserRole, csv_file_path)
+        item.setFlags(item.flags() | Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+        self.csv_files_list.add_file_to_panel(csv_file_path)
+
+    def get_selected_csv_files(self):
+        selected_items = [
+            item for item in self.csv_files_list.findItems("*", Qt.MatchWildcard)
+            if item.checkState() == Qt.Checked
+        ]
+        return [item.data(Qt.UserRole) for item in selected_items]
+
+    def delete_selected_csv_files(self):
+        selected_items = self.csv_files_list.selectedItems()
+        if not selected_items:
+            QMessageBox.information(self, "No Selection", "No CSV files selected to delete.")
+            return
+        reply = QMessageBox.question(
+            self, 'Confirm Deletion',
+            f"Are you sure you want to delete the selected {len(selected_items)} CSV file(s)?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            for item in selected_items:
+                csv_file_path = item.data(Qt.UserRole)
+                try:
+                    os.remove(csv_file_path)
+                except Exception as e:
+                    QMessageBox.warning(self, "Deletion Error", f"Failed to delete {csv_file_path}:\n{e}")
+                    continue
+                self.csv_files_list.takeItem(self.csv_files_list.row(item))
+            QMessageBox.information(self, "Deletion Successful", f"Deleted {len(selected_items)} CSV file(s).")
+
+class DatasetSelectionExportPanel(QGroupBox):
+    def __init__(self, selected_data_panel, h5_handling_panel, parent=None):
+        super().__init__("Dataset Selection and Export", parent)
+        self.selected_data_panel = selected_data_panel
+        self.h5_handling_panel = h5_handling_panel
+        self.init_ui()
+        self.selected_datasets = []
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+
+        # Instruction Label
+        instruction_label = QLabel("Select Datasets to Combine into CSV:")
+        layout.addWidget(instruction_label)
+
+        # Select Datasets Button
+        self.select_datasets_button = QPushButton("Select Datasets")
+        self.select_datasets_button.setIcon(QIcon('gui/resources/select_datasets_icon.png'))  # Ensure the icon exists
+        layout.addWidget(self.select_datasets_button)
+
+        # Combine and Export Button
+        self.combine_export_button = QPushButton("Combine and Export")
+        self.combine_export_button.setIcon(QIcon('gui/resources/combine_export_icon.png'))  # Ensure the icon exists
+        self.combine_export_button.setEnabled(False)  # Disabled until datasets are selected
+        layout.addWidget(self.combine_export_button)
+
+        # Add to Selected Data Panel Checkbox
+        self.add_to_selected_checkbox = QCheckBox("Add CSV to Selected Data Panel")
+        self.add_to_selected_checkbox.setChecked(True)
+        layout.addWidget(self.add_to_selected_checkbox)
+
+        # Spacer
+        layout.addStretch()
+
+        self.setLayout(layout)
+
+        # Connections
+        self.select_datasets_button.clicked.connect(self.open_dataset_selection_dialog)
+        self.combine_export_button.clicked.connect(self.combine_and_export_datasets)
+
+    def open_dataset_selection_dialog(self):
+        # Ensure that H5 files have been processed
+        if not hasattr(self.h5_handling_panel, 'h5_files') or not self.h5_handling_panel.h5_files:
+            QMessageBox.warning(self, "No H5 Files Processed", "Please process H5 files before selecting datasets.")
+            return
+
+        # Use the structure from the first H5 file (since all are consistent)
+        structure = self.h5_handling_panel.structures[0]
+
+        # Show the structure and get selected datasets
+        selected_datasets = self.show_structure_and_get_datasets(structure)
+        if selected_datasets:
+            self.selected_datasets = selected_datasets
+            self.combine_export_button.setEnabled(True)
+        else:
+            self.selected_datasets = []
+            self.combine_export_button.setEnabled(False)
+
+    def show_structure_and_get_datasets(self, structure):
+        # Display the structure and allow the user to select datasets
+        dialog = DatasetSelectionDialog(structure, self)
+        if dialog.exec_() == QDialog.Accepted:
+            selected_datasets = dialog.get_selected_datasets()
+            return selected_datasets
+        else:
+            return []
+
+    def combine_and_export_datasets(self):
+        if not self.selected_datasets:
+            QMessageBox.warning(self, "No Datasets Selected", "Please select at least one dataset to combine.")
+            return
+
+        # Get H5 files to process
+        h5_files = self.h5_handling_panel.h5_files
+        if not h5_files:
+            QMessageBox.warning(self, "No H5 Files Processed", "Please process H5 files before exporting datasets.")
+            return
+
+        # Initialize list to store CSV file paths
+        csv_files = []
+
+        # Process each H5 file
+        for file in h5_files:
+            try:
+                with h5py.File(file, 'r') as h5_file:
+                    data = self.extract_datasets(h5_file, self.selected_datasets)
+
+                # Combine datasets into a single CSV
+                combined_csv = self.combine_datasets_to_csv(data, file)
+                csv_files.append(combined_csv)
+
+                # If add to selected data panel is checked, add CSV to the panel
+                if self.add_to_selected_checkbox.isChecked():
+                    self.selected_data_panel.add_file_to_panel([combined_csv])
+
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Failed to process H5 file {file}:\n{e}")
+                continue  # Proceed to next file
+
+        if csv_files:
+            QMessageBox.information(self, "Export Complete", "Selected datasets have been combined and exported as CSV files.")
+            # Optionally, enable sending to tabs
+            self.parent().send_to_tabs_group.setEnabled(True)
+        else:
+            QMessageBox.warning(self, "No CSV Created", "No CSV files were created.")
+
+    def extract_datasets(self, h5_file, datasets):
+        # Extract selected datasets
+        data = {}
+        for dataset_name in datasets:
+            data[dataset_name] = h5_file[dataset_name][:]
+        return data
+
+    def combine_datasets_to_csv(self, data, h5_file_path):
+        # Combine datasets into a DataFrame
+        df = pd.DataFrame()
+        for dataset_name, values in data.items():
+            # Handle datasets based on dimensions
+            if values.ndim == 1:
+                df[dataset_name] = values
+            elif values.ndim == 2:
+                # For 2D datasets, flatten columns
+                for i in range(values.shape[1]):
+                    col_name = f"{dataset_name}_{i}"
+                    df[col_name] = values[:, i]
+            else:
+                # Skip datasets with higher dimensions
+                continue
+
+        # Define the CSV file path
+        base_name = os.path.splitext(os.path.basename(h5_file_path))[0]
+        csv_file_name = f"{base_name}_combined.csv"
+        csv_file_path = os.path.join(os.path.dirname(h5_file_path), csv_file_name)
+
+        # Save DataFrame to CSV
+        df.to_csv(csv_file_path, index=False)
+        return csv_file_path
+
+    def extract_datasets(self, h5_file, datasets):
+        # Extract selected datasets
+        data = {}
+        for dataset_name in datasets:
+            if dataset_name in h5_file:
+                data[dataset_name] = h5_file[dataset_name][:]
+            else:
+                raise KeyError(f"Dataset {dataset_name} not found in H5 file.")
+        return data
