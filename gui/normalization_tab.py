@@ -13,7 +13,7 @@ from gui.panels import (
     SelectedDataPanel, AxisDetailsPanel, AdditionalTextPanel,
     CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, 
     MinMaxNormalizationPanel, ZScoreNormalizationPanel, RobustScalingNormalizationPanel,
-    AUCNormalizationPanel,IntervalAUCNormalizationPanel
+    AUCNormalizationPanel,IntervalAUCNormalizationPanel,TotalIntensityNormalizationPanel
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -122,6 +122,8 @@ class NormalizationTab(QWidget):
             ("Robust Scaling Normalization", RobustScalingNormalizationPanel),
             ("AUC Normalization", AUCNormalizationPanel), 
             ("Interval AUC Normalization", IntervalAUCNormalizationPanel),
+            ("Total Intensity Normalization", TotalIntensityNormalizationPanel),  # New method
+
             # Add tuples of (Method Name, Panel Class) here for future methods
         ]
 
@@ -289,12 +291,6 @@ class NormalizationTab(QWidget):
                 return np.zeros_like(y)
             return (y - mean) / std
 
-        # Add normalization functions in the order of normalization_methods
-        self.normalization_functions = [
-            min_max_normalization,  # Index 0
-            z_score_normalization,  # Index 1
-            # Add other normalization functions here as implemented
-        ]
 
         def robust_scaling_normalization(y, quantile_min=25.0, quantile_max=75.0):
             median = np.median(y)
@@ -306,13 +302,6 @@ class NormalizationTab(QWidget):
                 return np.zeros_like(y)
             return (y - median) / iqr
 
-        # Add normalization functions in the order of normalization_methods
-        self.normalization_functions = [
-            min_max_normalization,          # Index 0
-            z_score_normalization,          # Index 1
-            robust_scaling_normalization,   # Index 2
-            # Add other normalization functions here as implemented
-        ]
 
         def auc_normalization(y,x=None, sort_data=True):
             if sort_data:
@@ -331,15 +320,6 @@ class NormalizationTab(QWidget):
             # Normalize y
             y_normalized = y / auc
             return y_normalized
-
-        # Add normalization functions in the order of normalization_methods
-        self.normalization_functions = [
-            min_max_normalization,          # Index 0
-            z_score_normalization,          # Index 1
-            robust_scaling_normalization,   # Index 2
-            auc_normalization,              # Index 3
-            # Add other normalization functions here as implemented
-        ]
 
 
         def interval_auc_normalization(y, x, desired_auc, interval_start, interval_end):
@@ -369,13 +349,22 @@ class NormalizationTab(QWidget):
             # Scale all y-values
             y_normalized = y * scaling_factor
             return y_normalized
-        
+        def total_intensity_normalization(y, desired_total_intensity=1.0):
+            current_total = np.sum(y)
+            if current_total == 0:
+                QMessageBox.warning(None, "Invalid Total Intensity", "Sum of Y-values is zero. Cannot normalize.")
+                return np.zeros_like(y)
+            scaling_factor = desired_total_intensity / current_total
+            y_normalized = y * scaling_factor
+            return y_normalized
+    
         self.normalization_functions = [
             min_max_normalization,          # Index 0
             z_score_normalization,          # Index 1
             robust_scaling_normalization,   # Index 2
             auc_normalization,      
-            interval_auc_normalization        # Index 3
+            interval_auc_normalization,
+            total_intensity_normalization,  
             # Add other normalization functions here as implemented
         ]
             
@@ -441,6 +430,9 @@ class NormalizationTab(QWidget):
                     else:
                         # For AUC Normalization, pass 'x' along with other parameters
                         y_normalized = method_func(y, x=x, **params)
+                elif panel.method_name == "Total Intensity Normalization":
+                    # For Total Intensity Normalization, pass the desired_total_intensity
+                    y_normalized = method_func(y, desired_total_intensity=params['desired_total_intensity'])
                 else:
                     # For other normalization methods, do not pass 'x'
                     y_normalized = method_func(y, **params)
@@ -451,13 +443,16 @@ class NormalizationTab(QWidget):
                 # Store normalized data
                 self.normalized_data[file_path] = (x, y_normalized)
 
+            except TypeError as te:
+                QMessageBox.warning(self, "Type Error", f"Type error in file {file_path}: {te}")
+                print(f"Type error in file {file_path}: {te}")
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Error normalizing file {file_path}: {e}")
+                print(f"Error normalizing file {file_path}: {e}")
 
         # Update the plot with normalized data
         self.update_normalized_plot()
-        panel.save_button.setEnabled(True)  
-
+        panel.save_button.setEnabled(True) 
     def save_normalized_data(self, panel):
         print("save_normalized_data called")
         if not self.normalized_data:

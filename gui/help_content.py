@@ -382,3 +382,82 @@ INTERVAL_AUC_NORMALIZATION_HELP = """
 </body>
 </html>
 """
+
+TOTAL_INTENSITY_NORMALIZATION_HELP = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Total Intensity Normalization Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #2E8B57;
+        }
+        p, ul {
+            font-size: 16px;
+        }
+        ul {
+            margin-left: 20px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Total Intensity Normalization</h1>
+    <p>
+        Total Intensity Normalization scales the entire dataset so that the sum of all Y-values equals a specified desired total intensity. This method is particularly useful for standardizing datasets, allowing for meaningful comparisons across datasets with varying magnitudes.
+    </p>
+    <h2>Formula:</h2>
+    <p>
+        Given Y-values \( y_1, y_2, \ldots, y_n \), the normalized Y-values \( y'_i \) are calculated as:
+    </p>
+    <p>
+        \\[
+        y'_i = y_i \times \left( \frac{\text{Desired Total Intensity}}{\sum_{j=1}^{n} y_j} \right)
+        \\]
+    </p>
+    <h2>Usage:</h2>
+    <ul>
+        <li>Standardizing datasets for comparative analysis.</li>
+        <li>Preparing data for machine learning algorithms that require feature scaling.</li>
+    </ul>
+    <h2>Advantages:</h2>
+    <ul>
+        <li>Ensures consistency across datasets.</li>
+        <li>Simplifies the comparison of datasets with different scales.</li>
+    </ul>
+    <h2>Disadvantages:</h2>
+    <ul>
+        <li>Does not account for the distribution of data within the dataset.</li>
+        <li>May not be suitable for datasets where the total intensity is not a meaningful metric.</li>
+    </ul>
+    <h2>Example:</h2>
+    <p>
+        Consider a dataset with Y-values: [2, 4, 6, 8, 10]. To normalize this dataset to a desired total intensity of 1, each Y-value is scaled as follows:
+    </p>
+    <p>
+        \[
+        \text{Desired Total Intensity} = 1
+        \]
+        \[
+        \sum_{j=1}^{5} y_j = 2 + 4 + 6 + 8 + 10 = 30
+        \]
+        \[
+        y'_i = y_i \times \left( \frac{1}{30} \right) = \left[ \frac{2}{30}, \frac{4}{30}, \frac{6}{30}, \frac{8}{30}, \frac{10}{30} \right] = [0.0667, 0.1333, 0.2000, 0.2667, 0.3333]
+        \]
+    </p>
+</body>
+</html>
+"""

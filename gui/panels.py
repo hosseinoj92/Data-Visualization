@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 from gui.help_dialog import HelpDialog
 from gui.help_content import (MIN_MAX_NORMALIZATION_HELP,Z_SCORE_NORMALIZATION_HELP, 
                               ROBUST_SCALING_NORMALIZATION_HELP,AUC_NORMALIZATION_HELP,INTERVAL_AUC_NORMALIZATION_HELP,
+                              TOTAL_INTENSITY_NORMALIZATION_HELP,
                               )
 
 class DraggableListWidget(QListWidget):
@@ -734,7 +735,85 @@ class IntervalAUCNormalizationPanel(BaseNormalizationMethodPanel):
         return params
     
 ########################################################
+class TotalIntensityNormalizationPanel(BaseNormalizationMethodPanel):
+    def __init__(self, parent=None):
+        super().__init__("Total Intensity Normalization", parent)
 
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.apply_button.setEnabled(False)   # Disabled until valid input
+        self.save_button.setEnabled(False)    # Disabled by default
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        self.layout.addLayout(button_layout)
+
+        # Parameters for Total Intensity Normalization
+        self.layout.addWidget(QLabel("Total Intensity Normalization Parameters:"))
+
+        # Checkbox to enable/disable Desired Total Intensity
+        self.enable_desired_intensity_checkbox = QCheckBox("Enable Desired Total Intensity")
+        self.enable_desired_intensity_checkbox.setChecked(True)  # Enabled by default
+        self.layout.addWidget(self.enable_desired_intensity_checkbox)
+
+        # Desired Total Intensity Input
+        desired_intensity_layout = QHBoxLayout()
+        desired_intensity_layout.addWidget(QLabel("Desired Total Intensity:"))
+        self.desired_intensity_input = QDoubleSpinBox()
+        self.desired_intensity_input.setRange(0.0001, 1e9)
+        self.desired_intensity_input.setValue(1.0)
+        desired_intensity_layout.addWidget(self.desired_intensity_input)
+        self.layout.addLayout(desired_intensity_layout)
+
+        # Connect signals for validation and checkbox state
+        self.enable_desired_intensity_checkbox.stateChanged.connect(self.toggle_desired_intensity)
+        self.desired_intensity_input.valueChanged.connect(self.validate_inputs)
+
+        self.setLayout(self.layout)
+
+    def show_help(self):
+        help_content = TOTAL_INTENSITY_NORMALIZATION_HELP
+        dialog = HelpDialog("Total Intensity Normalization Help", help_content, self)
+        dialog.exec_()
+
+    def toggle_desired_intensity(self, state):
+        enabled = state == Qt.Checked
+        self.desired_intensity_input.setEnabled(enabled)
+        self.save_button.setEnabled(False)  # Disable Save until normalization is applied
+        self.validate_inputs()
+
+    def validate_inputs(self):
+        enabled = self.enable_desired_intensity_checkbox.isChecked()
+        desired_intensity = self.desired_intensity_input.value() if enabled else 1.0
+
+        if desired_intensity > 0:
+            self.apply_button.setEnabled(True)
+        else:
+            self.apply_button.setEnabled(False)
+
+    def get_parameters(self):
+        params = {}
+        enabled = self.enable_desired_intensity_checkbox.isChecked()
+        if enabled:
+            desired_intensity = self.desired_intensity_input.value()
+            if desired_intensity <= 0:
+                QMessageBox.warning(self, "Invalid Intensity", "Desired Total Intensity must be greater than zero.")
+                return None
+            params['desired_total_intensity'] = desired_intensity
+        else:
+            params['desired_total_intensity'] = 1.0  # Default scaling factor
+
+        return params
 
 class DatasetSelectionDialog(QDialog):
     def __init__(self, structure, parent=None):
