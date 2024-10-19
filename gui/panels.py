@@ -168,7 +168,7 @@ class SelectedDataPanel(QGroupBox):
         else:
             print(f"Warning: stylesheet not found at {stylesheet_path}")
 
-            
+
     def init_ui(self, include_retract_button):
         self.layout = QVBoxLayout()
 
@@ -359,10 +359,18 @@ class MinMaxNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
         self.save_button = QPushButton("Save")
+
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
         self.apply_button.setEnabled(True)   # Enabled by default
         self.save_button.setEnabled(False)   # Disabled by default
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled by default
+
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
         # Custom Min-Max Range
@@ -456,10 +464,17 @@ class ZScoreNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
         self.save_button = QPushButton("Save")
+
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
         self.apply_button.setEnabled(True)   # Enabled by default
         self.save_button.setEnabled(False)   # Disabled by default
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled by default
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
         # Parameters for Z-score
@@ -546,10 +561,19 @@ class RobustScalingNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
         self.save_button = QPushButton("Save")
+
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
+
         self.apply_button.setEnabled(True)   # Enabled by default
         self.save_button.setEnabled(False)   # Disabled by default
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled by default
+
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
         # Parameters for Robust Scaling
@@ -650,10 +674,18 @@ class AUCNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
         self.save_button = QPushButton("Save")
+
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
+
         self.apply_button.setEnabled(True)   # Enabled by default
         self.save_button.setEnabled(False)   # Disabled by default
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled by default
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
         # Parameters for AUC Normalization
@@ -703,10 +735,19 @@ class IntervalAUCNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
         self.save_button = QPushButton("Save")
+
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
+
         self.apply_button.setEnabled(False)   # Disabled until valid input
         self.save_button.setEnabled(False)    # Disabled by default
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled by default
+
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
         # Parameters for Interval AUC Normalization
@@ -817,10 +858,19 @@ class TotalIntensityNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
         self.save_button = QPushButton("Save")
+
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
+
         self.apply_button.setEnabled(False)   # Disabled until valid input
         self.save_button.setEnabled(False)    # Disabled by default
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled by default
+
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
         # Parameters for Total Intensity Normalization
@@ -903,10 +953,19 @@ class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
         self.save_button = QPushButton("Save")
+
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
+
         self.apply_button.setEnabled(False)   # Disabled until valid input
         self.save_button.setEnabled(False)    # Disabled by default
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled by default
+
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
         # Parameters for Reference Peak Normalization
@@ -993,10 +1052,17 @@ class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
         self.save_button = QPushButton("Save")
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
         self.apply_button.setEnabled(False)   # Disabled until valid input
         self.save_button.setEnabled(False)    # Disabled by default
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled by default
+        
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
         # Parameters for Baseline Correction

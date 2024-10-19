@@ -163,9 +163,10 @@ class NormalizationTab(QWidget):
             section.section_expanded.connect(self.on_normalization_section_expanded)
             self.normalization_sections.append(section)
 
-            # Connect Apply and Save buttons to the respective methods
+            # Connect Apply, Save, and Send to Data Panel buttons
             panel.apply_button.clicked.connect(lambda checked, p=panel: self.apply_normalization(p))
             panel.save_button.clicked.connect(lambda checked, p=panel: self.save_normalized_data(p))
+            panel.send_to_data_panel_button.clicked.connect(lambda checked, p=panel: self.send_normalized_data_to_data_panel(p))
 
         # QGroupBox for Normalization Methods
         self.normalization_methods_groupbox = QGroupBox("Normalization Methods")
@@ -610,6 +611,7 @@ class NormalizationTab(QWidget):
         # Update the plot with normalized data
         self.update_normalized_plot()
         panel.save_button.setEnabled(True)
+        panel.send_to_data_panel_button.setEnabled(True)
 
 
     def save_normalized_data(self, panel):
@@ -657,10 +659,10 @@ class NormalizationTab(QWidget):
                     QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
 
 
-        if normalized_file_paths:
+        #if normalized_file_paths:
             # **Feature: Add Normalized Files to Selected Data Panel**
-            self.selected_data_panel.add_files(normalized_file_paths)  # Assuming this method exists
-            print(f"Normalized files added to Selected Data panel: {normalized_file_paths}")
+            #self.selected_data_panel.add_files(normalized_file_paths)  # Assuming this method exists
+            #print(f"Normalized files added to Selected Data panel: {normalized_file_paths}")
 
         QMessageBox.information(self, "Save Successful", f"Normalized data saved to {directory}")
         print("All normalized files saved successfully.")
@@ -780,6 +782,55 @@ class NormalizationTab(QWidget):
 
         # Redraw the figure
         self.canvas.draw_idle()
+    def send_normalized_data_to_data_panel(self, panel):
+        if not self.normalized_data:
+            QMessageBox.warning(self, "No Normalized Data", "Please apply normalization first.")
+            return
+
+        # Get currently selected files
+        data_files = self.selected_data_panel.get_selected_files()
+        if not data_files:
+            QMessageBox.warning(self, "No Data Selected", "Please select data files to send.")
+            return
+
+        # Get method name for naming the files
+        method_name = panel.method_name.replace(" ", "_").replace("(", "").replace(")", "").replace("-", "").replace("/", "_")
+
+        # Create a temporary directory to save the files
+        import tempfile
+        temp_dir = tempfile.mkdtemp(prefix='normalized_data_')
+
+        normalized_file_paths = []
+
+        for file_path in data_files:
+            if file_path in self.normalized_data:
+                x, y_normalized = self.normalized_data[file_path]
+                try:
+                    base_name = os.path.splitext(os.path.basename(file_path))[0]
+                    new_file_name = f"{base_name}_{method_name}.csv"
+                    new_file_path = os.path.join(temp_dir, new_file_name)
+
+                    plot_details = self.plot_details_panel.get_plot_details()
+                    x_label = plot_details.get('x_label', 'X')
+                    y_label = plot_details.get('y_label', 'Y')
+
+                    df = pd.DataFrame({
+                        x_label: x,
+                        y_label: y_normalized
+                    })
+
+                    df.to_csv(new_file_path, index=False)
+                    normalized_file_paths.append(new_file_path)
+
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
+
+        if normalized_file_paths:
+            # Add normalized files to Selected Data panel
+            self.selected_data_panel.add_files(normalized_file_paths)
+            QMessageBox.information(self, "Send Successful", "Normalized data sent to Selected Data panel.")
+        else:
+            QMessageBox.warning(self, "No Data Sent", "No normalized data was sent to the Selected Data panel.")
 
     def on_normalization_section_expanded(self, expanded_section):
         if self.is_collapsing:
