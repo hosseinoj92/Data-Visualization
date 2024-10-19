@@ -4,7 +4,7 @@ import os
 from PyQt5.QtWidgets import (
     QGroupBox, QVBoxLayout, QGridLayout, QLabel, QLineEdit, QPushButton,
     QListWidget, QScrollArea, QCheckBox, QSpinBox, QComboBox, QHBoxLayout,
-    QListWidgetItem, QColorDialog, QMessageBox, QFileDialog, QWidget, QMenu, QDialog,QDoubleSpinBox
+    QListWidgetItem, QColorDialog, QMessageBox, QFileDialog, QWidget, QMenu, QDialog,QDoubleSpinBox,QApplication
 )
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -66,11 +66,37 @@ class DraggableListWidget(QListWidget):
     def keyPressEvent(self, event):
         """
         Handle key press events. If the Delete key is pressed, remove selected items.
+        Also handle Ctrl+C and Ctrl+V for copy and paste.
         """
         if event.key() == Qt.Key_Delete:
             self.delete_selected_items()
+        elif event.key() == Qt.Key_C and event.modifiers() & Qt.ControlModifier:
+            self.copy_selected_items()
+        elif event.key() == Qt.Key_V and event.modifiers() & Qt.ControlModifier:
+            self.paste_items()
         else:
             super().keyPressEvent(event)
+
+    def copy_selected_items(self):
+        selected_items = self.selectedItems()
+        if not selected_items:
+            return
+        file_paths = [item.data(Qt.UserRole) for item in selected_items]
+        # Join the file paths into a single string, separated by newlines
+        file_paths_str = '\n'.join(file_paths)
+        # Access the clipboard
+        clipboard = QApplication.clipboard()
+        clipboard.setText(file_paths_str)
+
+    def paste_items(self):
+        clipboard = QApplication.clipboard()
+        file_paths_str = clipboard.text()
+        if not file_paths_str:
+            return
+        file_paths = file_paths_str.split('\n')
+        for file_path in file_paths:
+            if file_path:
+                self.add_file_to_panel(file_path)
 
     def delete_selected_items(self):
         """
@@ -132,13 +158,13 @@ class DraggableListWidget(QListWidget):
 
     def add_file_to_panel(self, file_path):
         """
-        Add a single file to the Selected Data Panel.
+        Add a single file to the list.
         Avoid adding duplicates.
         """
         file_name = os.path.basename(file_path)
         # Avoid adding duplicates
-        existing_files = [self.item(i).data(Qt.UserRole) for i in range(self.count())]
-        if file_path in existing_files:
+        existing_files = [os.path.abspath(self.item(i).data(Qt.UserRole)) for i in range(self.count())]
+        if os.path.abspath(file_path) in existing_files:
             return
         item = QListWidgetItem(file_name)
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsSelectable | Qt.ItemIsEnabled)
