@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 from gui.help_dialog import HelpDialog
 from gui.help_content import (MIN_MAX_NORMALIZATION_HELP,Z_SCORE_NORMALIZATION_HELP, 
                               ROBUST_SCALING_NORMALIZATION_HELP,AUC_NORMALIZATION_HELP,INTERVAL_AUC_NORMALIZATION_HELP,
-                              TOTAL_INTENSITY_NORMALIZATION_HELP,REFERENCE_PEAK_NORMALIZATION_HELP,
+                              TOTAL_INTENSITY_NORMALIZATION_HELP,REFERENCE_PEAK_NORMALIZATION_HELP,BASELINE_CORRECTION_NORMALIZATION_HELP
 
                               )
 
@@ -902,6 +902,99 @@ class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
             QMessageBox.warning(self, "Invalid Input", "Please enter a valid numerical value for the Reference Peak X-Value.")
             return None
 ###############################################################
+
+class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
+    def __init__(self, parent=None):
+        super().__init__("Baseline Correction Normalization", parent)
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.apply_button.setEnabled(False)   # Disabled until valid input
+        self.save_button.setEnabled(False)    # Disabled by default
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        self.layout.addLayout(button_layout)
+
+        # Parameters for Baseline Correction
+        self.layout.addWidget(QLabel("Baseline Correction Parameters:"))
+
+        # Lambda Parameter
+        lambda_layout = QHBoxLayout()
+        lambda_layout.addWidget(QLabel("Lambda (λ):"))
+        self.lambda_input = QLineEdit()
+        self.lambda_input.setText("1e6")  # Default value
+        lambda_layout.addWidget(self.lambda_input)
+        self.layout.addLayout(lambda_layout)
+
+        # Asymmetry Parameter
+        p_layout = QHBoxLayout()
+        p_layout.addWidget(QLabel("Asymmetry (p):"))
+        self.p_input = QLineEdit()
+        self.p_input.setText("0.01")  # Default value
+        p_layout.addWidget(self.p_input)
+        self.layout.addLayout(p_layout)
+
+        # Number of Iterations
+        niter_layout = QHBoxLayout()
+        niter_layout.addWidget(QLabel("Iterations (niter):"))
+        self.niter_input = QLineEdit()
+        self.niter_input.setText("10")  # Default value
+        niter_layout.addWidget(self.niter_input)
+        self.layout.addLayout(niter_layout)
+
+        # Connect input changes to validation
+        self.lambda_input.textChanged.connect(self.validate_inputs)
+        self.p_input.textChanged.connect(self.validate_inputs)
+        self.niter_input.textChanged.connect(self.validate_inputs)
+
+        self.setLayout(self.layout)
+
+    def show_help(self):
+        help_content = BASELINE_CORRECTION_NORMALIZATION_HELP
+        dialog = HelpDialog("Baseline Correction Normalization", help_content, self)
+        dialog.exec_()
+
+    def validate_inputs(self):
+            try:
+                lambda_val = float(self.lambda_input.text())
+                p_val = float(self.p_input.text())
+                niter_val = int(self.niter_input.text())
+                if lambda_val <= 0 or not (0 < p_val < 1) or niter_val <= 0:
+                    self.apply_button.setEnabled(False)
+                else:
+                    self.apply_button.setEnabled(True)
+            except ValueError:
+                self.apply_button.setEnabled(False)
+                
+    def get_parameters(self):
+        try:
+            lambda_val = float(self.lambda_input.text())
+            p_val = float(self.p_input.text())
+            niter_val = int(self.niter_input.text())
+            if lambda_val <= 0 or not (0 < p_val < 1) or niter_val <= 0:
+                QMessageBox.warning(self, "Invalid Parameters", "Please enter valid parameter values.")
+                return None
+            return {
+                'lambda_': lambda_val,
+                'p': p_val,
+                'niter': niter_val
+            }
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Inputs", "Please enter numeric values for all parameters.")
+            return None
+
+##############################################################
 class DatasetSelectionDialog(QDialog):
     def __init__(self, structure, parent=None):
         super().__init__(parent)

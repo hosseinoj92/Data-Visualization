@@ -546,3 +546,136 @@ REFERENCE_PEAK_NORMALIZATION_HELP = """
 </body>
 </html>
 """
+
+BASELINE_CORRECTION_NORMALIZATION_HELP = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Baseline Correction Normalization Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js">
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #2E8B57;
+        }
+        p, ul {
+            font-size: 16px;
+        }
+        ul {
+            margin-left: 20px;
+        }
+        .parameter-section {
+            margin-top: 20px;
+        }
+        .parameter-section h3 {
+            color: #4682B4;
+        }
+        .parameter-section ul {
+            list-style-type: disc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Baseline Correction Normalization</h1>
+    <p>
+        Baseline Correction Normalization is a technique used to remove background noise or drift in data by subtracting the baseline from the data points. This method is commonly applied to datasets where the signal is affected by a non-zero baseline, such as in spectroscopy, chromatography, or time-series data. The goal is to bring the baseline of the data to zero, enabling clearer analysis of the signal or feature of interest.
+    </p>
+    <h2>Formula:</h2>
+    <p>
+        The normalization is typically performed by subtracting the baseline \(y_{\text{baseline}}\) from each data point:
+    </p>
+    <p>
+        \\[
+        y'_i = y_i - y_{\text{baseline}}
+        \\]
+    </p>
+    <p>
+        Where:
+    </p>
+    <ul>
+        <li>\(y'_i\) is the baseline-corrected value.</li>
+        <li>\(y_i\) is the original data value.</li>
+        <li>\(y_{\text{baseline}}\) is the baseline value, which can be constant or variable depending on the method used to estimate it.</li>
+    </ul>
+
+    <h2>Usage:</h2>
+    <ul>
+        <li><strong>Signal correction:</strong> Baseline correction is often used in signal-based data, such as spectroscopy or chromatography, to remove background noise or drift and focus on the actual signal.</li>
+        <li><strong>Time-series data:</strong> It is useful for removing trends or slow variations in time-series data, making the underlying features more prominent.</li>
+        <li><strong>Experimental measurements:</strong> In experiments with drifting baselines (e.g., due to temperature changes, instrument variations), baseline correction ensures the data reflects only the significant changes or features.</li>
+    </ul>
+
+    <h2>Advantages:</h2>
+    <ul>
+        <li><strong>Removes background noise:</strong> By subtracting the baseline, the method ensures that the data focuses on the signal of interest, eliminating unwanted background trends.</li>
+        <li><strong>Improves signal clarity:</strong> This normalization makes it easier to detect meaningful patterns or features in the data.</li>
+        <li><strong>Applicable across different domains:</strong> It is widely used in various fields, such as spectroscopy, chromatography, and other signal-based analyses, making it versatile.</li>
+    </ul>
+
+    <h2>Disadvantages:</h2>
+    <ul>
+        <li><strong>Requires accurate baseline estimation:</strong> The success of baseline correction depends heavily on how accurately the baseline is estimated. Poorly estimated baselines can lead to inaccurate results.</li>
+        <li><strong>Not suitable for datasets without a baseline:</strong> This method is only applicable to data where a baseline exists. Datasets without a clear baseline do not benefit from this approach.</li>
+        <li><strong>Over-correction risk:</strong> There is a risk of over-correcting the signal if the baseline is improperly identified, which could distort the original data.</li>
+    </ul>
+
+    <h2>When to Use:</h2>
+    <ul>
+        <li><strong>Signal-based data:</strong> Use baseline correction when working with data that has an obvious background signal or drift, such as in spectroscopy or chromatography.</li>
+        <li><strong>Time-series analysis:</strong> Apply baseline correction to time-series data that has slow trends or background drift that need to be removed for clearer analysis.</li>
+        <li><strong>Experiments with drifting conditions:</strong> When working with experimental data affected by changing conditions (e.g., temperature or instrument variations), baseline correction helps remove these effects and highlight the true signal.</li>
+    </ul>
+
+    <div class="parameter-section">
+        <h2>Parameters:</h2>
+        <p>Baseline Correction Normalization utilizes three key parameters: <strong>Lambda (\(\lambda\))</strong>, <strong>Asymmetry (p)</strong>, and <strong>Iterations</strong>. Understanding and appropriately setting these parameters is crucial for effective baseline correction.</p>
+        <h3>1. Lambda (\(\lambda\))</h3>
+        <p>
+            <strong>Description:</strong> Lambda controls the smoothness of the estimated baseline. It determines the penalty for deviations from a smooth baseline. A higher lambda value results in a smoother baseline, while a lower value allows the baseline to follow more closely to the data.
+        </p>
+        <p>
+            <strong>How to Choose:</strong>
+        </p>
+        <ul>
+            <li><strong>High Lambda (e.g., \(1 \times 10^5\) to \(1 \times 10^7\)):</strong> Use when the baseline is expected to be smooth and not follow the minor fluctuations of the data. Ideal for datasets where the baseline drift is gradual.</li>
+            <li><strong>Low Lambda (e.g., \(1 \times 10^3\) to \(1 \times 10^5\)):</strong> Choose when the baseline may have sharper features or when you want the baseline to adapt more closely to the data variations.</li>
+            <li><strong>Default Value:</strong> A lambda value of \(1 \times 10^6\) is often a good starting point and works well for many datasets.</li>
+        </ul>
+
+        <h3>2. Asymmetry (p)</h3>
+        <p>
+            <strong>Description:</strong> Asymmetry controls the weighting of positive and negative residuals during baseline estimation. It dictates how the algorithm distinguishes between signal peaks and baseline.
+        </p>
+        <p>
+            <strong>How to Choose:</strong>
+        </p>
+        <ul>
+            <li><strong>Low Asymmetry (e.g., 0.001 to 0.01):</strong> Increases sensitivity to peaks, allowing the algorithm to better ignore signal peaks and focus on estimating the baseline.</li>
+            <li><strong>High Asymmetry (e.g., 0.05 to 0.1):</strong> Reduces sensitivity to peaks, which may be useful if the signal has overlapping features that shouldn't be overly suppressed.</li>
+            <li><strong>Default Value:</strong> An asymmetry value of 0.01 is commonly used and provides a good balance between sensitivity and baseline estimation accuracy.</li>
+        </ul>
+
+        <h3>3. Iterations</h3>
+        <p>
+            <strong>Description:</strong> Iterations determine how many times the algorithm refines the baseline estimation. More iterations can lead to a more accurate and stable baseline.
+        </p>
+        <p>
+            <strong>How to Choose:</strong>
+        </p>
+        <ul>
+            <li><strong>Fewer Iterations (e.g., 5 to 10):</strong> Faster computation but may result in a less accurate baseline, especially in datasets with complex baseline shapes.</li>
+            <li><strong>More Iterations (e.g., 15 to 30):</strong> Slower computation but can achieve a more refined and accurate baseline estimation. Useful for high-noise datasets or those with intricate baseline structures.</li>
+            <li><strong>Default Value:</strong> Setting iterations to 10 is a standard choice that offers a reasonable trade-off between performance and accuracy.</li>
+        </ul>
+    </div>
+</body>
+</html>
+"""

@@ -14,7 +14,7 @@ from gui.panels import (
     CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, 
     MinMaxNormalizationPanel, ZScoreNormalizationPanel, RobustScalingNormalizationPanel,
     AUCNormalizationPanel,IntervalAUCNormalizationPanel,TotalIntensityNormalizationPanel,
-    ReferencePeakNormalizationPanel
+    ReferencePeakNormalizationPanel,BaselineCorrectionNormalizationPanel
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -124,7 +124,9 @@ class NormalizationTab(QWidget):
             ("AUC Normalization", AUCNormalizationPanel), 
             ("Interval AUC Normalization", IntervalAUCNormalizationPanel),
             ("Total Intensity Normalization", TotalIntensityNormalizationPanel),
-            ("Reference Peak Normalization", ReferencePeakNormalizationPanel), 
+            ("Reference Peak Normalization", ReferencePeakNormalizationPanel),
+            ("Baseline Correction Normalization", BaselineCorrectionNormalizationPanel),  # Newly added method
+ 
             
         ]
 
@@ -368,7 +370,43 @@ class NormalizationTab(QWidget):
             scaling_factor = desired_reference_intensity / y_ref
             y_normalized = y * scaling_factor
             return y_normalized
-    
+        
+        def baseline_correction(y, x, lambda_=1e6, p=0.01, niter=10):
+            """
+            Performs baseline correction using Asymmetric Least Squares (ALS) method.
+            
+            Parameters:
+            - y: numpy array of Y-values (1D)
+            - x: numpy array of X-values
+            - lambda_: smoothing parameter (default: 1e6)
+            - p: asymmetry parameter (default: 0.01)
+            - niter: number of iterations (default: 10)
+            
+            Returns:
+            - y_corrected: baseline-corrected Y-values
+            - baseline: estimated baseline
+            """
+            from scipy import sparse
+            from scipy.sparse.linalg import spsolve
+            
+            L = len(y)
+            D = sparse.diags([1, -2, 1], [0, -1, -2], shape=(L, L-2))
+            D = lambda_ * D.dot(D.transpose())  # Precompute D^T * D
+            w = np.ones(L)
+            
+            for i in range(niter):
+                W = sparse.diags(w, 0)
+                Z = W + D
+                try:
+                    z = spsolve(Z, w * y)
+                except Exception as e:
+                    QMessageBox.warning(None, "Baseline Correction Error", f"Error during baseline correction: {e}")
+                    return None, None
+                w = p * (y > z) + (1 - p) * (y < z)
+            
+            y_corrected = y - z
+            return y_corrected, z
+        
         self.normalization_functions = [
             min_max_normalization,          # Index 0
             z_score_normalization,          # Index 1
@@ -377,9 +415,10 @@ class NormalizationTab(QWidget):
             interval_auc_normalization,
             total_intensity_normalization,  
             reference_peak_normalization,
+            baseline_correction,   
             # Add other normalization functions here as implemented
         ]
-            
+        
     
     def get_normalization_function(self, method_index):
         if 0 <= method_index < len(self.normalization_functions):
@@ -416,60 +455,122 @@ class NormalizationTab(QWidget):
             return  # Error message already shown
 
         # Define which methods accept the 'x' parameter
-        methods_accepting_x = ["AUC Normalization", "Interval AUC Normalization", "Reference Peak Normalization"]
+        methods_accepting_x = [
+            "AUC Normalization", 
+            "Interval AUC Normalization", 
+            "Reference Peak Normalization", 
+            "Baseline Correction Normalization"
+        ]
 
-        # Apply normalization to each selected file
-        self.normalized_data = {}  # Reset normalized data
-        for file_path in data_files:
-            try:
-                df = pd.read_csv(file_path)
-                plot_details = self.plot_details_panel.get_plot_details()
-                x_col = int(plot_details['x_axis_col']) - 1
-                y_col = int(plot_details['y_axis_col']) - 1
-                x = df.iloc[:, x_col].values
-                y = df.iloc[:, y_col].values
+        # Special handling for Baseline Correction which requires parameters
+        if panel.method_name == "Baseline Correction Normalization":
+            # Collect all Y data as a 1D array per file (assuming single spectrum per file)
+            for file_path in data_files:
+                try:
+                    df = pd.read_csv(file_path)
+                    plot_details = self.plot_details_panel.get_plot_details()
+                    x_col = int(plot_details['x_axis_col']) - 1
+                    y_col = int(plot_details['y_axis_col']) - 1
+                    x = df.iloc[:, x_col].values
+                    y = df.iloc[:, y_col].values
 
-                # Determine if 'x' should be passed based on the method
-                if panel.method_name in methods_accepting_x:
-                    if panel.method_name == "Interval AUC Normalization":
-                        # For Interval AUC Normalization, pass additional parameters
+                    # Apply Baseline Correction
+                    y_corrected, baseline = method_func(
+                        y=y,
+                        x=x,
+                        lambda_=params.get('lambda_', 1e6),
+                        p=params.get('p', 0.01),
+                        niter=params.get('niter', 10)
+                    )
+
+                    if y_corrected is None:
+                        QMessageBox.warning(self, "Normalization Failed", f"Baseline Correction failed for file {file_path}.")
+                        continue
+
+                    # Store normalized data
+                    self.normalized_data[file_path] = (x, y_corrected)
+
+                except TypeError as te:
+                    QMessageBox.warning(self, "Type Error", f"Type error in file {file_path}: {te}")
+                    print(f"Type error in file {file_path}: {te}")
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Error normalizing file {file_path}: {e}")
+                    print(f"Error normalizing file {file_path}: {e}")
+
+        elif panel.method_name in methods_accepting_x:
+            # Handle other methods that accept 'x'
+            for file_path in data_files:
+                try:
+                    df = pd.read_csv(file_path)
+                    plot_details = self.plot_details_panel.get_plot_details()
+                    x_col = int(plot_details['x_axis_col']) - 1
+                    y_col = int(plot_details['y_axis_col']) - 1
+                    x = df.iloc[:, x_col].values
+                    y = df.iloc[:, y_col].values
+
+                    if panel.method_name == "AUC Normalization":
+                        y_normalized = method_func(y, x=x, sort_data=params.get('sort_data', True))
+                    elif panel.method_name == "Interval AUC Normalization":
                         y_normalized = method_func(
                             y,
                             x=x,
-                            desired_auc=params['desired_auc'],
-                            interval_start=params['interval_start'],
-                            interval_end=params['interval_end']
+                            desired_auc=params.get('desired_auc', 1.0),
+                            interval_start=params.get('interval_start', x.min()),
+                            interval_end=params.get('interval_end', x.max())
                         )
                     elif panel.method_name == "Reference Peak Normalization":
-                        # For Reference Peak Normalization, pass reference_peak_x and desired_reference_intensity
                         y_normalized = method_func(
                             y,
                             x=x,
-                            reference_peak_x=params['reference_peak_x'],
-                            desired_reference_intensity=params['desired_reference_intensity']
+                            reference_peak_x=params.get('reference_peak_x', x[np.argmax(y)]),
+                            desired_reference_intensity=params.get('desired_reference_intensity', 1.0)
                         )
+                    elif panel.method_name == "Baseline Correction Normalization":
+                        # Already handled above
+                        continue
                     else:
-                        # For AUC Normalization, pass 'x' along with other parameters
                         y_normalized = method_func(y, x=x, **params)
-                elif panel.method_name == "Total Intensity Normalization":
-                    # For Total Intensity Normalization, pass the desired_total_intensity
-                    y_normalized = method_func(y, desired_total_intensity=params['desired_total_intensity'])
-                else:
-                    # For other normalization methods, do not pass 'x'
+
+                    if y_normalized is None:
+                        QMessageBox.warning(self, "Normalization Failed", f"Normalization failed for file {file_path}.")
+                        continue
+
+                    # Store normalized data
+                    self.normalized_data[file_path] = (x, y_normalized)
+
+                except TypeError as te:
+                    QMessageBox.warning(self, "Type Error", f"Type error in file {file_path}: {te}")
+                    print(f"Type error in file {file_path}: {te}")
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Error normalizing file {file_path}: {e}")
+                    print(f"Error normalizing file {file_path}: {e}")
+
+        else:
+            # Handle other normalization methods that do not accept 'x'
+            for file_path in data_files:
+                try:
+                    df = pd.read_csv(file_path)
+                    plot_details = self.plot_details_panel.get_plot_details()
+                    x_col = int(plot_details['x_axis_col']) - 1
+                    y_col = int(plot_details['y_axis_col']) - 1
+                    x = df.iloc[:, x_col].values
+                    y = df.iloc[:, y_col].values
+
                     y_normalized = method_func(y, **params)
 
-                if y_normalized is None:
-                    continue
+                    if y_normalized is None:
+                        QMessageBox.warning(self, "Normalization Failed", f"Normalization failed for file {file_path}.")
+                        continue
 
-                # Store normalized data
-                self.normalized_data[file_path] = (x, y_normalized)
+                    # Store normalized data
+                    self.normalized_data[file_path] = (x, y_normalized)
 
-            except TypeError as te:
-                QMessageBox.warning(self, "Type Error", f"Type error in file {file_path}: {te}")
-                print(f"Type error in file {file_path}: {te}")
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Error normalizing file {file_path}: {e}")
-                print(f"Error normalizing file {file_path}: {e}")
+                except TypeError as te:
+                    QMessageBox.warning(self, "Type Error", f"Type error in file {file_path}: {te}")
+                    print(f"Type error in file {file_path}: {te}")
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Error normalizing file {file_path}: {e}")
+                    print(f"Error normalizing file {file_path}: {e}")
 
         # Update the plot with normalized data
         self.update_normalized_plot()
