@@ -460,6 +460,9 @@ class NormalizationTab(QWidget):
         
     def apply_normalization(self, panel):
 
+         # Clear the previous normalized data
+        self.normalized_data = {}
+
         # Get the selected data files
         data_files = self.selected_data_panel.get_selected_files()
         if not data_files:
@@ -610,49 +613,49 @@ class NormalizationTab(QWidget):
 
 
     def save_normalized_data(self, panel):
-        print("save_normalized_data called")
         if not self.normalized_data:
             QMessageBox.warning(self, "No Normalized Data", "Please apply normalization first.")
-            print("No normalized data to save.")
+            return
+
+        # Get currently selected files
+        data_files = self.selected_data_panel.get_selected_files()
+        if not data_files:
+            QMessageBox.warning(self, "No Data Selected", "Please select data files to save.")
             return
 
         # Select normalization method for naming
         method_name = panel.method_name.replace(" ", "_").replace("(", "").replace(")", "").replace("-", "").replace("/", "_")
-        print(f"Method Name for Saving: {method_name}")
 
         # Ask user to select folder to save files
         directory = QFileDialog.getExistingDirectory(self, "Select Directory to Save Normalized Data")
         if not directory:
-            print("No directory selected for saving.")
             return
 
-        normalized_file_paths = []  # To store paths of saved normalized files
+        normalized_file_paths = []
 
-        for file_path, (x, y_normalized) in self.normalized_data.items():
-            try:
-                base_name = os.path.splitext(os.path.basename(file_path))[0]
-                new_file_name = f"{base_name}_{method_name}.csv"
-                new_file_path = os.path.join(directory, new_file_name)
-                print(f"Saving normalized file to: {new_file_path}")
+        for file_path in data_files:
+            if file_path in self.normalized_data:
+                x, y_normalized = self.normalized_data[file_path]
+                try:
+                    base_name = os.path.splitext(os.path.basename(file_path))[0]
+                    new_file_name = f"{base_name}_{method_name}.csv"
+                    new_file_path = os.path.join(directory, new_file_name)
 
-                # Create dataframe to save
-                plot_details = self.plot_details_panel.get_plot_details()
-                x_label = plot_details.get('x_label', 'X')
-                y_label = plot_details.get('y_label', 'Y')
+                    plot_details = self.plot_details_panel.get_plot_details()
+                    x_label = plot_details.get('x_label', 'X')
+                    y_label = plot_details.get('y_label', 'Y')
 
-                df = pd.DataFrame({
-                    x_label: x,
-                    y_label: y_normalized
-                })
+                    df = pd.DataFrame({
+                        x_label: x,
+                        y_label: y_normalized
+                    })
 
-                df.to_csv(new_file_path, index=False)
-                print(f"File saved: {new_file_path}")
+                    df.to_csv(new_file_path, index=False)
+                    normalized_file_paths.append(new_file_path)
 
-                normalized_file_paths.append(new_file_path)  # Add to list
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
 
-            except Exception as e:
-                QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
-                print(f"Error saving file {new_file_path}: {e}")
 
         if normalized_file_paths:
             # **Feature: Add Normalized Files to Selected Data Panel**
@@ -666,7 +669,13 @@ class NormalizationTab(QWidget):
         if not self.normalized_data:
             QMessageBox.warning(self, "No Normalized Data", "Please apply normalization first.")
             return
-
+        
+        # Get currently selected files
+        data_files = self.selected_data_panel.get_selected_files()
+        if not data_files:
+            QMessageBox.warning(self, "No Data Selected", "Please select data files to plot.")
+            return
+            
         # Gather plot settings
         plot_details = self.plot_details_panel.get_plot_details()
         axis_details = self.axis_details_panel.get_axis_details()
