@@ -35,6 +35,17 @@ import sys
 from fontTools.ttLib import TTFont
 from functools import partial  # Import at the top
 
+
+
+def resource_path(relative_path):
+    """Get the absolute path to a resource, works for development and PyInstaller."""
+    try:
+        # PyInstaller creates a temporary folder and stores its path in sys._MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 ################################################################
 
 class GeneralTab(QWidget):
@@ -47,6 +58,15 @@ class GeneralTab(QWidget):
         self.expanded_window = None  # To track the expanded window
         self.canvas.installEventFilter(self)
 
+        self.apply_stylesheet()
+
+    def apply_stylesheet(self):
+        stylesheet_path = resource_path('style.qss')
+        if os.path.exists(stylesheet_path):
+            with open(stylesheet_path, 'r') as f:
+                self.setStyleSheet(f.read())
+        else:
+            print(f"Warning: stylesheet not found at {stylesheet_path}")
 
     def init_ui(self):
         self.layout = QGridLayout()
@@ -55,7 +75,7 @@ class GeneralTab(QWidget):
         self.setLayout(self.layout)
 
         # Initialize last_directory
-        self.last_directory = os.path.expanduser("~")  # Add this line
+        self.last_directory = os.path.expanduser("~")  
 
         # Instantiate panels
         self.selected_data_panel = SelectedDataPanel()
@@ -97,34 +117,40 @@ class GeneralTab(QWidget):
         plot_layout = QVBoxLayout()
         plot_layout.addWidget(self.plot_frame)
 
-        # Control Buttons
         self.update_button = QPushButton("Update Plot")
-        self.update_button.setIcon(QIcon('gui/resources/update_icon.png'))
+        update_icon_path = resource_path('gui/resources/update_icon.png')
+        self.update_button.setIcon(QIcon(update_icon_path))
         self.update_button.clicked.connect(self.update_plot)
 
         self.show_data_structure_button = QPushButton("Show Data Structure")
-        self.show_data_structure_button.setIcon(QIcon('gui/resources/data_structure_icon.png'))
+        data_structure_icon_path = resource_path('gui/resources/data_structure_icon.png')
+        self.show_data_structure_button.setIcon(QIcon(data_structure_icon_path))
         self.show_data_structure_button.clicked.connect(self.show_data_structure)
 
         self.plot_type_2d_button = QPushButton("2D")
-        self.plot_type_2d_button.setIcon(QIcon('gui/resources/2d_icon.png'))
+        plot_2d_icon_path = resource_path('gui/resources/2d_icon.png')
+        self.plot_type_2d_button.setIcon(QIcon(plot_2d_icon_path))
         self.plot_type_2d_button.clicked.connect(self.plot_2d)
 
         self.plot_type_3d_button = QPushButton("3D")
-        self.plot_type_3d_button.setIcon(QIcon('gui/resources/3d_icon.png'))
+        plot_3d_icon_path = resource_path('gui/resources/3d_icon.png')
+        self.plot_type_3d_button.setIcon(QIcon(plot_3d_icon_path))
         self.plot_type_3d_button.clicked.connect(self.plot_3d)
 
         self.expand_button = QPushButton("Expand Window")
-        self.expand_button.setIcon(QIcon('gui/resources/expand2_icon.png'))  # Set new expand icon
+        expand_icon_path = resource_path('gui/resources/expand2_icon.png')
+        self.expand_button.setIcon(QIcon(expand_icon_path))
         self.expand_button.clicked.connect(self.expand_window)
 
-        self.save_plot_button = QPushButton("Save Plot")  
-        self.save_plot_button.setIcon(QIcon('gui/resources/save_icon.png'))  # Optional: add an icon
+        self.save_plot_button = QPushButton("Save Plot")
+        save_icon_path = resource_path('gui/resources/save_icon.png')
+        self.save_plot_button.setIcon(QIcon(save_icon_path))
         self.save_plot_button.clicked.connect(self.save_plot_with_options)
 
-        self.configure_subplots_button = QPushButton("Configure Subplots")  
-        self.configure_subplots_button.setIcon(QIcon('gui/resources/configure_subplots_icon.png')) 
-        self.configure_subplots_button.clicked.connect(self.open_subplots_config_dialog)  
+        self.configure_subplots_button = QPushButton("Configure Subplots")
+        configure_subplots_icon_path = resource_path('gui/resources/configure_subplots_icon.png')
+        self.configure_subplots_button.setIcon(QIcon(configure_subplots_icon_path))
+        self.configure_subplots_button.clicked.connect(self.open_subplots_config_dialog)
 
 
         self.plot_buttons_layout = QHBoxLayout()
@@ -161,7 +187,6 @@ class GeneralTab(QWidget):
         # Connect the canvas to the event handler
         self.canvas.mpl_connect('button_press_event', self.on_click)
         self.canvas.mpl_connect('motion_notify_event', self.on_mouse_move)
-
 
 
         # Update the plot_frame stylesheet

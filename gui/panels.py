@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
 )
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-
+import sys
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QColor
 from utils import read_numeric_data  # Ensure this import is correct
@@ -24,6 +24,23 @@ from gui.help_content import (MIN_MAX_NORMALIZATION_HELP,Z_SCORE_NORMALIZATION_H
 
                               )
 
+
+
+
+def resource_path(relative_path):
+    """Get the absolute path to a resource, works for development and PyInstaller."""
+    try:
+        # PyInstaller creates a temporary folder and stores its path in sys._MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
+
+#################################################################
+
+
 class DraggableListWidget(QListWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -32,6 +49,19 @@ class DraggableListWidget(QListWidget):
         self.setSelectionMode(QListWidget.MultiSelection)  # Enable multi-selection
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.open_context_menu)
+
+        # Apply global stylesheet
+        self.apply_stylesheet()
+
+    def apply_stylesheet(self):
+        """Load the global stylesheet."""
+        stylesheet_path = resource_path('style.qss')
+        if os.path.exists(stylesheet_path):
+            with open(stylesheet_path, 'r') as f:
+                self.setStyleSheet(f.read())
+        else:
+            print(f"Warning: stylesheet not found at {stylesheet_path}")
+
 
     def keyPressEvent(self, event):
         """
@@ -125,20 +155,34 @@ class SelectedDataPanel(QGroupBox):
         self.all_selected = False  # Initialize selection state
         self.init_ui(include_retract_button)
 
+        
+        # Apply global stylesheet
+        self.apply_stylesheet()
+
+    def apply_stylesheet(self):
+        """Load the global stylesheet."""
+        stylesheet_path = resource_path('style.qss')
+        if os.path.exists(stylesheet_path):
+            with open(stylesheet_path, 'r') as f:
+                self.setStyleSheet(f.read())
+        else:
+            print(f"Warning: stylesheet not found at {stylesheet_path}")
+
+            
     def init_ui(self, include_retract_button):
         self.layout = QVBoxLayout()
 
-        # Buttons for file operations
+        # Set up buttons
         self.file_selector_button = QPushButton("Choose Files")
         self.add_file_button = QPushButton("Add Files")
         self.select_all_button = QPushButton("Select All")
-        self.remove_selected_button = QPushButton("Remove Selected")  # Optional Remove Button
+        self.remove_selected_button = QPushButton("Remove Selected")
 
-        # Tooltips for better UX
-        self.file_selector_button.setToolTip("Click to choose and add files to the Selected Data panel.")
-        self.add_file_button.setToolTip("Click to add more files to the Selected Data panel.")
-        self.select_all_button.setToolTip("Click to select or deselect all files.")
-        self.remove_selected_button.setToolTip("Click to remove selected files from the Selected Data panel.")
+        # Set up tooltips
+        self.file_selector_button.setToolTip("Click to choose and add files.")
+        self.add_file_button.setToolTip("Click to add more files.")
+        self.select_all_button.setToolTip("Click to select/deselect all files.")
+        self.remove_selected_button.setToolTip("Click to remove selected files.")
 
         # Optional Retract Button
         if include_retract_button:
@@ -288,13 +332,26 @@ class BaseNormalizationMethodPanel(QWidget):
 class MinMaxNormalizationPanel(BaseNormalizationMethodPanel):
     def __init__(self, parent=None):
         super().__init__("Min-Max Normalization", parent)
+
+        # Apply global stylesheet
+        self.apply_stylesheet()
+
+    def apply_stylesheet(self):
+        """Load the global stylesheet."""
+        stylesheet_path = resource_path('style.qss')
+        if os.path.exists(stylesheet_path):
+            with open(stylesheet_path, 'r') as f:
+                self.setStyleSheet(f.read())
+        else:
+            print(f"Warning: stylesheet not found at {stylesheet_path}")
     
     def init_ui(self):
         self.layout = QVBoxLayout()
 
-        # Help Button
+        # Help button with icon
         help_button = QPushButton("Help")
-        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_icon = QIcon(resource_path("gui/resources/help_icon.png"))
+        help_button.setIcon(help_icon)
         help_button.clicked.connect(self.show_help)
         self.layout.addWidget(help_button)
 
@@ -390,7 +447,8 @@ class ZScoreNormalizationPanel(BaseNormalizationMethodPanel):
 
         # Help Button
         help_button = QPushButton("Help")
-        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_icon = QIcon("gui/resources/help_icon.png")  # Use resource path
+        help_button.setIcon(help_icon)
         help_button.clicked.connect(self.show_help)
         self.layout.addWidget(help_button)
 
@@ -479,7 +537,8 @@ class RobustScalingNormalizationPanel(BaseNormalizationMethodPanel):
 
         # Help Button
         help_button = QPushButton("Help")
-        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_icon = QIcon("gui/resources/help_icon.png")  # Use resource path
+        help_button.setIcon(help_icon)
         help_button.clicked.connect(self.show_help)
         self.layout.addWidget(help_button)
 
@@ -582,7 +641,8 @@ class AUCNormalizationPanel(BaseNormalizationMethodPanel):
 
         # Help Button
         help_button = QPushButton("Help")
-        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_icon = QIcon("gui/resources/help_icon.png")  # Use resource path
+        help_button.setIcon(help_icon)
         help_button.clicked.connect(self.show_help)
         self.layout.addWidget(help_button)
 
@@ -634,7 +694,8 @@ class IntervalAUCNormalizationPanel(BaseNormalizationMethodPanel):
 
         # Help Button
         help_button = QPushButton("Help")
-        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_icon = QIcon("gui/resources/help_icon.png")  # Use resource path
+        help_button.setIcon(help_icon)
         help_button.clicked.connect(self.show_help)
         self.layout.addWidget(help_button)
 
@@ -747,7 +808,8 @@ class TotalIntensityNormalizationPanel(BaseNormalizationMethodPanel):
 
         # Help Button
         help_button = QPushButton("Help")
-        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_icon = QIcon("gui/resources/help_icon.png")  # Use resource path
+        help_button.setIcon(help_icon)
         help_button.clicked.connect(self.show_help)
         self.layout.addWidget(help_button)
 
@@ -832,7 +894,8 @@ class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
 
         # Help Button
         help_button = QPushButton("Help")
-        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_icon = QIcon("gui/resources/help_icon.png")  # Use resource path
+        help_button.setIcon(help_icon)
         help_button.clicked.connect(self.show_help)
         self.layout.addWidget(help_button)
 
@@ -921,7 +984,8 @@ class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
 
         # Help Button
         help_button = QPushButton("Help")
-        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_icon = QIcon("gui/resources/help_icon.png")  # Use resource path
+        help_button.setIcon(help_icon)
         help_button.clicked.connect(self.show_help)
         self.layout.addWidget(help_button)
 
@@ -1330,7 +1394,8 @@ class NormalizationMethodPanel(QWidget):
 
         # 1. Help Button
         help_button = QPushButton("Help")
-        help_button.setIcon(QIcon('gui/resources/help_icon.png'))
+        help_icon = QIcon("gui/resources/help_icon.png")  # Use resource path
+        help_button.setIcon(help_icon)
         help_button.clicked.connect(self.show_help)
         self.layout.addWidget(help_button)
 

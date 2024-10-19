@@ -5,6 +5,21 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QProgressBar
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap, QFont
 
+
+import sys
+import os
+
+def resource_path(relative_path):
+    """Get the absolute path to a resource, works for development and PyInstaller."""
+    try:
+        # PyInstaller creates a temporary folder and stores its path in sys._MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+######################################################################
+
+
 class SplashScreen(QWidget):
     def __init__(self):
         super().__init__()
@@ -62,7 +77,7 @@ class SplashScreen(QWidget):
         self.overlay_layout.addWidget(self.sub_text_label)
 
         # Sub text label
-        self.sub_text_label = QLabel("Version 2.4.2", self)
+        self.sub_text_label = QLabel("Version 2.3.3", self)
         self.sub_text_label.setFont(QFont("Segoe UI", 12))
         self.sub_text_label.setStyleSheet("color: white;")
         self.sub_text_label.setAlignment(Qt.AlignCenter)
