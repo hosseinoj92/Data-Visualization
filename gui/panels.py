@@ -625,7 +625,6 @@ class AUCNormalizationPanel(BaseNormalizationMethodPanel):
         params['sort_data'] = self.sort_checkbox.isChecked()
         return params
 ########################################################
-
 class IntervalAUCNormalizationPanel(BaseNormalizationMethodPanel):
     def __init__(self, parent=None):
         super().__init__("Interval AUC Normalization", parent)
@@ -691,6 +690,9 @@ class IntervalAUCNormalizationPanel(BaseNormalizationMethodPanel):
         self.interval_end_input.valueChanged.connect(self.validate_inputs)
 
         self.setLayout(self.layout)
+
+        # **Invoke validation upon initialization**
+        self.validate_inputs()
 
     def show_help(self):
         help_content = INTERVAL_AUC_NORMALIZATION_HELP
@@ -782,6 +784,9 @@ class TotalIntensityNormalizationPanel(BaseNormalizationMethodPanel):
 
         self.setLayout(self.layout)
 
+        # **Invoke validation upon initialization**
+        self.validate_inputs()
+
     def show_help(self):
         help_content = TOTAL_INTENSITY_NORMALIZATION_HELP
         dialog = HelpDialog("Total Intensity Normalization Help", help_content, self)
@@ -849,6 +854,7 @@ class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
         ref_peak_layout.addWidget(QLabel("Reference Peak X-Value:"))
         self.ref_peak_input = QLineEdit()
         self.ref_peak_input.setPlaceholderText("e.g., 5.0")
+        self.ref_peak_input.setText("5.0")  # Default value
         ref_peak_layout.addWidget(self.ref_peak_input)
         self.layout.addLayout(ref_peak_layout)
 
@@ -866,6 +872,9 @@ class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
         self.desired_intensity_input.valueChanged.connect(self.validate_inputs)
 
         self.setLayout(self.layout)
+
+        # **Invoke validation upon initialization**
+        self.validate_inputs()
 
     def show_help(self):
         help_content = REFERENCE_PEAK_NORMALIZATION_HELP
@@ -960,23 +969,26 @@ class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
 
         self.setLayout(self.layout)
 
+        # **Invoke validation upon initialization**
+        self.validate_inputs()
+
     def show_help(self):
         help_content = BASELINE_CORRECTION_NORMALIZATION_HELP
-        dialog = HelpDialog("Baseline Correction Normalization", help_content, self)
+        dialog = HelpDialog("Baseline Correction Normalization Help", help_content, self)
         dialog.exec_()
 
     def validate_inputs(self):
-            try:
-                lambda_val = float(self.lambda_input.text())
-                p_val = float(self.p_input.text())
-                niter_val = int(self.niter_input.text())
-                if lambda_val <= 0 or not (0 < p_val < 1) or niter_val <= 0:
-                    self.apply_button.setEnabled(False)
-                else:
-                    self.apply_button.setEnabled(True)
-            except ValueError:
+        try:
+            lambda_val = float(self.lambda_input.text())
+            p_val = float(self.p_input.text())
+            niter_val = int(self.niter_input.text())
+            if lambda_val <= 0 or not (0 < p_val < 1) or niter_val <= 0:
                 self.apply_button.setEnabled(False)
-                
+            else:
+                self.apply_button.setEnabled(True)
+        except ValueError:
+            self.apply_button.setEnabled(False)
+
     def get_parameters(self):
         try:
             lambda_val = float(self.lambda_input.text())
@@ -993,7 +1005,6 @@ class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
         except ValueError:
             QMessageBox.warning(self, "Invalid Inputs", "Please enter numeric values for all parameters.")
             return None
-
 ##############################################################
 class DatasetSelectionDialog(QDialog):
     def __init__(self, structure, parent=None):
