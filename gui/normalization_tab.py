@@ -460,8 +460,7 @@ class NormalizationTab(QWidget):
             return None
         
     def apply_normalization(self, panel):
-
-         # Clear the previous normalized data
+        # Clear the previous normalized data
         self.normalized_data = {}
 
         # Get the selected data files
@@ -492,24 +491,46 @@ class NormalizationTab(QWidget):
 
         # Define which methods accept the 'x' parameter
         methods_accepting_x = [
-            "AUC Normalization", 
-            "Interval AUC Normalization", 
-            "Reference Peak Normalization", 
+            "AUC Normalization",
+            "Interval AUC Normalization",
+            "Reference Peak Normalization",
             "Baseline Correction Normalization"
         ]
 
-        # Special handling for Baseline Correction which requires parameters
-        if panel.method_name == "Baseline Correction Normalization":
-            # Collect all Y data as a 1D array per file (assuming single spectrum per file)
-            for file_path in data_files:
-                try:
-                    df = pd.read_csv(file_path)
-                    plot_details = self.plot_details_panel.get_plot_details()
-                    x_col = int(plot_details['x_axis_col']) - 1
-                    y_col = int(plot_details['y_axis_col']) - 1
-                    x = df.iloc[:, x_col].values
-                    y = df.iloc[:, y_col].values
+        # Process each data file
+        for file_path in data_files:
+            try:
+                # Use read_numeric_data to read the file
+                df, _, _ = self.read_numeric_data(file_path)
+                if df is None:
+                    print(f"Skipping file {file_path} due to insufficient data.")
+                    continue
 
+                plot_details = self.plot_details_panel.get_plot_details()
+                x_col = int(plot_details['x_axis_col']) - 1
+                y_col = int(plot_details['y_axis_col']) - 1
+
+                # Validate column indices
+                if x_col >= df.shape[1] or y_col >= df.shape[1]:
+                    print(f"Selected columns do not exist in {file_path}.")
+                    QMessageBox.warning(self, "Invalid Columns", f"Selected columns do not exist in {file_path}.")
+                    continue
+
+                # Extract selected columns and convert to numeric
+                x_series = pd.to_numeric(df.iloc[:, x_col], errors='coerce')
+                y_series = pd.to_numeric(df.iloc[:, y_col], errors='coerce')
+
+                # Drop rows where x or y is NaN
+                valid_mask = x_series.notna() & y_series.notna()
+                x = x_series[valid_mask].values
+                y = y_series[valid_mask].values
+
+                if len(x) == 0 or len(y) == 0:
+                    QMessageBox.warning(self, "No Valid Data", f"No valid numeric data found in selected columns of {file_path}.")
+                    continue
+
+                # Apply the appropriate normalization method
+                if panel.method_name == "Baseline Correction Normalization":
                     # Apply Baseline Correction
                     y_corrected, baseline = method_func(
                         y=y,
@@ -518,32 +539,13 @@ class NormalizationTab(QWidget):
                         p=params.get('p', 0.01),
                         niter=params.get('niter', 10)
                     )
-
                     if y_corrected is None:
                         QMessageBox.warning(self, "Normalization Failed", f"Baseline Correction failed for file {file_path}.")
                         continue
-
                     # Store normalized data
                     self.normalized_data[file_path] = (x, y_corrected)
-
-                except TypeError as te:
-                    QMessageBox.warning(self, "Type Error", f"Type error in file {file_path}: {te}")
-                    print(f"Type error in file {file_path}: {te}")
-                except Exception as e:
-                    QMessageBox.warning(self, "Error", f"Error normalizing file {file_path}: {e}")
-                    print(f"Error normalizing file {file_path}: {e}")
-
-        elif panel.method_name in methods_accepting_x:
-            # Handle other methods that accept 'x'
-            for file_path in data_files:
-                try:
-                    df = pd.read_csv(file_path)
-                    plot_details = self.plot_details_panel.get_plot_details()
-                    x_col = int(plot_details['x_axis_col']) - 1
-                    y_col = int(plot_details['y_axis_col']) - 1
-                    x = df.iloc[:, x_col].values
-                    y = df.iloc[:, y_col].values
-
+                elif panel.method_name in methods_accepting_x:
+                    # Methods that require 'x'
                     if panel.method_name == "AUC Normalization":
                         y_normalized = method_func(y, x=x, sort_data=params.get('sort_data', True))
                     elif panel.method_name == "Interval AUC Normalization":
@@ -561,57 +563,35 @@ class NormalizationTab(QWidget):
                             reference_peak_x=params.get('reference_peak_x', x[np.argmax(y)]),
                             desired_reference_intensity=params.get('desired_reference_intensity', 1.0)
                         )
-                    elif panel.method_name == "Baseline Correction Normalization":
-                        # Already handled above
-                        continue
                     else:
                         y_normalized = method_func(y, x=x, **params)
 
                     if y_normalized is None:
                         QMessageBox.warning(self, "Normalization Failed", f"Normalization failed for file {file_path}.")
                         continue
-
                     # Store normalized data
                     self.normalized_data[file_path] = (x, y_normalized)
-
-                except TypeError as te:
-                    QMessageBox.warning(self, "Type Error", f"Type error in file {file_path}: {te}")
-                    print(f"Type error in file {file_path}: {te}")
-                except Exception as e:
-                    QMessageBox.warning(self, "Error", f"Error normalizing file {file_path}: {e}")
-                    print(f"Error normalizing file {file_path}: {e}")
-
-        else:
-            # Handle other normalization methods that do not accept 'x'
-            for file_path in data_files:
-                try:
-                    df = pd.read_csv(file_path)
-                    plot_details = self.plot_details_panel.get_plot_details()
-                    x_col = int(plot_details['x_axis_col']) - 1
-                    y_col = int(plot_details['y_axis_col']) - 1
-                    x = df.iloc[:, x_col].values
-                    y = df.iloc[:, y_col].values
-
+                else:
+                    # Methods that do not require 'x'
                     y_normalized = method_func(y, **params)
-
                     if y_normalized is None:
                         QMessageBox.warning(self, "Normalization Failed", f"Normalization failed for file {file_path}.")
                         continue
-
                     # Store normalized data
                     self.normalized_data[file_path] = (x, y_normalized)
 
-                except TypeError as te:
-                    QMessageBox.warning(self, "Type Error", f"Type error in file {file_path}: {te}")
-                    print(f"Type error in file {file_path}: {te}")
-                except Exception as e:
-                    QMessageBox.warning(self, "Error", f"Error normalizing file {file_path}: {e}")
-                    print(f"Error normalizing file {file_path}: {e}")
+            except TypeError as te:
+                QMessageBox.warning(self, "Type Error", f"Type error in file {file_path}: {te}")
+                print(f"Type error in file {file_path}: {te}")
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Error normalizing file {file_path}: {e}")
+                print(f"Error normalizing file {file_path}: {e}")
 
         # Update the plot with normalized data
         self.update_normalized_plot()
         panel.save_button.setEnabled(True)
         panel.send_to_data_panel_button.setEnabled(True)
+
 
 
     def save_normalized_data(self, panel):
