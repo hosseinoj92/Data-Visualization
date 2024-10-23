@@ -202,13 +202,13 @@ class SelectedDataPanel(QGroupBox):
         self.file_selector_button = QPushButton("Choose Files")
         self.add_file_button = QPushButton("Add Files")
         self.select_all_button = QPushButton("Select All")
-        self.remove_selected_button = QPushButton("Remove Selected")
+        #self.remove_selected_button = QPushButton("Remove Selected")
 
         # Set up tooltips
         self.file_selector_button.setToolTip("Click to choose and add files.")
         self.add_file_button.setToolTip("Click to add more files.")
         self.select_all_button.setToolTip("Click to select/deselect all files.")
-        self.remove_selected_button.setToolTip("Click to remove selected files.")
+        #self.remove_selected_button.setToolTip("Click to remove selected files.")
 
         # Optional Retract Button
         if include_retract_button:
@@ -225,9 +225,14 @@ class SelectedDataPanel(QGroupBox):
 
         # Add buttons to the layout
         self.layout.addWidget(self.file_selector_button)
-        self.layout.addWidget(self.add_file_button)
-        self.layout.addWidget(self.select_all_button)
-        self.layout.addWidget(self.remove_selected_button)  # Add Remove Button
+
+        # Create a horizontal layout for "Add Files" and "Select All" buttons
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addWidget(self.add_file_button)
+        buttons_layout.addWidget(self.select_all_button)
+
+        # Add the horizontal layout to the main layout
+        self.layout.addLayout(buttons_layout)
 
         # Add the scroll area containing the list widget
         self.layout.addWidget(self.scroll_area)
@@ -237,7 +242,7 @@ class SelectedDataPanel(QGroupBox):
         self.file_selector_button.clicked.connect(self.choose_files)
         self.add_file_button.clicked.connect(self.add_files)
         self.select_all_button.clicked.connect(self.toggle_select_all)
-        self.remove_selected_button.clicked.connect(self.remove_selected_files)  # Connect Remove Button
+        #self.remove_selected_button.clicked.connect(self.remove_selected_files)  # Connect Remove Button
 
     def choose_files(self):
         """
@@ -308,7 +313,7 @@ class SelectedDataPanel(QGroupBox):
         ]
         return [item.data(Qt.UserRole) for item in selected_items]  # Retrieve from Qt.UserRole
 
-    def remove_selected_files(self):
+    '''def remove_selected_files(self):
         """
         Remove selected files from the Selected Data Panel.
         """
@@ -324,7 +329,7 @@ class SelectedDataPanel(QGroupBox):
         if reply == QMessageBox.Yes:
             for item in selected_items:
                 self.selected_files_list.takeItem(self.selected_files_list.row(item))
-            QMessageBox.information(self, "Removal Successful", f"Removed {len(selected_items)} file(s).")
+            QMessageBox.information(self, "Removal Successful", f"Removed {len(selected_items)} file(s).")'''
 
     # Optional Retract Functionality
     def retract_from_general(self):
