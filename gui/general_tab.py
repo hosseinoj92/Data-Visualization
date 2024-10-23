@@ -795,12 +795,29 @@ class GeneralTab(QWidget):
 
         
     def open_subplots_config_dialog(self):
-        dialog = SubplotsConfigDialog(self)  # Pass self (GeneralTab) as parent
-        if dialog.exec_() == QDialog.Accepted:
-            self.subplot_widgets = dialog.subplot_configs  # Keep the widgets
-            self.subplot_configs_data = dialog.get_subplot_configs()  # Get the configs (dicts)
-            self.layout_settings = dialog.get_layout_settings()
-            self.update_plot_with_subplots()
+        self.dialog = SubplotsConfigDialog(self)
+        # Connect the apply_clicked signal
+        self.dialog.apply_clicked.connect(self.on_subplots_apply)
+        # Connect the accepted signal
+        self.dialog.accepted.connect(self.on_subplots_accepted)
+        # Show the dialog (non-blocking)
+        self.dialog.show()
+
+    def on_subplots_apply(self):
+        # Retrieve configurations from the dialog
+        self.subplot_configs_data = self.dialog.get_subplot_configs()
+        self.layout_settings = self.dialog.get_layout_settings()
+        # Update the plot with subplots
+        self.update_plot_with_subplots()
+        
+    def on_subplots_accepted(self):
+        # Retrieve configurations from the dialog
+        self.subplot_configs_data = self.dialog.get_subplot_configs()
+        self.layout_settings = self.dialog.get_layout_settings()
+        # Update the plot with subplots
+        self.update_plot_with_subplots()
+        # Close the dialog
+        self.dialog.close()
 
     def update_plot_with_subplots(self):
 

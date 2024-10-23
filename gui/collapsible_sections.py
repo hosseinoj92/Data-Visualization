@@ -29,6 +29,7 @@ from matplotlib import style
 from matplotlib import font_manager as fm
 import sys
 from fontTools.ttLib import TTFont
+from PyQt5.QtCore import Qt, pyqtSignal, QEvent
 
 
 
@@ -86,9 +87,12 @@ class CollapsibleSection(QWidget):
 
 
 class SubplotsConfigDialog(QDialog):
+    apply_clicked = pyqtSignal()  
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Configure Subplots")
+        self.current_configs = []  # List of configurations (dictionaries)
         self.subplot_configs = []  # To store subplot configurations
         self.layout_settings = {'rows': 1, 'columns': 1, 'auto_layout': False}
         self.general_tab = parent  # Store the reference to GeneralTab
@@ -142,7 +146,7 @@ class SubplotsConfigDialog(QDialog):
         # Action buttons
         action_buttons_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
-        self.apply_button.clicked.connect(self.accept)
+        self.apply_button.clicked.connect(self.on_apply_clicked)  # Connect to custom method
         self.cancel_button = QPushButton("Cancel")
         self.cancel_button.clicked.connect(self.reject)
         action_buttons_layout.addStretch()
@@ -151,6 +155,9 @@ class SubplotsConfigDialog(QDialog):
         self.main_layout.addLayout(action_buttons_layout)
 
         self.setLayout(self.main_layout)
+        
+    def get_current_configs(self):
+        return self.current_configs
 
     def toggle_layout_inputs(self, state):
         if state == Qt.Checked:
@@ -166,6 +173,13 @@ class SubplotsConfigDialog(QDialog):
         self.subplot_configs.append(subplot_config_widget)
         # Automatically add an initial dataset to prevent crashes
         subplot_config_widget.add_dataset()
+
+    def on_apply_clicked(self):
+        # Collect the current configurations without overwriting self.subplot_configs
+        self.current_configs = self.get_subplot_configs()
+        self.layout_settings = self.get_layout_settings()
+        # Emit the signal to update the plot
+        self.apply_clicked.emit()
 
     def remove_selected_subplots(self):
         to_remove = []
