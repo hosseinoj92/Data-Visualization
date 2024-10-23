@@ -4,12 +4,13 @@ import os
 from PyQt5.QtWidgets import (
     QGroupBox, QVBoxLayout, QGridLayout, QLabel, QLineEdit, QPushButton,
     QListWidget, QScrollArea, QCheckBox, QSpinBox, QComboBox, QHBoxLayout,
-    QListWidgetItem, QColorDialog, QMessageBox, QFileDialog, QWidget, QMenu, QDialog,QDoubleSpinBox,QApplication
+    QListWidgetItem, QColorDialog, QMessageBox, QFileDialog, QWidget, QMenu, 
+    QDialog,QDoubleSpinBox,QApplication
 )
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import sys
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt,QUrl, QMimeData
 from PyQt5.QtGui import QIcon, QColor
 from utils import read_numeric_data  # Ensure this import is correct
 import h5py
@@ -64,10 +65,6 @@ class DraggableListWidget(QListWidget):
 
 
     def keyPressEvent(self, event):
-        """
-        Handle key press events. If the Delete key is pressed, remove selected items.
-        Also handle Ctrl+C and Ctrl+V for copy and paste.
-        """
         if event.key() == Qt.Key_Delete:
             self.delete_selected_items()
         elif event.key() == Qt.Key_C and event.modifiers() & Qt.ControlModifier:
@@ -82,21 +79,20 @@ class DraggableListWidget(QListWidget):
         if not selected_items:
             return
         file_paths = [item.data(Qt.UserRole) for item in selected_items]
-        # Join the file paths into a single string, separated by newlines
-        file_paths_str = '\n'.join(file_paths)
-        # Access the clipboard
-        clipboard = QApplication.clipboard()
-        clipboard.setText(file_paths_str)
-
+        mime_data = QMimeData()
+        urls = [QUrl.fromLocalFile(file_path) for file_path in file_paths]
+        mime_data.setUrls(urls)
+        QApplication.clipboard().setMimeData(mime_data)
+        
     def paste_items(self):
         clipboard = QApplication.clipboard()
-        file_paths_str = clipboard.text()
-        if not file_paths_str:
-            return
-        file_paths = file_paths_str.split('\n')
-        for file_path in file_paths:
-            if file_path:
-                self.add_file_to_panel(file_path)
+        mime_data = clipboard.mimeData()
+        if mime_data.hasUrls():
+            urls = mime_data.urls()
+            for url in urls:
+                file_path = url.toLocalFile()
+                if file_path and os.path.isfile(file_path):
+                    self.add_file_to_panel(file_path)
 
     def delete_selected_items(self):
         """
