@@ -679,3 +679,77 @@ BASELINE_CORRECTION_NORMALIZATION_HELP = """
 </body>
 </html>
 """
+
+SUBTRACTION_NORMALIZATION_HELP = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Subtraction Normalization Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #2E8B57;
+        }
+        p, ul {
+            font-size: 16px;
+        }
+        ul {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Subtraction Normalization</h1>
+    <p>
+        Subtraction Normalization is a technique where the values of a reference measurement are subtracted from the values of an experimental dataset. This process is useful for isolating the variations that are unique to the experiment by removing any baseline or background influence from the reference measurement.
+    </p>
+    <h2>Formula:</h2>
+    <p>
+        Subtraction normalization adjusts a given experimental value \(x\) using the formula:
+    </p>
+    <p>
+        \\[ 
+        x' = x - r
+        \\]
+    </p>
+    <p>Where:</p>
+    <ul>
+        <li>\(x\) is the original experimental value,</li>
+        <li>\(r\) is the corresponding reference measurement value,</li>
+        <li>\(x'\) is the normalized value after subtraction.</li>
+    </ul>
+    <h2>Usage:</h2>
+    <ul>
+        <li><strong>Noise removal:</strong> This method helps eliminate background noise or systematic errors present in both the experimental and reference measurements.</li>
+        <li><strong>Comparative analysis:</strong> It allows for a direct comparison between datasets by focusing on the deviations from the reference data.</li>
+        <li><strong>Enhanced signal detection:</strong> By subtracting the reference, it helps to highlight significant changes in the experimental data.</li>
+    </ul>
+    <h2>Advantages:</h2>
+    <ul>
+        <li><strong>Improves accuracy:</strong> By removing baseline variations, it provides a more accurate representation of the experimental signal.</li>
+        <li><strong>Simple implementation:</strong> The subtraction operation is computationally straightforward and effective for many types of data analysis.</li>
+        <li><strong>Direct interpretation:</strong> The resulting values represent the deviation from the reference, making it easy to interpret changes in the data.</li>
+    </ul>
+    <h2>Disadvantages:</h2>
+    <ul>
+        <li><strong>Reference quality dependency:</strong> The accuracy of the subtraction normalization depends heavily on the quality and relevance of the reference measurement.</li>
+        <li><strong>Assumes linear relationship:</strong> This method assumes that the experimental data can be accurately described by a simple linear subtraction, which may not always be the case for complex datasets.</li>
+        <li><strong>Outlier sensitivity:</strong> If the reference measurement contains outliers, they may distort the subtraction process.</li>
+    </ul>
+    <h2>When to use:</h2>
+    <ul>
+        <li>When you need to eliminate background or systematic errors that are common between the experiment and reference measurement.</li>
+        <li>When the primary focus is on analyzing deviations or changes relative to a baseline condition.</li>
+    </ul>
+</body>
+</html>
+"""

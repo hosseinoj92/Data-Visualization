@@ -21,7 +21,9 @@ import matplotlib.pyplot as plt
 from gui.help_dialog import HelpDialog
 from gui.help_content import (MIN_MAX_NORMALIZATION_HELP,Z_SCORE_NORMALIZATION_HELP, 
                               ROBUST_SCALING_NORMALIZATION_HELP,AUC_NORMALIZATION_HELP,INTERVAL_AUC_NORMALIZATION_HELP,
-                              TOTAL_INTENSITY_NORMALIZATION_HELP,REFERENCE_PEAK_NORMALIZATION_HELP,BASELINE_CORRECTION_NORMALIZATION_HELP
+                              TOTAL_INTENSITY_NORMALIZATION_HELP,
+                              REFERENCE_PEAK_NORMALIZATION_HELP,
+                              BASELINE_CORRECTION_NORMALIZATION_HELP,SUBTRACTION_NORMALIZATION_HELP
 
                               )
 
@@ -1225,9 +1227,10 @@ class BaselineCorrectionWithFileNormalizationPanel(BaseNormalizationMethodPanel)
         self.file_path_display.textChanged.connect(self.validate_inputs)
 
     def show_help(self):
-        help_content = "Help content for Baseline Correction with File."
+        help_content = SUBTRACTION_NORMALIZATION_HELP
         dialog = HelpDialog("Baseline Correction with File Help", help_content, self)
         dialog.exec_()
+
 
     def choose_reference_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
