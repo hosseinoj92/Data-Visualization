@@ -14,7 +14,9 @@ from gui.panels import (
     CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, 
     MinMaxNormalizationPanel, ZScoreNormalizationPanel, RobustScalingNormalizationPanel,
     AUCNormalizationPanel,IntervalAUCNormalizationPanel,TotalIntensityNormalizationPanel,
-    ReferencePeakNormalizationPanel,BaselineCorrectionNormalizationPanel,BaselineCorrectionWithFileNormalizationPanel
+    ReferencePeakNormalizationPanel,
+    BaselineCorrectionNormalizationPanel,BaselineCorrectionWithFileNormalizationPanel,
+    CorrectMissingDataPanel, 
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -189,6 +191,27 @@ class NormalizationTab(QWidget):
         basic_corrections_layout = QVBoxLayout()
         self.basic_corrections_groupbox.setLayout(basic_corrections_layout)
         # Add widgets to basic_corrections_layout in future steps
+        # Define basic corrections methods and their corresponding panels
+        self.basic_corrections_methods = [
+            ("Correct Missing Data", CorrectMissingDataPanel)
+        ]
+
+        self.basic_corrections_panels = []
+
+        for method_name, panel_class in self.basic_corrections_methods:
+            panel = panel_class()
+            section = CollapsibleSection(method_name, panel)
+            section.section_expanded.connect(self.on_basic_corrections_section_expanded)
+            self.basic_corrections_panels.append(section)
+
+            # Connect Apply, Save, and Send to Data Panel buttons
+            panel.apply_button.clicked.connect(lambda checked, p=panel: self.apply_basic_correction(p))
+            panel.save_button.clicked.connect(lambda checked, p=panel: self.save_normalized_data(p))
+            panel.send_to_data_panel_button.clicked.connect(lambda checked, p=panel: self.send_normalized_data_to_data_panel(p))
+
+            basic_corrections_layout.addWidget(section)
+
+
 
         # Arrange Column 1
         column1_layout = QVBoxLayout()
@@ -304,6 +327,80 @@ class NormalizationTab(QWidget):
 
         # Define normalization functions
         self.define_normalization_functions()
+    def apply_basic_correction(self, panel):
+        # Clear the previous normalized data
+        self.normalized_data = {}
+
+        # Get the selected data files
+        data_files = self.selected_data_panel.get_selected_files()
+        if not data_files:
+            QMessageBox.warning(self, "No Data Selected", "Please select data files to correct.")
+            return
+
+        # Get parameters from panel
+        params = panel.get_parameters()
+        if params is None:
+            return  # Error message already shown
+
+        method = params['method']
+
+        # Process each data file
+        for file_path in data_files:
+            try:
+                # Use read_numeric_data to read the file
+                df, _, _ = self.read_numeric_data(file_path)
+                if df is None:
+                    print(f"Skipping file {file_path} due to insufficient data.")
+                    continue
+
+                plot_details = self.plot_details_panel.get_plot_details()
+                x_col = int(plot_details['x_axis_col']) - 1
+                y_col = int(plot_details['y_axis_col']) - 1
+
+                # Validate column indices
+                if x_col >= df.shape[1] or y_col >= df.shape[1]:
+                    print(f"Selected columns do not exist in {file_path}.")
+                    QMessageBox.warning(self, "Invalid Columns", f"Selected columns do not exist in {file_path}.")
+                    continue
+
+                # Extract selected columns
+                x_series = df.iloc[:, x_col]
+                y_series = df.iloc[:, y_col]
+
+                # Handle missing data
+                if method == "Remove Rows with Missing Data":
+                    df_cleaned = df.dropna(subset=[df.columns[x_col], df.columns[y_col]])
+                elif method in ["Replace with Mean", "Replace with Median"]:
+                    # Use the helper function for localized replacement
+                    y_series = self.interpolate_missing_values(y_series, method=method.split()[-1].lower())
+                    df_cleaned = pd.DataFrame({df.columns[x_col]: x_series, df.columns[y_col]: y_series})
+                else:
+                    QMessageBox.warning(self, "Unknown Method", f"Unknown method: {method}")
+                    continue
+
+                # Convert to numeric and drop NaNs resulting from conversion
+                x_series = pd.to_numeric(df_cleaned.iloc[:, 0], errors='coerce')
+                y_series = pd.to_numeric(df_cleaned.iloc[:, 1], errors='coerce')
+                valid_mask = x_series.notna() & y_series.notna()
+                x = x_series[valid_mask].values
+                y = y_series[valid_mask].values
+
+                if len(x) == 0 or len(y) == 0:
+                    QMessageBox.warning(self, "No Valid Data", f"No valid numeric data found after correction in {file_path}.")
+                    continue
+
+                # Store corrected data
+                self.normalized_data[file_path] = (x, y)
+
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Error processing file {file_path}: {e}")
+                print(f"Error processing file {file_path}: {e}")
+
+        # Update the plot with corrected data
+        self.update_normalized_plot()
+        panel.save_button.setEnabled(True)
+        panel.send_to_data_panel_button.setEnabled(True)
+
 
     def define_normalization_functions(self):
         # Normalization functions defined within the class
@@ -923,6 +1020,58 @@ class NormalizationTab(QWidget):
                 print(f"Collapsing section '{section.toggle_button.text()}'")
                 section.toggle_button.setChecked(False)
         self.is_collapsing = False
+
+    def on_basic_corrections_section_expanded(self, expanded_section):
+        if self.is_collapsing:
+            return
+        self.is_collapsing = True
+        # When a section is expanded, collapse all other sections in basic corrections
+        for section in self.basic_corrections_panels:
+            if section != expanded_section and section.toggle_button.isChecked():
+                section.toggle_button.setChecked(False)
+        self.is_collapsing = False
+
+    def interpolate_missing_values(self, series, method='mean'):
+        """
+        Replace NaN values in a pandas Series with the mean or median of the nearest non-NaN values above and below.
+
+        Parameters:
+        - series (pd.Series): The data series with potential NaN values.
+        - method (str): 'mean' or 'median' specifying the replacement method.
+
+        Returns:
+        - pd.Series: The series with NaNs replaced.
+        """
+        for idx in series[series.isna()].index:
+            # Find the nearest non-NaN above
+            prev_idx = series[:idx].last_valid_index()
+            # Find the nearest non-NaN below
+            next_idx = series[idx + 1:].first_valid_index()
+
+            # Initialize replacement value
+            replacement = None
+
+            # Retrieve the values
+            if prev_idx is not None and next_idx is not None:
+                val_prev = series.loc[prev_idx]
+                val_next = series.loc[next_idx]
+                if method == 'mean':
+                    replacement = (val_prev + val_next) / 2
+                elif method == 'median':
+                    replacement = np.median([val_prev, val_next])
+            elif prev_idx is not None:
+                replacement = series.loc[prev_idx]
+            elif next_idx is not None:
+                replacement = series.loc[next_idx]
+
+            # Replace the NaN with the calculated replacement value
+            if replacement is not None:
+                series.at[idx] = replacement
+            else:
+                # If no non-NaN values are found, leave it as NaN or decide on a default value
+                pass  # You can choose to fill with 0 or another default value if desired
+
+        return series
 
                 
     def choose_files(self):

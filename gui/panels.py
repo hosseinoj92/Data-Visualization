@@ -1901,3 +1901,63 @@ class DatasetSelectionExportPanel(QGroupBox):
             else:
                 raise KeyError(f"Dataset {dataset_name} not found in H5 file.")
         return data
+    
+
+class CorrectMissingDataPanel(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.method_name = "Correct Missing Data"
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_icon = QIcon(resource_path("gui/resources/help_icon.png"))
+        help_button.setIcon(help_icon)
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
+        self.apply_button.setEnabled(True)   # Enabled by default
+        self.save_button.setEnabled(False)   # Disabled until applied
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled until applied
+
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
+        self.layout.addLayout(button_layout)
+
+        # Options for Handling Missing Data
+        self.layout.addWidget(QLabel("Choose how to handle missing data:"))
+
+        self.method_combo = QComboBox()
+        self.method_combo.addItems(["Remove Rows with Missing Data", "Replace with Mean", "Replace with Median"])
+        self.layout.addWidget(self.method_combo)
+
+        self.setLayout(self.layout)
+
+    def show_help(self):
+        help_content = (
+            "This method allows you to handle missing data (NaN values) in your datasets.\n\n"
+            "Options:\n"
+            "- Remove Rows with Missing Data: Deletes any row that contains a missing value.\n"
+            "- Replace with Mean: Replaces missing values with the mean of the column.\n"
+            "- Replace with Median: Replaces missing values with the median of the column."
+        )
+        dialog = HelpDialog("Correct Missing Data Help", help_content, self)
+        dialog.exec_()
+
+    def get_parameters(self):
+        params = {
+            'method': self.method_combo.currentText()
+        }
+        return params
