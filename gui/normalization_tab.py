@@ -14,7 +14,7 @@ from gui.panels import (
     CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, 
     MinMaxNormalizationPanel, ZScoreNormalizationPanel, RobustScalingNormalizationPanel,
     AUCNormalizationPanel,IntervalAUCNormalizationPanel,TotalIntensityNormalizationPanel,
-    ReferencePeakNormalizationPanel,BaselineCorrectionNormalizationPanel
+    ReferencePeakNormalizationPanel,BaselineCorrectionNormalizationPanel,BaselineCorrectionWithFileNormalizationPanel
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -149,7 +149,10 @@ class NormalizationTab(QWidget):
             ("Interval AUC Normalization", IntervalAUCNormalizationPanel),
             ("Total Intensity Normalization", TotalIntensityNormalizationPanel),
             ("Reference Peak Normalization", ReferencePeakNormalizationPanel),
-            ("Baseline Correction Normalization", BaselineCorrectionNormalizationPanel),  # Newly added method
+            ("Baseline Correction Normalization", BaselineCorrectionNormalizationPanel), 
+            ("Baseline Correction with File", BaselineCorrectionWithFileNormalizationPanel)
+            
+
  
             
         ]
@@ -393,6 +396,24 @@ class NormalizationTab(QWidget):
             scaling_factor = desired_total_intensity / current_total
             y_normalized = y * scaling_factor
             return y_normalized
+        
+        def baseline_correction_with_file(y, reference_y):
+            """
+            Performs baseline correction by subtracting the reference Y-values from the data Y-values.
+
+            Parameters:
+            - y: numpy array of Y-values from the data file
+            - reference_y: numpy array of Y-values from the reference file
+
+            Returns:
+            - y_corrected: baseline-corrected Y-values
+            """
+            if len(y) != len(reference_y):
+                QMessageBox.warning(None, "Data Mismatch", "The length of data Y-values and reference Y-values do not match.")
+                return None
+            y_corrected = y - reference_y
+            return y_corrected
+        
         def reference_peak_normalization(y, x, reference_peak_x, desired_reference_intensity):
             # Find the index closest to the reference_peak_x
             ref_index = np.argmin(np.abs(x - reference_peak_x))
@@ -449,6 +470,7 @@ class NormalizationTab(QWidget):
             total_intensity_normalization,  
             reference_peak_normalization,
             baseline_correction,   
+            baseline_correction_with_file,  
             # Add other normalization functions here as implemented
         ]
         
@@ -497,6 +519,11 @@ class NormalizationTab(QWidget):
             "Baseline Correction Normalization"
         ]
 
+        # Define which methods require a reference file
+        methods_requiring_reference_file = [
+            "Baseline Correction with File"
+        ]
+
         # Process each data file
         for file_path in data_files:
             try:
@@ -530,8 +557,48 @@ class NormalizationTab(QWidget):
                     continue
 
                 # Apply the appropriate normalization method
-                if panel.method_name == "Baseline Correction Normalization":
-                    # Apply Baseline Correction
+                if panel.method_name == "Baseline Correction with File":
+                    # Handle Baseline Correction with File normalization
+                    reference_file_path = params.get('reference_file_path')
+                    if not reference_file_path or not os.path.isfile(reference_file_path):
+                        QMessageBox.warning(self, "Invalid Reference File", "Please select a valid reference file for baseline correction.")
+                        continue
+
+                    # Read reference data
+                    ref_df, _, _ = self.read_numeric_data(reference_file_path)
+                    if ref_df is None:
+                        QMessageBox.warning(self, "Reference Data Error", "Failed to read the reference data file or insufficient data.")
+                        continue
+
+                    # Extract selected columns from reference data
+                    ref_x_series = pd.to_numeric(ref_df.iloc[:, x_col], errors='coerce')
+                    ref_y_series = pd.to_numeric(ref_df.iloc[:, y_col], errors='coerce')
+
+                    # Drop rows where x or y is NaN in reference data
+                    ref_valid_mask = ref_x_series.notna() & ref_y_series.notna()
+                    ref_x = ref_x_series[ref_valid_mask].values
+                    ref_y = ref_y_series[ref_valid_mask].values
+
+                    if len(ref_x) == 0 or len(ref_y) == 0:
+                        QMessageBox.warning(self, "No Valid Reference Data", f"No valid numeric data found in selected columns of the reference file.")
+                        continue
+
+                    # Ensure that the x-values match
+                    if not np.array_equal(x, ref_x):
+                        QMessageBox.warning(self, "Data Mismatch", f"X-values in {file_path} do not match the reference file.")
+                        continue
+
+                    # Apply the baseline correction with file
+                    y_normalized = method_func(y, reference_y=ref_y)
+                    if y_normalized is None:
+                        QMessageBox.warning(self, "Normalization Failed", f"Baseline Correction with File failed for file {file_path}.")
+                        continue
+
+                    # Store normalized data
+                    self.normalized_data[file_path] = (x, y_normalized)
+
+                elif panel.method_name == "Baseline Correction Normalization":
+                    # Apply Baseline Correction Normalization
                     y_corrected, baseline = method_func(
                         y=y,
                         x=x,
@@ -544,6 +611,7 @@ class NormalizationTab(QWidget):
                         continue
                     # Store normalized data
                     self.normalized_data[file_path] = (x, y_corrected)
+
                 elif panel.method_name in methods_accepting_x:
                     # Methods that require 'x'
                     if panel.method_name == "AUC Normalization":
@@ -571,6 +639,7 @@ class NormalizationTab(QWidget):
                         continue
                     # Store normalized data
                     self.normalized_data[file_path] = (x, y_normalized)
+
                 else:
                     # Methods that do not require 'x'
                     y_normalized = method_func(y, **params)
@@ -591,6 +660,7 @@ class NormalizationTab(QWidget):
         self.update_normalized_plot()
         panel.save_button.setEnabled(True)
         panel.send_to_data_panel_button.setEnabled(True)
+
 
 
 

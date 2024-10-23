@@ -1166,6 +1166,100 @@ class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
         except ValueError:
             QMessageBox.warning(self, "Invalid Inputs", "Please enter numeric values for all parameters.")
             return None
+        
+#############################################################
+
+class BaselineCorrectionWithFileNormalizationPanel(BaseNormalizationMethodPanel):
+    def __init__(self, parent=None):
+        super().__init__("Baseline Correction with File", parent)
+        
+        # Apply global stylesheet if applicable
+        self.apply_stylesheet()
+        
+    def apply_stylesheet(self):
+        """Load the global stylesheet."""
+        stylesheet_path = resource_path('style.qss')
+        if os.path.exists(stylesheet_path):
+            with open(stylesheet_path, 'r') as f:
+                self.setStyleSheet(f.read())
+        else:
+            print(f"Warning: stylesheet not found at {stylesheet_path}")
+        
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_icon = QIcon(resource_path("gui/resources/help_icon.png"))
+        help_button.setIcon(help_icon)
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
+        self.apply_button.setEnabled(False)   # Disabled until a file is selected
+        self.save_button.setEnabled(False)    # Disabled until normalization is applied
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled until normalization is applied
+
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
+        self.layout.addLayout(button_layout)
+
+        # File Selection for Reference Data
+        self.layout.addWidget(QLabel("Select Reference File:"))
+        file_selection_layout = QHBoxLayout()
+        self.file_path_display = QLineEdit()
+        self.file_path_display.setReadOnly(True)
+        self.choose_file_button = QPushButton("Choose File")
+        self.choose_file_button.clicked.connect(self.choose_reference_file)
+        file_selection_layout.addWidget(self.file_path_display)
+        file_selection_layout.addWidget(self.choose_file_button)
+        self.layout.addLayout(file_selection_layout)
+
+        self.setLayout(self.layout)
+
+        # Connect signals
+        self.file_path_display.textChanged.connect(self.validate_inputs)
+
+    def show_help(self):
+        help_content = "Help content for Baseline Correction with File."
+        dialog = HelpDialog("Baseline Correction with File Help", help_content, self)
+        dialog.exec_()
+
+    def choose_reference_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Reference File",
+            "",
+            "Data Files (*.csv *.txt);;All Files (*)"
+        )
+        if file_path:
+            self.file_path_display.setText(file_path)
+            self.validate_inputs()
+
+    def validate_inputs(self):
+        if self.file_path_display.text():
+            self.apply_button.setEnabled(True)
+        else:
+            self.apply_button.setEnabled(False)
+
+    def get_parameters(self):
+        params = {}
+        reference_file_path = self.file_path_display.text()
+        if not os.path.isfile(reference_file_path):
+            QMessageBox.warning(self, "Invalid File", "Please select a valid reference file.")
+            return None
+        params['reference_file_path'] = reference_file_path
+        return params
+
+
 ##############################################################
 class DatasetSelectionDialog(QDialog):
     def __init__(self, structure, parent=None):
