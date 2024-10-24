@@ -25,6 +25,12 @@ MIN_MAX_NORMALIZATION_HELP = """
         ul {
             margin-left: 20px;
         }
+        img {
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -34,20 +40,11 @@ MIN_MAX_NORMALIZATION_HELP = """
     </p>
     <h2>Formula:</h2>
     <p>
-        Min-max normalization rescales a given value \(x\) using the formula:
     </p>
     <p>
-        \\[
-        x' = \\frac{x - \\text{min}(X)}{\\text{max}(X) - \\text{min}(X)}
-        \\]
+        <!-- Image placeholder for the formula screenshot -->
+        <img src="images/min-max.png" alt="Min-Max Normalization Formula">
     </p>
-    <p>Where:</p>
-    <ul>
-        <li>\(x\) is the original value,</li>
-        <li>\(\text{min}(X)\) is the minimum value in the dataset,</li>
-        <li>\(\text{max}(X)\) is the maximum value in the dataset,</li>
-        <li>\(x'\) is the normalized value.</li>
-    </ul>
     <h2>Usage:</h2>
     <ul>
         <li><strong>Preprocessing step:</strong> It ensures that features with different scales are transformed to a common scale, which is important for machine learning models that rely on distance calculations (e.g., k-nearest neighbors, support vector machines, neural networks).</li>
@@ -73,7 +70,6 @@ MIN_MAX_NORMALIZATION_HELP = """
 </body>
 </html>
 """
-
 
 
 Z_SCORE_NORMALIZATION_HELP = """
@@ -177,6 +173,12 @@ ROBUST_SCALING_NORMALIZATION_HELP = """
         ul {
             margin-left: 20px;
         }
+        img {
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -185,21 +187,10 @@ ROBUST_SCALING_NORMALIZATION_HELP = """
         Robust Scaling Normalization scales data based on the interquartile range (IQR) instead of the mean and variance, making it less sensitive to outliers. It centers the data around the median and scales it by the IQR, which is the range between the first quartile (25th percentile) and third quartile (75th percentile).
     </p>
     <h2>Formula:</h2>
-    <p>
-        Robust scaling normalization rescales a given value \(x\) using the formula:
+ 
+        <!-- Image placeholder for the formula screenshot -->
+        <img src="images/robust_scaling.png" alt="Robust Scaling Normalization Formula">
     </p>
-    <p>
-        \\[
-        x' = \\frac{x - \\text{Median}(X)}{IQR}
-        \\]
-    </p>
-    <p>Where:</p>
-    <ul>
-        <li>\(x\) is the original value,</li>
-        <li>\(\text{Median}(X)\) is the median of the dataset,</li>
-        <li>\(IQR = Q_3 - Q_1\) is the interquartile range (the range between the 75th percentile \(Q_3\) and the 25th percentile \(Q_1\)),</li>
-        <li>\(x'\) is the normalized value.</li>
-    </ul>
     <h2>Usage:</h2>
     <ul>
         <li><strong>Preprocessing step for data with outliers:</strong> Robust scaling is useful when the dataset contains significant outliers that might distort other normalization methods.</li>
@@ -230,9 +221,9 @@ AUC_NORMALIZATION_HELP = """
 <head>
     <meta charset="UTF-8">
     <title>AUC Normalization Help</title>
-    <!-- Updated MathJax Configuration -->
+    <!-- MathJax Configuration -->
     <script type="text/javascript"
-        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js">
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
         body {
@@ -249,34 +240,31 @@ AUC_NORMALIZATION_HELP = """
         ul {
             margin-left: 20px;
         }
+        img {
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
     <h1>Area Under the Curve (AUC) Normalization</h1>
     <p>
-        Area Under the Curve (AUC) normalization is a technique that normalizes data based on the area under its curve. It is often used in signal processing, time series data, or biological assays to ensure that variations in total magnitude or signal intensity are accounted for, allowing meaningful comparisons between datasets.
+        Area Under the Curve (AUC) normalization is a technique that normalizes data based on the total area under its curve. This method is frequently used in signal processing, time-series data, and biological assays to account for variations in total magnitude or signal intensity, allowing meaningful comparisons between datasets.
     </p>
     <h2>Formula:</h2>
-<p>
-    The area under the curve can be approximated using the <strong>Trapezoidal Rule</strong> for discrete data points \( (x_i, y_i) \):
-    </p>
     <p>
-        \\[
-        \text{AUC} = \sum_{i=1}^{n-1} (x_{i+1} - x_i) \\times \\frac{(y_i + y_{i+1})}{2}
-        \\]
+        The area under the curve (AUC) can be approximated using the <strong>Trapezoidal Rule</strong> for discrete data points \( (x_i, y_i) \):
     </p>
-    <p>
-        To normalize the dataset so that the total area under the curve equals 1, each \( y_i \) value is scaled by dividing it by the total AUC:
-    </p>
-    <p>
-        \\[
-        y'_i = \\frac{y_i}{\text{AUC}}
-        \\]
+   
+        <!-- Image placeholder for the formula screenshot -->
+        <img src="images/AUC.png" alt="AUC Normalization Formula">
     </p>
     <h2>Usage:</h2>
     <ul>
-        <li><strong>Signal normalization:</strong> AUC normalization is often used to compare signals where the total magnitude varies, but the relative shape remains important.</li>
-        <li><strong>Comparing time series data:</strong> In fields like finance, physiology, or engineering, AUC normalization allows the comparison of time series data by scaling based on the total area under the signal curve.</li>
+        <li><strong>Signal normalization:</strong> AUC normalization is often used to compare signals where the total magnitude varies, but the relative shape is important.</li>
+        <li><strong>Comparing time-series data:</strong> In fields like finance, physiology, or engineering, AUC normalization allows the comparison of time-series data by scaling based on the total area under the signal curve.</li>
     </ul>
     <h2>Advantages:</h2>
     <ul>
@@ -300,6 +288,7 @@ AUC_NORMALIZATION_HELP = """
 </html>
 """
 
+
 INTERVAL_AUC_NORMALIZATION_HELP = """
 <!DOCTYPE html>
 <html>
@@ -308,7 +297,7 @@ INTERVAL_AUC_NORMALIZATION_HELP = """
     <title>Interval AUC Normalization Help</title>
     <!-- MathJax Configuration -->
     <script type="text/javascript"
-        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js">
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
         body {
@@ -325,6 +314,12 @@ INTERVAL_AUC_NORMALIZATION_HELP = """
         ul {
             margin-left: 20px;
         }
+        img {
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -333,24 +328,10 @@ INTERVAL_AUC_NORMALIZATION_HELP = """
         Interval AUC Normalization is a technique that rescales data based on the desired area under the curve (AUC) over a specified interval. This method is often used in time series data, signal processing, or experimental data where the total magnitude of the curve needs to be standardized across different datasets.
     </p>
     <h2>Formula:</h2>
+
     <p>
-        First, the current area under the curve for the given interval is calculated using the Trapezoidal Rule:
-    </p>
-    <p>
-        \\[
-        \sum_{i=a}^{b-1} (x_{i+1} - x_i) \times \frac{(y_i + y_{i+1})}{2}
-        \\]
-    </p>
-    <p>
-        Where \(a\) and \(b\) represent the start and end indices of the selected interval, respectively.
-    </p>
-    <p>
-        To normalize the curve to match the desired area under the curve (AUC), the following scaling is applied to the y-values:
-    </p>
-    <p>
-        \\[
-        y'_i = y_i \times \frac{\text{AUC}_{\text{desired}}}{\text{AUC}_{\text{current}}}
-        \\]
+        <!-- Image placeholder for the formula screenshot -->
+        <img src="images/interval_auc.png" alt="Interval AUC Normalization Formula">
     </p>
     <h2>Usage:</h2>
     <ul>
@@ -383,6 +364,7 @@ INTERVAL_AUC_NORMALIZATION_HELP = """
 </html>
 """
 
+
 TOTAL_INTENSITY_NORMALIZATION_HELP = """
 <!DOCTYPE html>
 <html>
@@ -391,7 +373,7 @@ TOTAL_INTENSITY_NORMALIZATION_HELP = """
     <title>Total Intensity Normalization Help</title>
     <!-- MathJax Configuration -->
     <script type="text/javascript"
-        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js">
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
         body {
@@ -408,6 +390,12 @@ TOTAL_INTENSITY_NORMALIZATION_HELP = """
         ul {
             margin-left: 20px;
         }
+        img {
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -417,22 +405,10 @@ TOTAL_INTENSITY_NORMALIZATION_HELP = """
     </p>
     <h2>Formula:</h2>
     <p>
-        The normalization process involves dividing each data point by the total sum of all data points and multiplying by the desired total intensity:
+
+        <!-- Image placeholder for the formula screenshot -->
+        <img src="images/total_intensity.png" alt="Total Intensity Normalization Formula">
     </p>
-    <p>
-        \\[
-        y'_i = y_i \times \frac{T_{\text{desired}}}{T_{\text{current}}}
-        \\]
-    </p>
-    <p>
-        Where:
-    </p>
-    <ul>
-        <li>\(y'_i\) is the normalized value.</li>
-        <li>\(y_i\) is the original value.</li>
-        <li>\(T_{\text{desired}}\) is the target total intensity specified by the user.</li>
-        <li>\(T_{\text{current}}\) is the sum of all current data points (i.e., the total intensity of the original dataset).</li>
-    </ul>
 
     <h2>Usage:</h2>
     <ul>
@@ -465,7 +441,6 @@ TOTAL_INTENSITY_NORMALIZATION_HELP = """
 </html>
 """
 
-
 REFERENCE_PEAK_NORMALIZATION_HELP = """
 <!DOCTYPE html>
 <html>
@@ -474,7 +449,7 @@ REFERENCE_PEAK_NORMALIZATION_HELP = """
     <title>Reference Peak Normalization Help</title>
     <!-- MathJax Configuration -->
     <script type="text/javascript"
-        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js">
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
         body {
@@ -491,6 +466,12 @@ REFERENCE_PEAK_NORMALIZATION_HELP = """
         ul {
             margin-left: 20px;
         }
+        img {
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -499,22 +480,9 @@ REFERENCE_PEAK_NORMALIZATION_HELP = """
         Reference Peak Normalization is a technique used to rescale data by normalizing all values relative to a specific reference peak within the dataset. This method ensures that the intensity of the reference peak is consistent across different datasets, allowing for easier comparison. It is commonly used in fields such as chromatography, mass spectrometry, and spectroscopy.
     </p>
     <h2>Formula:</h2>
-    <p>
-        The normalization process involves dividing each data point by the value of the reference peak:
-    </p>
-    <p>
-        \\[
-        y'_i = \frac{y_i}{y_{\text{ref}}}
-        \\]
-    </p>
-    <p>
-        Where:
-    </p>
-    <ul>
-        <li>\(y'_i\) is the normalized value.</li>
-        <li>\(y_i\) is the original value.</li>
-        <li>\(y_{\text{ref}}\) is the intensity of the reference peak.</li>
-    </ul>
+  
+        <!-- Image placeholder for the formula screenshot -->
+        <img src="images/reference_peak.png" alt="Reference Peak Normalization Formula">
 
     <h2>Usage:</h2>
     <ul>
@@ -555,7 +523,7 @@ BASELINE_CORRECTION_NORMALIZATION_HELP = """
     <title>Baseline Correction Normalization Help</title>
     <!-- MathJax Configuration -->
     <script type="text/javascript"
-        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js">
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
         body {
@@ -571,6 +539,12 @@ BASELINE_CORRECTION_NORMALIZATION_HELP = """
         }
         ul {
             margin-left: 20px;
+        }
+        img {
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+            height: auto;
         }
         .parameter-section {
             margin-top: 20px;
@@ -589,23 +563,11 @@ BASELINE_CORRECTION_NORMALIZATION_HELP = """
         Baseline Correction Normalization is a technique used to remove background noise or drift in data by subtracting the baseline from the data points. This method is commonly applied to datasets where the signal is affected by a non-zero baseline, such as in spectroscopy, chromatography, or time-series data. The goal is to bring the baseline of the data to zero, enabling clearer analysis of the signal or feature of interest.
     </p>
     <h2>Formula:</h2>
-    <p>
-        The normalization is typically performed by subtracting the baseline \(y_{\text{baseline}}\) from each data point:
-    </p>
-    <p>
-        \\[
-        y'_i = y_i - y_{\text{baseline}}
-        \\]
-    </p>
-    <p>
-        Where:
-    </p>
-    <ul>
-        <li>\(y'_i\) is the baseline-corrected value.</li>
-        <li>\(y_i\) is the original data value.</li>
-        <li>\(y_{\text{baseline}}\) is the baseline value, which can be constant or variable depending on the method used to estimate it.</li>
-    </ul>
+    
+        <!-- Image placeholder for the formula screenshot -->
+        <img src="images/baseline_correction.png" alt="Baseline Correction Formula">
 
+        
     <h2>Usage:</h2>
     <ul>
         <li><strong>Signal correction:</strong> Baseline correction is often used in signal-based data, such as spectroscopy or chromatography, to remove background noise or drift and focus on the actual signal.</li>
@@ -679,6 +641,7 @@ BASELINE_CORRECTION_NORMALIZATION_HELP = """
 </body>
 </html>
 """
+
 
 SUBTRACTION_NORMALIZATION_HELP = """
 <!DOCTYPE html>
@@ -784,143 +747,140 @@ NOISE_REDUCTION = """
 <body>
     <h1>Noise Reduction</h1>
     <p>
-        <strong>Noise Reduction</strong> is a data preprocessing technique aimed at removing or minimizing unwanted random variations, known as "noise," from your data. Noise can obscure meaningful patterns and trends, making analysis and interpretation more challenging. By applying noise reduction methods, you enhance the quality and clarity of your data, facilitating more accurate and reliable analyses.
+        <strong>Noise Reduction</strong> refers to methods used to minimize unwanted random variations in data, improving data quality for analysis and interpretation.
     </p>
+
+    <h2>1. Moving Average Smoothing</h2>
+    <p>
+        Moving Average Smoothing averages each data point with its neighboring points, reducing fluctuations while preserving the overall trend.
+    </p>
+
+    <h3>Mathematical Description:</h3>
+    <p>
     
-    <h2>Methods:</h2>
-    
-    <h3>1. Moving Average Smoothing</h3>
-    <p>
-        Moving Average Smoothing is one of the simplest and most widely used noise reduction techniques. It involves replacing each data point with the average of its neighboring points within a specified window size. This method effectively smooths out short-term fluctuations, highlighting longer-term trends and patterns.
-    </p>
-    <h4>Parameters:</h4>
+        <!-- Image placeholder for the formula screenshot -->
+        <img src="images/moving_average.png" alt="Moving Average Formula">
+
+
+    <h3>Parameters:</h3>
     <ul>
-        <li><strong>Window Size:</strong> The number of adjacent data points included in the averaging process. A larger window size results in greater smoothing but may obscure finer details.</li>
+        <li><strong>Window Size \( w \):</strong> A larger window provides greater smoothing but reduces local variations. A smaller window retains finer details but may not fully reduce noise.</li>
     </ul>
-    <h4>Why Use Moving Average Smoothing?</h4>
+
+    <h3>Choosing \( w \):</h3>
     <ul>
-        <li><strong>Simple Implementation:</strong> Easy to understand and implement, making it suitable for quick noise reduction tasks.</li>
-        <li><strong>Trend Highlighting:</strong> Helps in identifying and emphasizing underlying trends by reducing minor fluctuations.</li>
+        <li><strong>Large \( w \):</strong> Good for long-term trend analysis but may obscure short-term features.</li>
+        <li><strong>Small \( w \):</strong> Retains local changes but may leave more noise.</li>
     </ul>
-    <h4>When to Use Moving Average Smoothing?</h4>
+
+    <h3>When to Use:</h3>
     <ul>
-        <li>When you need a quick and straightforward method to smooth out data without preserving specific features.</li>
-        <li>In scenarios where the primary interest is in long-term trends rather than short-term variations.</li>
+        <li>When you want to highlight long-term trends and reduce short-term noise in time-series data.</li>
+        <li>Suitable for simple applications where the primary goal is overall trend detection rather than fine-detail preservation.</li>
     </ul>
-    
-    <h3>2. Savitzky-Golay Filter</h3>
-    <p>
-        The Savitzky-Golay Filter is a more advanced noise reduction technique that fits successive subsets of adjacent data points with a low-degree polynomial. Unlike the Moving Average, it preserves important features such as peaks and sharp transitions while still reducing noise.
-    </p>
-    <h4>Parameters:</h4>
+
+    <h3>Advantages:</h3>
     <ul>
-        <li><strong>Window Size:</strong> The number of data points included in each polynomial fit. Must be an odd integer to ensure symmetry.</li>
-        <li><strong>Polynomial Order:</strong> The degree of the polynomial used for fitting. A higher order can better capture complex features but may overfit if too high relative to the window size.</li>
+        <li><strong>Simple to Implement:</strong> Easy to compute, requiring only arithmetic averaging.</li>
+        <li><strong>Good for Trend Analysis:</strong> Helps reveal long-term patterns by eliminating short-term variations.</li>
     </ul>
-    <h4>Why Use Savitzky-Golay Filter?</h4>
+
+    <h3>Disadvantages:</h3>
     <ul>
-        <li><strong>Feature Preservation:</strong> Maintains critical data features like peaks and edges, which are essential for accurate analysis.</li>
-        <li><strong>Enhanced Smoothing:</strong> Provides a balance between smoothing and feature retention, making it suitable for diverse applications.</li>
+        <li><strong>Loss of Detail:</strong> A larger window size may obscure important features such as peaks or abrupt changes in the data.</li>
+        <li><strong>Fixed Smoothing:</strong> The same degree of smoothing is applied to all data points, which might not be ideal for varying data densities.</li>
     </ul>
-    <h4>When to Use Savitzky-Golay Filter?</h4>
+
+    <h2>2. Savitzky-Golay Filter</h2>
+    <p>
+        The Savitzky-Golay filter fits a low-degree polynomial to data within a moving window, preserving features such as peaks while reducing noise.
+    </p>
+
+    <h3>Mathematical Description:</h3>
+    <p>
+
+        <!-- Image placeholder for the formula screenshot -->
+        <img src="images/golay.png" alt="Savitzky-Golay Formula">
+
+
+    <h3>Parameters:</h3>
     <ul>
-        <li>When it's crucial to preserve significant data features while reducing noise.</li>
-        <li>In applications like spectroscopy or signal processing, where maintaining peak integrity is vital.</li>
+        <li><strong>Window Size \( w \):</strong> Determines the number of points in the polynomial fit. A larger \( w \) provides more smoothing but may reduce feature sensitivity.</li>
+        <li><strong>Polynomial Order \( p \):</strong> The degree of the polynomial. A higher \( p \) captures more complex features but risks overfitting.</li>
     </ul>
-    
-    <h3>3. Wavelet Denoising</h3>
-    <p>
-        Wavelet Denoising leverages wavelet transforms to decompose data into different frequency components. By manipulating these components, it's possible to remove noise while retaining essential signal characteristics. This method is particularly effective for data with varying frequency content and can adapt to both smooth and transient noise patterns.
-    </p>
-    <h4>Parameters:</h4>
+
+    <h3>Choosing \( w \) and \( p \):</h3>
     <ul>
-        <li><strong>Wavelet Type:</strong> Specifies the family of wavelets used for decomposition (e.g., 'db1', 'sym5'). Different wavelets capture different features of the data.</li>
-        <li><strong>Level:</strong> Determines the number of decomposition levels, affecting the granularity of noise removal. Higher levels can capture finer noise details.</li>
+        <li><strong>Window Size \( w \):</strong> Should be large enough to smooth noise but small enough to preserve important features.</li>
+        <li><strong>Polynomial Order \( p \):</strong> A typical choice is \( p = 2 \) or \( p = 3 \) to avoid overfitting.</li>
     </ul>
-    <h4>Why Use Wavelet Denoising?</h4>
+
+    <h3>When to Use:</h3>
     <ul>
-        <li><strong>Adaptive Noise Removal:</strong> Capable of handling both smooth and transient noise, making it versatile across various data types.</li>
-        <li><strong>Signal Integrity:</strong> Effectively removes noise without distorting important signal components, ensuring data reliability.</li>
+        <li>When it is important to preserve significant features such as peaks while reducing noise.</li>
+        <li>Commonly used in signal processing, spectroscopy, or any data where maintaining sharp transitions is critical.</li>
     </ul>
-    <h4>When to Use Wavelet Denoising?</h4>
+
+    <h3>Advantages:</h3>
     <ul>
-        <li>When dealing with complex datasets that contain both low-frequency trends and high-frequency noise.</li>
-        <li>In fields like image processing, biomedical signal analysis, and financial data analysis, where maintaining signal integrity is critical.</li>
+        <li><strong>Feature Preservation:</strong> Preserves key features like sharp peaks and edges while reducing noise.</li>
+        <li><strong>Flexibility:</strong> By adjusting the polynomial order, the filter can adapt to both smooth and sharp data trends.</li>
     </ul>
-    
-    <h2>Advantages:</h2>
+
+    <h3>Disadvantages:</h3>
     <ul>
-        <li><strong>Improved Data Quality:</strong> Reduces random noise, enhancing the clarity and reliability of data.</li>
-        <li><strong>Feature Preservation:</strong> Especially with advanced methods like Savitzky-Golay Filter and Wavelet Denoising, important data features are retained.</li>
-        <li><strong>Flexibility:</strong> Multiple methods and adjustable parameters allow for tailored noise reduction based on specific data characteristics and analysis needs.</li>
+        <li><strong>Computationally More Intensive:</strong> Requires polynomial fitting, which is more complex than simple averaging.</li>
+        <li><strong>Risk of Overfitting:</strong> A high polynomial order with a small window can lead to overfitting and artificial oscillations.</li>
     </ul>
-    
-    <h2>Disadvantages:</h2>
+
+    <h2>3. Wavelet Denoising</h2>
+    <p>
+        Wavelet denoising decomposes the data into different frequency components using a wavelet transform. By thresholding the wavelet coefficients, noise can be reduced while preserving important signal details.
+    </p>
+
+    <h3>Mathematical Description:</h3>
+    <p>
+       
+        <!-- Image placeholder for the formula screenshot -->
+        <img src="images/wavelet.png" alt="Wavelet Denoising Formula">
+
+    <h3>Parameters:</h3>
     <ul>
-        <li><strong>Parameter Sensitivity:</strong> The effectiveness of noise reduction depends heavily on the choice of parameters, which may require careful tuning.</li>
-        <li><strong>Computational Complexity:</strong> Advanced methods like Wavelet Denoising can be computationally intensive, especially for large datasets.</li>
-        <li><strong>Potential Over-smoothing:</strong> Excessive smoothing can distort or eliminate important data features, leading to loss of critical information.</li>
+        <li><strong>Wavelet Type \( \psi \):</strong> Determines the shape of the wavelets. Common wavelets include:
+            <ul>
+                <li><strong>db1 (Haar):</strong> Good for detecting sharp transitions.</li>
+                <li><strong>db2, db4 (Daubechies):</strong> Suitable for both smooth and sharp features.</li>
+                <li><strong>sym5 (Symlets):</strong> Provides symmetry and captures smooth data trends.</li>
+                <li><strong>coif1 (Coiflets):</strong> Effective for both sharp transitions and smooth trends.</li>
+            </ul>
+        </li>
+        <li><strong>Decomposition Level \( l \):</strong> The number of levels in the wavelet decomposition. A higher level decomposes the data into coarser approximations.</li>
     </ul>
-    
-    <h2>Basic Mathematical Descriptions:</h2>
-    <h3>Moving Average Smoothing</h3>
-    <p>
-        For each data point \( y_i \), the Moving Average Smoothing replaces it with the average of its neighboring points within the window size \( w \):
-    </p>
-    <p>
-        \[
-        \hat{y}_i = \frac{1}{w} \sum_{j=-k}^{k} y_{i+j}
-        \]
-    </p>
-    <p>
-        Where \( k = \frac{w-1}{2} \) and \( w \) is the window size.
-    </p>
-    
-    <h3>Savitzky-Golay Filter</h3>
-    <p>
-        The Savitzky-Golay Filter fits a polynomial of order \( p \) to each window of \( w \) data points:
-    </p>
-    <p>
-        \[
-        \hat{y}_i = \sum_{j=-k}^{k} c_j y_{i+j}
-        \]
-    </p>
-    <p>
-        Where \( c_j \) are the filter coefficients derived from the polynomial fit, and \( k = \frac{w-1}{2} \).
-    </p>
-    
-    <h3>Wavelet Denoising</h3>
-    <p>
-        Wavelet Denoising involves decomposing the data \( y \) into wavelet coefficients \( C \) using a chosen wavelet function \( \psi \) and level \( l \):
-    </p>
-    <p>
-        \[
-        C = \text{wavedec}(y, \psi, level=l)
-        \]
-    </p>
-    <p>
-        Noise reduction is performed by thresholding the detail coefficients, and the denoised signal \( \hat{y} \) is reconstructed:
-    </p>
-    <p>
-        \[
-        \hat{y} = \text{waverec}(C', \psi)
-        \]
-    </p>
-    <p>
-        Where \( C' \) are the thresholded coefficients.
-    </p>
-    
-    <h2>When to Use:</h2>
+
+    <h3>Choosing \( \psi \) and \( l \):</h3>
     <ul>
-        <li>When your data contains significant random noise that obscures meaningful patterns.</li>
-        <li>When preparing data for further analysis, such as peak detection, trend analysis, or statistical modeling.</li>
-        <li>In applications where maintaining data integrity and feature preservation is crucial, like biomedical signal processing or financial data analysis.</li>
+        <li><strong>Wavelet Type \( \psi \):</strong> Lower-order wavelets (e.g., db1, db2) work well for sharp transitions, while higher-order wavelets (e.g., coif1, sym5) are better for smoother data.</li>
+        <li><strong>Decomposition Level \( l \):</strong> A higher level captures larger-scale features, while a lower level focuses on fine details.</li>
     </ul>
-    
-    <h2>Conclusion:</h2>
-    <p>
-        Noise Reduction is an essential step in data preprocessing, enhancing the quality and interpretability of your data. By choosing the appropriate method and carefully tuning its parameters, you can effectively minimize noise while preserving the vital characteristics of your dataset, leading to more accurate and insightful analyses.
-    </p>
+
+    <h3>When to Use:</h3>
+    <ul>
+        <li>Wavelet denoising is effective when handling both smooth and sharp changes in the data, making it versatile for many applications like signal and image processing.</li>
+        <li>Useful when the data contains multi-scale features and noise that needs to be removed across different levels of frequency components.</li>
+    </ul>
+
+    <h3>Advantages:</h3>
+    <ul>
+        <li><strong>Adaptive Denoising:</strong> Wavelet denoising can handle both smooth and abrupt changes in the data, making it versatile for many applications.</li>
+        <li><strong>Multiscale Analysis:</strong> By decomposing data into different frequency components, it can target noise at different scales.</li>
+    </ul>
+
+    <h3>Disadvantages:</h3>
+    <ul>
+        <li><strong>Complexity:</strong> More computationally intensive than simpler methods like moving averages or polynomial filters.</li>
+        <li><strong>Parameter Sensitivity:</strong> Requires careful selection of wavelet type and decomposition level to avoid over-smoothing or under-smoothing the data.</li>
+    </ul>
+
 </body>
 </html>
 """
