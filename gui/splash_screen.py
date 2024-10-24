@@ -77,7 +77,7 @@ class SplashScreen(QWidget):
         self.overlay_layout.addWidget(self.sub_text_label)
 
         # Sub text label
-        self.sub_text_label = QLabel("Version 2.3.3", self)
+        self.sub_text_label = QLabel("Version 2.3.8", self)
         self.sub_text_label.setFont(QFont("Segoe UI", 12))
         self.sub_text_label.setStyleSheet("color: white;")
         self.sub_text_label.setAlignment(Qt.AlignCenter)

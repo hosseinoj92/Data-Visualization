@@ -22,7 +22,7 @@ def resource_path(relative_path):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Data Wiz Pro")
+        self.setWindowTitle("Data Wiz Pro by Hossein Ostovar ")
         self.setGeometry(100, 100, 1200, 800)
 
         self.init_ui()
