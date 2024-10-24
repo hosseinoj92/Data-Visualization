@@ -16,7 +16,7 @@ from gui.panels import (
     AUCNormalizationPanel,IntervalAUCNormalizationPanel,TotalIntensityNormalizationPanel,
     ReferencePeakNormalizationPanel,
     BaselineCorrectionNormalizationPanel,BaselineCorrectionWithFileNormalizationPanel,
-    CorrectMissingDataPanel, 
+    CorrectMissingDataPanel, NoiseReductionPanel
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -38,7 +38,8 @@ from fontTools.ttLib import TTFont
 from utils import read_numeric_data
 from functools import partial 
 
-
+from scipy.signal import savgol_filter  # For Savitzky-Golay Filter
+import pywt  # For Wavelet Denoising
 
 
 # Add resource_path function
@@ -193,7 +194,9 @@ class NormalizationTab(QWidget):
         # Add widgets to basic_corrections_layout in future steps
         # Define basic corrections methods and their corresponding panels
         self.basic_corrections_methods = [
-            ("Correct Missing Data", CorrectMissingDataPanel)
+            ("Correct Missing Data", CorrectMissingDataPanel),
+            ("Noise Reduction", NoiseReductionPanel),
+
         ]
 
         self.basic_corrections_panels = []
@@ -327,6 +330,7 @@ class NormalizationTab(QWidget):
 
         # Define normalization functions
         self.define_normalization_functions()
+
     def apply_basic_correction(self, panel):
         # Clear the previous normalized data
         self.normalized_data = {}
@@ -374,6 +378,24 @@ class NormalizationTab(QWidget):
                     # Use the helper function for localized replacement
                     y_series = self.interpolate_missing_values(y_series, method=method.split()[-1].lower())
                     df_cleaned = pd.DataFrame({df.columns[x_col]: x_series, df.columns[y_col]: y_series})
+                
+                elif method == "Moving Average Smoothing":
+                    window_size = params['window_size']
+                    y_series = y_series.rolling(window=window_size, center=True).mean()
+                    df_cleaned = pd.DataFrame({df.columns[x_col]: x_series, df.columns[y_col]: y_series})
+                elif method == "Savitzky-Golay Filter":
+                    window_size = params['window_size']
+                    poly_order = params['poly_order']
+                    y_filtered = self.savitzky_golay_filter(y_series.values, window_size, poly_order)
+                    y_series = pd.Series(y_filtered)
+                    df_cleaned = pd.DataFrame({df.columns[x_col]: x_series, df.columns[y_col]: y_series})
+                elif method == "Wavelet Denoising":
+                    wavelet = params['wavelet']
+                    level = params['level']
+                    y_filtered = self.wavelet_denoising(y_series.values, wavelet, level)
+                    y_series = pd.Series(y_filtered[:len(y_series)])  # Ensure length matches
+                    df_cleaned = pd.DataFrame({df.columns[x_col]: x_series, df.columns[y_col]: y_series})
+            
                 else:
                     QMessageBox.warning(self, "Unknown Method", f"Unknown method: {method}")
                     continue
@@ -400,6 +422,24 @@ class NormalizationTab(QWidget):
         self.update_normalized_plot()
         panel.save_button.setEnabled(True)
         panel.send_to_data_panel_button.setEnabled(True)
+
+    
+    def moving_average_smoothing(self, y, window_size):
+        return np.convolve(y, np.ones(window_size)/window_size, mode='same')
+
+    def savitzky_golay_filter(self, y, window_size, poly_order):
+        from scipy.signal import savgol_filter
+        return savgol_filter(y, window_length=window_size, polyorder=poly_order)
+
+    def wavelet_denoising(self, y, wavelet, level):
+        import pywt
+        coeffs = pywt.wavedec(y, wavelet, level=level)
+        # Thresholding
+        sigma = np.median(np.abs(coeffs[-level])) / 0.6745
+        uthresh = sigma * np.sqrt(2 * np.log(len(y)))
+        coeffs[1:] = (pywt.threshold(i, value=uthresh, mode='soft') for i in coeffs[1:])
+        return pywt.waverec(coeffs, wavelet)
+
 
 
     def define_normalization_functions(self):

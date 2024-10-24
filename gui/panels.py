@@ -1961,3 +1961,158 @@ class CorrectMissingDataPanel(QWidget):
             'method': self.method_combo.currentText()
         }
         return params
+
+class NoiseReductionPanel(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.method_name = "Noise Reduction"
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_icon = QIcon(resource_path("gui/resources/help_icon.png"))
+        help_button.setIcon(help_icon)
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
+        self.apply_button.setEnabled(True)   # Enabled by default
+        self.save_button.setEnabled(False)   # Disabled until applied
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled until applied
+
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
+        self.layout.addLayout(button_layout)
+
+        # Options for Noise Reduction
+        self.layout.addWidget(QLabel("Choose a noise reduction method:"))
+
+        self.method_combo = QComboBox()
+        self.method_combo.addItems([
+            "Moving Average Smoothing",
+            "Savitzky-Golay Filter",
+            "Wavelet Denoising"
+        ])
+        self.layout.addWidget(self.method_combo)
+
+        # Parameters area
+        self.parameters_layout = QVBoxLayout()
+        self.layout.addLayout(self.parameters_layout)
+
+        # Initialize parameters for each method
+        self.init_parameters()
+
+        # Connect method selection change
+        self.method_combo.currentIndexChanged.connect(self.on_method_change)
+
+        self.setLayout(self.layout)
+
+    def init_parameters(self):
+        self.parameter_widgets = {}
+
+        # Moving Average Smoothing Parameters
+        moving_avg_layout = QHBoxLayout()
+        moving_avg_layout.addWidget(QLabel("Window Size:"))
+        self.ma_window_size_spin = QSpinBox()
+        self.ma_window_size_spin.setRange(1, 100)
+        self.ma_window_size_spin.setValue(5)
+        moving_avg_layout.addWidget(self.ma_window_size_spin)
+        self.parameter_widgets["Moving Average Smoothing"] = moving_avg_layout
+
+        # Savitzky-Golay Filter Parameters
+        savgol_layout = QHBoxLayout()
+        savgol_layout.addWidget(QLabel("Window Size:"))
+        self.sg_window_size_spin = QSpinBox()
+        self.sg_window_size_spin.setRange(3, 101)
+        self.sg_window_size_spin.setSingleStep(2)
+        self.sg_window_size_spin.setValue(5)
+        savgol_layout.addWidget(self.sg_window_size_spin)
+
+        savgol_layout.addWidget(QLabel("Polynomial Order:"))
+        self.sg_poly_order_spin = QSpinBox()
+        self.sg_poly_order_spin.setRange(1, 10)
+        self.sg_poly_order_spin.setValue(2)
+        savgol_layout.addWidget(self.sg_poly_order_spin)
+        self.parameter_widgets["Savitzky-Golay Filter"] = savgol_layout
+
+        # Wavelet Denoising Parameters
+        wavelet_layout = QHBoxLayout()
+        wavelet_layout.addWidget(QLabel("Wavelet:"))
+        self.wavelet_combo = QComboBox()
+        self.wavelet_combo.addItems(["db1", "db2", "db4", "sym5", "coif1"])
+        wavelet_layout.addWidget(self.wavelet_combo)
+
+        wavelet_layout.addWidget(QLabel("Level:"))
+        self.wavelet_level_spin = QSpinBox()
+        self.wavelet_level_spin.setRange(1, 10)
+        self.wavelet_level_spin.setValue(1)
+        wavelet_layout.addWidget(self.wavelet_level_spin)
+        self.parameter_widgets["Wavelet Denoising"] = wavelet_layout
+
+        # Display initial parameters
+        self.on_method_change()
+
+    def on_method_change(self):
+        # Clear existing parameter widgets
+        for i in reversed(range(self.parameters_layout.count())):
+            widget = self.parameters_layout.itemAt(i).widget()
+            if widget is not None:
+                widget.setParent(None)
+
+        # Add parameter widgets for the selected method
+        method = self.method_combo.currentText()
+        if method in self.parameter_widgets:
+            self.parameters_layout.addLayout(self.parameter_widgets[method])
+
+    def show_help(self):
+        help_content = (
+            "This method allows you to reduce noise in your data using different techniques.\n\n"
+            "Options:\n"
+            "- Moving Average Smoothing: Replaces each data point with the average of its neighboring points.\n"
+            "- Savitzky-Golay Filter: Applies a filter that preserves features like peaks while reducing noise.\n"
+            "- Wavelet Denoising: Uses wavelet transforms to remove noise while retaining important signal characteristics."
+        )
+        dialog = HelpDialog("Noise Reduction Help", help_content, self)
+        dialog.exec_()
+
+    def get_parameters(self):
+        method = self.method_combo.currentText()
+        params = {'method': method}
+
+        if method == "Moving Average Smoothing":
+            window_size = self.ma_window_size_spin.value()
+            if window_size < 1:
+                QMessageBox.warning(self, "Invalid Parameter", "Window size must be at least 1.")
+                return None
+            params['window_size'] = window_size
+
+        elif method == "Savitzky-Golay Filter":
+            window_size = self.sg_window_size_spin.value()
+            poly_order = self.sg_poly_order_spin.value()
+            if window_size % 2 == 0 or window_size < 3:
+                QMessageBox.warning(self, "Invalid Parameter", "Window size must be an odd number greater than or equal to 3.")
+                return None
+            if poly_order >= window_size:
+                QMessageBox.warning(self, "Invalid Parameter", "Polynomial order must be less than window size.")
+                return None
+            params['window_size'] = window_size
+            params['poly_order'] = poly_order
+
+        elif method == "Wavelet Denoising":
+            wavelet = self.wavelet_combo.currentText()
+            level = self.wavelet_level_spin.value()
+            params['wavelet'] = wavelet
+            params['level'] = level
+
+        return params
