@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QGroupBox, QVBoxLayout, QGridLayout, QLabel, QLineEdit, QPushButton,
     QListWidget, QScrollArea, QCheckBox, QSpinBox, QComboBox, QHBoxLayout,
     QListWidgetItem, QColorDialog, QMessageBox, QFileDialog, QWidget, QMenu, 
-    QDialog,QDoubleSpinBox,QApplication
+    QDialog,QDoubleSpinBox,QApplication, 
 )
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -24,8 +24,7 @@ from gui.help_content import (MIN_MAX_NORMALIZATION_HELP,Z_SCORE_NORMALIZATION_H
                               TOTAL_INTENSITY_NORMALIZATION_HELP,
                               REFERENCE_PEAK_NORMALIZATION_HELP,
                               BASELINE_CORRECTION_NORMALIZATION_HELP,SUBTRACTION_NORMALIZATION_HELP,
-                              NOISE_REDUCTION, UNIT_CONVERTER_HELP, SHIFT_BASELINE_HELP
-
+                              NOISE_REDUCTION, UNIT_CONVERTER_HELP, SHIFT_BASELINE_HELP, DATA_CUTTING_HELP
                               )
 
 
@@ -2253,5 +2252,93 @@ class ShiftBaselinePanel(QWidget):
         params = {
             'method': self.method_name,
             'desired_baseline': desired_baseline
+        }
+        return params
+    
+
+class DataCuttingPanel(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.method_name = "Data Cutting"
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_icon = QIcon(resource_path("gui/resources/help_icon.png"))
+        help_button.setIcon(help_icon)
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
+        self.apply_button.setEnabled(True)   # Enabled by default
+        self.save_button.setEnabled(False)   # Disabled until applied
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled until applied
+
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
+        self.layout.addLayout(button_layout)
+
+        # Instructions
+        instructions = QLabel("Define the X interval to cut the data.\nOnly data points within [X Start, X End] will be retained.")
+        instructions.setWordWrap(True)
+        self.layout.addWidget(instructions)
+
+        # Input fields for X Start and X End
+        input_layout = QHBoxLayout()
+        self.x_start_label = QLabel("X Start:")
+        self.x_start_input = QLineEdit()
+        self.x_start_input.setPlaceholderText("Enter starting X value")
+        input_layout.addWidget(self.x_start_label)
+        input_layout.addWidget(self.x_start_input)
+
+        self.x_end_label = QLabel("X End:")
+        self.x_end_input = QLineEdit()
+        self.x_end_input.setPlaceholderText("Enter ending X value")
+        input_layout.addWidget(self.x_end_label)
+        input_layout.addWidget(self.x_end_input)
+
+        self.layout.addLayout(input_layout)
+
+        self.setLayout(self.layout)
+
+    def show_help(self):
+        help_content = DATA_CUTTING_HELP
+        dialog = HelpDialog("Data Cutting Help", help_content, self)
+        dialog.exec_()
+
+    def get_parameters(self):
+        """
+        Retrieve parameters entered by the user.
+
+        Returns:
+            dict: Contains the method name and X start and end values.
+        """
+        try:
+            x_start_str = self.x_start_input.text().strip()
+            x_end_str = self.x_end_input.text().strip()
+            x_start = float(x_start_str)
+            x_end = float(x_end_str)
+            if x_start > x_end:
+                QMessageBox.warning(self, "Invalid Input", "X Start should be less than or equal to X End.")
+                return None
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter valid numerical values for X Start and X End.")
+            return None
+
+        params = {
+            'method': self.method_name,
+            'x_start': x_start,
+            'x_end': x_end
         }
         return params

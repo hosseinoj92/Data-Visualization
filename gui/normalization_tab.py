@@ -16,7 +16,8 @@ from gui.panels import (
     AUCNormalizationPanel,IntervalAUCNormalizationPanel,TotalIntensityNormalizationPanel,
     ReferencePeakNormalizationPanel,
     BaselineCorrectionNormalizationPanel,BaselineCorrectionWithFileNormalizationPanel,
-    CorrectMissingDataPanel, NoiseReductionPanel,UnitConverterPanel,ShiftBaselinePanel  
+    CorrectMissingDataPanel, NoiseReductionPanel,UnitConverterPanel,ShiftBaselinePanel,
+    DataCuttingPanel, 
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -199,6 +200,7 @@ class NormalizationTab(QWidget):
             ("Noise Reduction", NoiseReductionPanel),
             ("Unit Converter", UnitConverterPanel),
             ("Shift Baseline", ShiftBaselinePanel),
+            ("Data Cutting", DataCuttingPanel)
 
         ]
 
@@ -424,6 +426,14 @@ class NormalizationTab(QWidget):
                         df.columns[x_col]: x_series,
                         df.columns[y_col]: y_series_shifted
                     })
+
+                elif method == "Data Cutting":
+                    # Handle Data Cutting
+                    x_start = params.get('x_start')
+                    x_end = params.get('x_end')
+                    mask = (x_series >= x_start) & (x_series <= x_end)
+                    df_cleaned = df[mask]
+                    
                 else:
                     QMessageBox.warning(self, "Unknown Method", f"Unknown method: {method}")
                     continue

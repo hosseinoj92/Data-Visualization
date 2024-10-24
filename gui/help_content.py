@@ -1102,3 +1102,74 @@ SHIFT_BASELINE_HELP = """
 </body>
 </html>
 """
+
+DATA_CUTTING_HELP = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Data Cutting Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #2E8B57;
+        }
+        p, ul {
+            font-size: 16px;
+        }
+        ul {
+            margin-left: 20px;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Data Cutting</h1>
+    <p>
+        The <strong>Data Cutting</strong> feature allows you to filter your data based on a specific X-axis interval. This is useful for focusing on a particular region of interest within your dataset.
+    </p>
+    <h2>How to Use:</h2>
+    <ol>
+        <li>Enter the starting value of the X-axis interval in the <strong>X Start</strong> field.</li>
+        <li>Enter the ending value of the X-axis interval in the <strong>X End</strong> field.</li>
+        <li>Click the <strong>Apply</strong> button to filter the data. Only data points within the [X Start, X End] range will be retained.</li>
+        <li>After applying the cut, you can choose to <strong>Save</strong> the current parameters for future use.</li>
+        <li>Click <strong>Send to Data Panel</strong> to send the filtered data to the Selected Data Panel for further processing or plotting.</li>
+    </ol>
+    <h2>Supported Operations:</h2>
+    <p>
+        The Data Cutting operation filters out any data points that fall outside of the specified X-axis range. This allows you to isolate the region of the dataset that is most relevant for your analysis.
+    </p>
+    <h2>Important Notes:</h2>
+    <ul>
+        <li>Ensure that the <strong>X Start</strong> value is less than or equal to the <strong>X End</strong> value.</li>
+        <li>Applying a data cut will update the current plot, displaying only the data within the specified interval.</li>
+        <li>You can save multiple cutting configurations and easily switch between them or apply them as needed.</li>
+    </ul>
+    <h2>Advantages:</h2>
+    <ul>
+        <li><strong>Focused Analysis:</strong> Allows you to zoom in on specific regions of interest within the data, making it easier to analyze critical sections.</li>
+        <li><strong>Streamlined Workflow:</strong> Quickly cut and save specific data intervals for comparison or further analysis.</li>
+        <li><strong>Customization:</strong> Easily adjust and save different X-axis intervals without altering the original dataset.</li>
+    </ul>
+    <h2>When to Use:</h2>
+    <ul>
+        <li>When you need to focus on a specific range of X-values in your dataset for detailed analysis.</li>
+        <li>When preparing data for analysis that is sensitive to certain intervals of the X-axis.</li>
+        <li>When comparing specific sections of multiple datasets by cutting them to the same X-axis range.</li>
+    </ul>
+</body>
+</html>
+"""
