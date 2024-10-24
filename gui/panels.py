@@ -24,7 +24,7 @@ from gui.help_content import (MIN_MAX_NORMALIZATION_HELP,Z_SCORE_NORMALIZATION_H
                               TOTAL_INTENSITY_NORMALIZATION_HELP,
                               REFERENCE_PEAK_NORMALIZATION_HELP,
                               BASELINE_CORRECTION_NORMALIZATION_HELP,SUBTRACTION_NORMALIZATION_HELP,
-                              NOISE_REDUCTION, UNIT_CONVERTER_HELP
+                              NOISE_REDUCTION, UNIT_CONVERTER_HELP, SHIFT_BASELINE_HELP
 
                               )
 
@@ -2178,3 +2178,80 @@ class UnitConverterPanel(QWidget):
         return params
 
 
+class ShiftBaselinePanel(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.method_name = "Shift Baseline"
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_icon = QIcon(resource_path("gui/resources/help_icon.png"))
+        help_button.setIcon(help_icon)
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
+        self.apply_button.setEnabled(True)   # Enabled by default
+        self.save_button.setEnabled(False)   # Disabled until applied
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled until applied
+
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
+        self.layout.addLayout(button_layout)
+
+        # Instructions
+        instructions = QLabel("Shift the baseline by adjusting the minimum Y-value to a desired value.")
+        instructions.setWordWrap(True)
+        self.layout.addWidget(instructions)
+
+        # Input for Desired Baseline Value
+        input_layout = QHBoxLayout()
+        self.baseline_label = QLabel("Desired Baseline Value:")
+        self.baseline_input = QLineEdit()
+        self.baseline_input.setPlaceholderText("e.g., 0")
+        self.baseline_input.setText("0")  # Default value is zero
+        input_layout.addWidget(self.baseline_label)
+        input_layout.addWidget(self.baseline_input)
+        self.layout.addLayout(input_layout)
+
+        self.setLayout(self.layout)
+
+    def show_help(self):
+        help_content = SHIFT_BASELINE_HELP  
+        dialog = HelpDialog("Shift Baseline Help", SHIFT_BASELINE_HELP, self)
+        dialog.exec_()
+
+    def get_parameters(self):
+        """
+        Retrieve parameters entered by the user.
+
+        Returns:
+            dict: Contains the method name and desired baseline value.
+        """
+        try:
+            baseline_str = self.baseline_input.text().strip()
+            if not baseline_str:
+                desired_baseline = 0.0  # Default to zero if empty
+            else:
+                desired_baseline = float(baseline_str)
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter a valid numerical value for the baseline.")
+            return None
+
+        params = {
+            'method': self.method_name,
+            'desired_baseline': desired_baseline
+        }
+        return params

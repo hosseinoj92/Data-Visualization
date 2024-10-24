@@ -16,7 +16,7 @@ from gui.panels import (
     AUCNormalizationPanel,IntervalAUCNormalizationPanel,TotalIntensityNormalizationPanel,
     ReferencePeakNormalizationPanel,
     BaselineCorrectionNormalizationPanel,BaselineCorrectionWithFileNormalizationPanel,
-    CorrectMissingDataPanel, NoiseReductionPanel,UnitConverterPanel  
+    CorrectMissingDataPanel, NoiseReductionPanel,UnitConverterPanel,ShiftBaselinePanel  
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -198,6 +198,7 @@ class NormalizationTab(QWidget):
             ("Correct Missing Data", CorrectMissingDataPanel),
             ("Noise Reduction", NoiseReductionPanel),
             ("Unit Converter", UnitConverterPanel),
+            ("Shift Baseline", ShiftBaselinePanel),
 
         ]
 
@@ -413,7 +414,16 @@ class NormalizationTab(QWidget):
                         df.columns[x_col]: x_series_converted,
                         df.columns[y_col]: y_series_converted
                     })
-                        
+                
+                elif method == "Shift Baseline":
+                    desired_baseline = params['desired_baseline']
+                    y_min = y_series.min()
+                    shift_value = desired_baseline - y_min
+                    y_series_shifted = y_series + shift_value
+                    df_cleaned = pd.DataFrame({
+                        df.columns[x_col]: x_series,
+                        df.columns[y_col]: y_series_shifted
+                    })
                 else:
                     QMessageBox.warning(self, "Unknown Method", f"Unknown method: {method}")
                     continue

@@ -1018,3 +1018,87 @@ UNIT_CONVERTER_HELP = """
 </body>
 </html>
 """
+
+SHIFT_BASELINE_HELP = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Shift Baseline Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #2E8B57;
+        }
+        p, ul {
+            font-size: 16px;
+        }
+        ul {
+            margin-left: 20px;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Shift Baseline</h1>
+    <p>
+        The <strong>Shift Baseline</strong> feature allows you to adjust the minimum Y-value of your dataset to a desired value. This is particularly useful for normalizing data, aligning datasets for comparison, or preparing data for further analysis.
+    </p>
+    <h2>How to Use:</h2>
+    <ol>
+        <li>Enter the desired baseline value in the <strong>Desired Baseline Value</strong> field. The default value is <code>0</code>.</li>
+        <li>Select one or more data files from the <strong>Selected Data</strong> panel that you wish to apply the baseline shift to.</li>
+        <li>Click the <strong>Apply</strong> button to perform the baseline shift on the selected datasets.</li>
+        <li>After applying, you can choose to <strong>Save</strong> the corrected data or <strong>Send to Data Panel</strong> for further processing.</li>
+    </ol>
+    <h2>Supported Operations:</h2>
+    <p>
+        The Shift Baseline operation performs a simple translation of the Y-values in your dataset. Specifically, it calculates the difference between the desired baseline and the current minimum Y-value and applies this shift uniformly across all Y-values.
+    </p>
+    <h2>Example:</h2>
+    <ul>
+        <li><strong>Setting the Minimum Y-value to Zero:</strong><br>
+            - **Desired Baseline Value:** <code>0</code><br>
+            - **Operation:** If the current minimum Y-value is <code>5</code>, the shift value is <code>0 - 5 = -5</code>. All Y-values are decreased by <code>5</code>, making the new minimum Y-value <code>0</code>.
+        </li>
+        <li><strong>Shifting the Baseline to a Specific Value (e.g., -10):</strong><br>
+            - **Desired Baseline Value:** <code>-10</code><br>
+            - **Operation:** If the current minimum Y-value is <code>2</code>, the shift value is <code>-10 - 2 = -12</code>. All Y-values are decreased by <code>12</code>, setting the new minimum Y-value to <code>-10</code>.
+        </li>
+    </ul>
+    <h2>Important Notes:</h2>
+    <ul>
+        <li>Ensure that the desired baseline value is appropriate for your dataset and analysis requirements.</li>
+        <li>If the desired baseline results in negative Y-values, verify that your subsequent analyses or visualizations can handle them.</li>
+        <li>Shifting the baseline does not alter the shape or relative differences in your data; it only translates the data vertically.</li>
+        <li>Before applying the shift, it's advisable to review the current minimum Y-value to understand the extent of the shift.</li>
+    </ul>
+    <h2>Advantages:</h2>
+    <ul>
+        <li><strong>Data Normalization:</strong> Align datasets to a common baseline, facilitating accurate comparisons.</li>
+        <li><strong>Preparation for Analysis:</strong> Ensure that Y-values meet the prerequisites of certain analytical methods or algorithms.</li>
+        <li><strong>Visualization Clarity:</strong> Enhance the readability of plots by setting a meaningful baseline.</li>
+        <li><strong>Simplicity:</strong> Easy-to-use interface requiring minimal input from the user.</li>
+    </ul>
+    <h2>When to Use:</h2>
+    <ul>
+        <li>When comparing multiple datasets that have different baseline levels.</li>
+        <li>Preparing data for machine learning models that assume data is centered around a specific value.</li>
+        <li>Enhancing the visual appeal of plots by ensuring that all data starts from a consistent baseline.</li>
+        <li>Correcting datasets where the baseline has been erroneously offset due to data acquisition issues.</li>
+    </ul>
+</body>
+</html>
+"""
