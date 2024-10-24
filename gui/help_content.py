@@ -753,3 +753,174 @@ SUBTRACTION_NORMALIZATION_HELP = """
 </body>
 </html>
 """
+
+NOISE_REDUCTION = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Noise Reduction Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3, h4 {
+            color: #2E8B57;
+        }
+        p, ul {
+            font-size: 16px;
+        }
+        ul {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Noise Reduction</h1>
+    <p>
+        <strong>Noise Reduction</strong> is a data preprocessing technique aimed at removing or minimizing unwanted random variations, known as "noise," from your data. Noise can obscure meaningful patterns and trends, making analysis and interpretation more challenging. By applying noise reduction methods, you enhance the quality and clarity of your data, facilitating more accurate and reliable analyses.
+    </p>
+    
+    <h2>Methods:</h2>
+    
+    <h3>1. Moving Average Smoothing</h3>
+    <p>
+        Moving Average Smoothing is one of the simplest and most widely used noise reduction techniques. It involves replacing each data point with the average of its neighboring points within a specified window size. This method effectively smooths out short-term fluctuations, highlighting longer-term trends and patterns.
+    </p>
+    <h4>Parameters:</h4>
+    <ul>
+        <li><strong>Window Size:</strong> The number of adjacent data points included in the averaging process. A larger window size results in greater smoothing but may obscure finer details.</li>
+    </ul>
+    <h4>Why Use Moving Average Smoothing?</h4>
+    <ul>
+        <li><strong>Simple Implementation:</strong> Easy to understand and implement, making it suitable for quick noise reduction tasks.</li>
+        <li><strong>Trend Highlighting:</strong> Helps in identifying and emphasizing underlying trends by reducing minor fluctuations.</li>
+    </ul>
+    <h4>When to Use Moving Average Smoothing?</h4>
+    <ul>
+        <li>When you need a quick and straightforward method to smooth out data without preserving specific features.</li>
+        <li>In scenarios where the primary interest is in long-term trends rather than short-term variations.</li>
+    </ul>
+    
+    <h3>2. Savitzky-Golay Filter</h3>
+    <p>
+        The Savitzky-Golay Filter is a more advanced noise reduction technique that fits successive subsets of adjacent data points with a low-degree polynomial. Unlike the Moving Average, it preserves important features such as peaks and sharp transitions while still reducing noise.
+    </p>
+    <h4>Parameters:</h4>
+    <ul>
+        <li><strong>Window Size:</strong> The number of data points included in each polynomial fit. Must be an odd integer to ensure symmetry.</li>
+        <li><strong>Polynomial Order:</strong> The degree of the polynomial used for fitting. A higher order can better capture complex features but may overfit if too high relative to the window size.</li>
+    </ul>
+    <h4>Why Use Savitzky-Golay Filter?</h4>
+    <ul>
+        <li><strong>Feature Preservation:</strong> Maintains critical data features like peaks and edges, which are essential for accurate analysis.</li>
+        <li><strong>Enhanced Smoothing:</strong> Provides a balance between smoothing and feature retention, making it suitable for diverse applications.</li>
+    </ul>
+    <h4>When to Use Savitzky-Golay Filter?</h4>
+    <ul>
+        <li>When it's crucial to preserve significant data features while reducing noise.</li>
+        <li>In applications like spectroscopy or signal processing, where maintaining peak integrity is vital.</li>
+    </ul>
+    
+    <h3>3. Wavelet Denoising</h3>
+    <p>
+        Wavelet Denoising leverages wavelet transforms to decompose data into different frequency components. By manipulating these components, it's possible to remove noise while retaining essential signal characteristics. This method is particularly effective for data with varying frequency content and can adapt to both smooth and transient noise patterns.
+    </p>
+    <h4>Parameters:</h4>
+    <ul>
+        <li><strong>Wavelet Type:</strong> Specifies the family of wavelets used for decomposition (e.g., 'db1', 'sym5'). Different wavelets capture different features of the data.</li>
+        <li><strong>Level:</strong> Determines the number of decomposition levels, affecting the granularity of noise removal. Higher levels can capture finer noise details.</li>
+    </ul>
+    <h4>Why Use Wavelet Denoising?</h4>
+    <ul>
+        <li><strong>Adaptive Noise Removal:</strong> Capable of handling both smooth and transient noise, making it versatile across various data types.</li>
+        <li><strong>Signal Integrity:</strong> Effectively removes noise without distorting important signal components, ensuring data reliability.</li>
+    </ul>
+    <h4>When to Use Wavelet Denoising?</h4>
+    <ul>
+        <li>When dealing with complex datasets that contain both low-frequency trends and high-frequency noise.</li>
+        <li>In fields like image processing, biomedical signal analysis, and financial data analysis, where maintaining signal integrity is critical.</li>
+    </ul>
+    
+    <h2>Advantages:</h2>
+    <ul>
+        <li><strong>Improved Data Quality:</strong> Reduces random noise, enhancing the clarity and reliability of data.</li>
+        <li><strong>Feature Preservation:</strong> Especially with advanced methods like Savitzky-Golay Filter and Wavelet Denoising, important data features are retained.</li>
+        <li><strong>Flexibility:</strong> Multiple methods and adjustable parameters allow for tailored noise reduction based on specific data characteristics and analysis needs.</li>
+    </ul>
+    
+    <h2>Disadvantages:</h2>
+    <ul>
+        <li><strong>Parameter Sensitivity:</strong> The effectiveness of noise reduction depends heavily on the choice of parameters, which may require careful tuning.</li>
+        <li><strong>Computational Complexity:</strong> Advanced methods like Wavelet Denoising can be computationally intensive, especially for large datasets.</li>
+        <li><strong>Potential Over-smoothing:</strong> Excessive smoothing can distort or eliminate important data features, leading to loss of critical information.</li>
+    </ul>
+    
+    <h2>Basic Mathematical Descriptions:</h2>
+    <h3>Moving Average Smoothing</h3>
+    <p>
+        For each data point \( y_i \), the Moving Average Smoothing replaces it with the average of its neighboring points within the window size \( w \):
+    </p>
+    <p>
+        \[
+        \hat{y}_i = \frac{1}{w} \sum_{j=-k}^{k} y_{i+j}
+        \]
+    </p>
+    <p>
+        Where \( k = \frac{w-1}{2} \) and \( w \) is the window size.
+    </p>
+    
+    <h3>Savitzky-Golay Filter</h3>
+    <p>
+        The Savitzky-Golay Filter fits a polynomial of order \( p \) to each window of \( w \) data points:
+    </p>
+    <p>
+        \[
+        \hat{y}_i = \sum_{j=-k}^{k} c_j y_{i+j}
+        \]
+    </p>
+    <p>
+        Where \( c_j \) are the filter coefficients derived from the polynomial fit, and \( k = \frac{w-1}{2} \).
+    </p>
+    
+    <h3>Wavelet Denoising</h3>
+    <p>
+        Wavelet Denoising involves decomposing the data \( y \) into wavelet coefficients \( C \) using a chosen wavelet function \( \psi \) and level \( l \):
+    </p>
+    <p>
+        \[
+        C = \text{wavedec}(y, \psi, level=l)
+        \]
+    </p>
+    <p>
+        Noise reduction is performed by thresholding the detail coefficients, and the denoised signal \( \hat{y} \) is reconstructed:
+    </p>
+    <p>
+        \[
+        \hat{y} = \text{waverec}(C', \psi)
+        \]
+    </p>
+    <p>
+        Where \( C' \) are the thresholded coefficients.
+    </p>
+    
+    <h2>When to Use:</h2>
+    <ul>
+        <li>When your data contains significant random noise that obscures meaningful patterns.</li>
+        <li>When preparing data for further analysis, such as peak detection, trend analysis, or statistical modeling.</li>
+        <li>In applications where maintaining data integrity and feature preservation is crucial, like biomedical signal processing or financial data analysis.</li>
+    </ul>
+    
+    <h2>Conclusion:</h2>
+    <p>
+        Noise Reduction is an essential step in data preprocessing, enhancing the quality and interpretability of your data. By choosing the appropriate method and carefully tuning its parameters, you can effectively minimize noise while preserving the vital characteristics of your dataset, leading to more accurate and insightful analyses.
+    </p>
+</body>
+</html>
+"""

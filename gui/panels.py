@@ -23,7 +23,8 @@ from gui.help_content import (MIN_MAX_NORMALIZATION_HELP,Z_SCORE_NORMALIZATION_H
                               ROBUST_SCALING_NORMALIZATION_HELP,AUC_NORMALIZATION_HELP,INTERVAL_AUC_NORMALIZATION_HELP,
                               TOTAL_INTENSITY_NORMALIZATION_HELP,
                               REFERENCE_PEAK_NORMALIZATION_HELP,
-                              BASELINE_CORRECTION_NORMALIZATION_HELP,SUBTRACTION_NORMALIZATION_HELP
+                              BASELINE_CORRECTION_NORMALIZATION_HELP,SUBTRACTION_NORMALIZATION_HELP,
+                              NOISE_REDUCTION,
 
                               )
 
@@ -2076,13 +2077,7 @@ class NoiseReductionPanel(QWidget):
             self.parameters_layout.addLayout(self.parameter_widgets[method])
 
     def show_help(self):
-        help_content = (
-            "This method allows you to reduce noise in your data using different techniques.\n\n"
-            "Options:\n"
-            "- Moving Average Smoothing: Replaces each data point with the average of its neighboring points.\n"
-            "- Savitzky-Golay Filter: Applies a filter that preserves features like peaks while reducing noise.\n"
-            "- Wavelet Denoising: Uses wavelet transforms to remove noise while retaining important signal characteristics."
-        )
+        help_content = NOISE_REDUCTION
         dialog = HelpDialog("Noise Reduction Help", help_content, self)
         dialog.exec_()
 
@@ -2116,3 +2111,5 @@ class NoiseReductionPanel(QWidget):
             params['level'] = level
 
         return params
+    
+    
