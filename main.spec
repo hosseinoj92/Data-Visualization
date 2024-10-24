@@ -5,7 +5,11 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('style.qss', '.'), ('gui/resources', 'gui/resources')],
+    datas=[
+        ('style.qss', '.'), 
+        ('gui/resources', 'gui/resources'),
+        ('gui/images/min-max.png', 'gui/images')  # Added image here
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

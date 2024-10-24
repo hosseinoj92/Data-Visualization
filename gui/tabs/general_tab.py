@@ -11,23 +11,23 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal, QEvent
 from PyQt5.QtGui import QIcon
 
-from gui.panels import (
-    SelectedDataPanel, AxisDetailsPanel, AdditionalTextPanel,
-    CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, NormalizationMethodPanel
-)
+from gui.panels.selected_data_panel import SelectedDataPanel
+from gui.panels.plot_details_panels import ( AxisDetailsPanel, AdditionalTextPanel,
+    CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, )
+
 from plots.plotting import plot_data
-from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
+from gui.dialogs.latex_compatibility_dialog import LaTeXCompatibilityDialog 
 from utils import read_numeric_data
 
-from gui.collapsible_sections import *
+from gui.utils.collapsible_sections import *
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
 import numpy as np
 import matplotlib.text
-from gui.expanded_plot_window import ExpandedPlotWindow 
-from gui.save_plot_dialog import SavePlotDialog
+from gui.plot.expanded_plot_window import ExpandedPlotWindow 
+from gui.dialogs.save_plot_dialog import SavePlotDialog
 import seaborn as sns
 from matplotlib import style
 from matplotlib import font_manager as fm

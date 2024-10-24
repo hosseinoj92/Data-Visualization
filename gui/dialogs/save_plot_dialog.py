@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox,
     QComboBox, QPushButton, QMessageBox
 )
-from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog  # Ensure this import exists
+from gui.dialogs.latex_compatibility_dialog import LaTeXCompatibilityDialog  # Ensure this import exists
 from PyQt5.QtCore import Qt
 
 class SavePlotDialog(QDialog):

@@ -9,18 +9,27 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, pyqtSignal, QEvent
 from PyQt5.QtGui import QIcon
 
-from gui.panels import (
-    SelectedDataPanel, AxisDetailsPanel, AdditionalTextPanel,
-    CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, 
-    MinMaxNormalizationPanel, ZScoreNormalizationPanel, RobustScalingNormalizationPanel,
+
+from gui.panels.normalization_panels import(MinMaxNormalizationPanel, ZScoreNormalizationPanel, RobustScalingNormalizationPanel,
     AUCNormalizationPanel,IntervalAUCNormalizationPanel,TotalIntensityNormalizationPanel,
     ReferencePeakNormalizationPanel,
     BaselineCorrectionNormalizationPanel,BaselineCorrectionWithFileNormalizationPanel,
-    CorrectMissingDataPanel, NoiseReductionPanel,UnitConverterPanel,ShiftBaselinePanel  
 )
+
+from gui.panels.data_correction_panels import ( CorrectMissingDataPanel, 
+    NoiseReductionPanel,UnitConverterPanel,ShiftBaselinePanel,
+    DataCuttingPanel,
+   
+)
+
+from gui.panels.selected_data_panel import SelectedDataPanel
+from gui.panels.plot_details_panels import ( AxisDetailsPanel, AdditionalTextPanel,
+    CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel, )
+
+
 from plots.plotting import plot_data
-from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
-from gui.collapsible_sections import * 
+from gui.dialogs.latex_compatibility_dialog import LaTeXCompatibilityDialog 
+from gui.utils.collapsible_sections import * 
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
@@ -28,8 +37,8 @@ import pandas as pd
 import os
 import numpy as np
 import matplotlib.text
-from gui.expanded_plot_window import ExpandedPlotWindow 
-from gui.save_plot_dialog import SavePlotDialog
+from gui.plot.expanded_plot_window import ExpandedPlotWindow 
+from gui.dialogs.save_plot_dialog import SavePlotDialog
 import seaborn as sns
 from matplotlib import style
 from matplotlib import font_manager as fm
@@ -156,8 +165,6 @@ class NormalizationTab(QWidget):
             ("Baseline Correction Normalization", BaselineCorrectionNormalizationPanel), 
             ("Baseline Correction with File", BaselineCorrectionWithFileNormalizationPanel)
             
-
- 
             
         ]
 
@@ -199,6 +206,7 @@ class NormalizationTab(QWidget):
             ("Noise Reduction", NoiseReductionPanel),
             ("Unit Converter", UnitConverterPanel),
             ("Shift Baseline", ShiftBaselinePanel),
+            ("Data Cutting", DataCuttingPanel)
 
         ]
 
@@ -424,6 +432,14 @@ class NormalizationTab(QWidget):
                         df.columns[x_col]: x_series,
                         df.columns[y_col]: y_series_shifted
                     })
+
+                elif method == "Data Cutting":
+                    # Handle Data Cutting
+                    x_start = params.get('x_start')
+                    x_end = params.get('x_end')
+                    mask = (x_series >= x_start) & (x_series <= x_end)
+                    df_cleaned = df[mask]
+                    
                 else:
                     QMessageBox.warning(self, "Unknown Method", f"Unknown method: {method}")
                     continue

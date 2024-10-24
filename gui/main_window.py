@@ -4,9 +4,9 @@ from PyQt5.QtWidgets import QMainWindow, QTabWidget
 from PyQt5.QtGui import QIcon
 
 # Import the tab classes
-from gui.general_tab import GeneralTab
-from gui.normalization_tab import NormalizationTab
-from gui.data_handling_tab import DataHandlingTab  # Import the new DataHandlingTab
+from gui.tabs.general_tab import GeneralTab
+from gui.tabs.normalization_tab import NormalizationTab
+from gui.tabs.data_handling_tab import DataHandlingTab  # Import the new DataHandlingTab
 
 
 def resource_path(relative_path):
