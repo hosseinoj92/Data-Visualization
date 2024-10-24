@@ -24,7 +24,7 @@ from gui.help_content import (MIN_MAX_NORMALIZATION_HELP,Z_SCORE_NORMALIZATION_H
                               TOTAL_INTENSITY_NORMALIZATION_HELP,
                               REFERENCE_PEAK_NORMALIZATION_HELP,
                               BASELINE_CORRECTION_NORMALIZATION_HELP,SUBTRACTION_NORMALIZATION_HELP,
-                              NOISE_REDUCTION,
+                              NOISE_REDUCTION, UNIT_CONVERTER_HELP
 
                               )
 
@@ -2112,4 +2112,69 @@ class NoiseReductionPanel(QWidget):
 
         return params
     
-    
+class UnitConverterPanel(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.method_name = "Unit Converter"
+        self.init_ui()
+
+    def init_ui(self):
+        self.layout = QVBoxLayout()
+
+        # Help Button
+        help_button = QPushButton("Help")
+        help_icon = QIcon(resource_path("gui/resources/help_icon.png"))
+        help_button.setIcon(help_icon)
+        help_button.clicked.connect(self.show_help)
+        self.layout.addWidget(help_button)
+
+        # Apply and Save Buttons
+        button_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        send_icon = QIcon(resource_path("gui/resources/send_icon.png"))
+        self.send_to_data_panel_button.setIcon(send_icon)
+
+        self.apply_button.setEnabled(True)   # Enabled by default
+        self.save_button.setEnabled(False)   # Disabled until applied
+        self.send_to_data_panel_button.setEnabled(False)  # Disabled until applied
+
+        button_layout.addWidget(self.apply_button)
+        button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.send_to_data_panel_button)
+        self.layout.addLayout(button_layout)
+
+        # Instructions
+        instructions = QLabel("Enter formulas to convert units for X and Y axes. Use 'x' or 'y' as variables.")
+        instructions.setWordWrap(True)
+        self.layout.addWidget(instructions)
+
+        # Formula input for X-axis
+        self.layout.addWidget(QLabel("X-axis Conversion Formula:"))
+        self.x_formula_input = QLineEdit()
+        self.x_formula_input.setPlaceholderText("e.g., x * 1000")
+        self.layout.addWidget(self.x_formula_input)
+
+        # Formula input for Y-axis
+        self.layout.addWidget(QLabel("Y-axis Conversion Formula:"))
+        self.y_formula_input = QLineEdit()
+        self.y_formula_input.setPlaceholderText("e.g., y / 2")
+        self.layout.addWidget(self.y_formula_input)
+
+        self.setLayout(self.layout)
+
+    def show_help(self):
+        help_content = UNIT_CONVERTER_HELP
+        dialog = HelpDialog("Unit Converter Help", help_content, self)
+        dialog.exec_()
+
+    def get_parameters(self):
+        params = {
+            'method': self.method_name,  # Include the method name
+            'x_formula': self.x_formula_input.text().strip(),
+            'y_formula': self.y_formula_input.text().strip()
+        }
+        return params
+
+

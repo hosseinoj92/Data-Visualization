@@ -16,7 +16,7 @@ from gui.panels import (
     AUCNormalizationPanel,IntervalAUCNormalizationPanel,TotalIntensityNormalizationPanel,
     ReferencePeakNormalizationPanel,
     BaselineCorrectionNormalizationPanel,BaselineCorrectionWithFileNormalizationPanel,
-    CorrectMissingDataPanel, NoiseReductionPanel
+    CorrectMissingDataPanel, NoiseReductionPanel,UnitConverterPanel  
 )
 from plots.plotting import plot_data
 from gui.latex_compatibility_dialog import LaTeXCompatibilityDialog 
@@ -37,9 +37,10 @@ import sys
 from fontTools.ttLib import TTFont
 from utils import read_numeric_data
 from functools import partial 
-
+import math
 from scipy.signal import savgol_filter  # For Savitzky-Golay Filter
 import pywt  # For Wavelet Denoising
+from functools import partial
 
 
 # Add resource_path function
@@ -196,6 +197,7 @@ class NormalizationTab(QWidget):
         self.basic_corrections_methods = [
             ("Correct Missing Data", CorrectMissingDataPanel),
             ("Noise Reduction", NoiseReductionPanel),
+            ("Unit Converter", UnitConverterPanel),
 
         ]
 
@@ -396,6 +398,22 @@ class NormalizationTab(QWidget):
                     y_series = pd.Series(y_filtered[:len(y_series)])  # Ensure length matches
                     df_cleaned = pd.DataFrame({df.columns[x_col]: x_series, df.columns[y_col]: y_series})
             
+                elif method == "Unit Converter":
+                    x_formula = params['x_formula']
+                    y_formula = params['y_formula']
+
+                    x_series_converted, y_series_converted = self.apply_unit_conversion(
+                    x_series, y_series, x_formula, y_formula)
+
+                    if x_series_converted is None or y_series_converted is None:
+                        # Error already shown
+                        continue
+
+                    df_cleaned = pd.DataFrame({
+                        df.columns[x_col]: x_series_converted,
+                        df.columns[y_col]: y_series_converted
+                    })
+                        
                 else:
                     QMessageBox.warning(self, "Unknown Method", f"Unknown method: {method}")
                     continue
@@ -440,6 +458,39 @@ class NormalizationTab(QWidget):
         coeffs[1:] = (pywt.threshold(i, value=uthresh, mode='soft') for i in coeffs[1:])
         return pywt.waverec(coeffs, wavelet)
 
+    def apply_unit_conversion(self, x_series, y_series, x_formula, y_formula):
+        """
+        Apply user-defined formulas to x_series and y_series.
+
+        Parameters:
+        - x_series (pd.Series): Original X-values.
+        - y_series (pd.Series): Original Y-values.
+        - x_formula (str): Formula to apply to X-values.
+        - y_formula (str): Formula to apply to Y-values.
+
+        Returns:
+        - (pd.Series, pd.Series): Transformed X and Y series.
+        """
+        # Create a safe namespace for evaluation
+        namespace = {'np': np, 'pd': pd, 'math': math}
+        # Copy the original series to avoid modifying them
+        x_new = x_series.copy()
+        y_new = y_series.copy()
+
+        try:
+            if x_formula:
+                x = x_series.values  # Use 'x' as variable
+                x_new = eval(x_formula, namespace, {'x': x})
+                x_new = pd.Series(x_new)
+            if y_formula:
+                y = y_series.values  # Use 'y' as variable
+                y_new = eval(y_formula, namespace, {'y': y})
+                y_new = pd.Series(y_new)
+        except Exception as e:
+            QMessageBox.warning(self, "Formula Error", f"Error in applying formula:\n{e}")
+            return None, None
+
+        return x_new, y_new
 
 
     def define_normalization_functions(self):

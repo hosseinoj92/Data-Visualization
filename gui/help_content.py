@@ -924,3 +924,97 @@ NOISE_REDUCTION = """
 </body>
 </html>
 """
+
+UNIT_CONVERTER_HELP = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Unit Converter Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #2E8B57;
+        }
+        p, ul {
+            font-size: 16px;
+        }
+        ul {
+            margin-left: 20px;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 4px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Unit Converter</h1>
+    <p>
+        The <strong>Unit Converter</strong> allows you to apply custom mathematical transformations to the X and Y data columns using user-defined formulas. This is useful for converting units, scaling data, or applying any mathematical operation to your data.
+    </p>
+    <h2>How to Use:</h2>
+    <ol>
+        <li>Enter a formula for the X-axis in the <strong>X-axis Conversion Formula</strong> field. Use <code>x</code> to represent the original X data.</li>
+        <li>Enter a formula for the Y-axis in the <strong>Y-axis Conversion Formula</strong> field. Use <code>y</code> to represent the original Y data.</li>
+        <li>If you leave a field empty, no changes will be made to that axis.</li>
+        <li>Click <strong>Apply</strong> to perform the unit conversion.</li>
+    </ol>
+    <h2>Supported Operations:</h2>
+    <p>
+        You can use any valid mathematical expression, including:
+    </p>
+    <ul>
+        <li>Basic arithmetic: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>**</code> (power)</li>
+        <li>Mathematical functions from the <code>numpy</code> and <code>math</code> libraries, such as <code>np.sin(x)</code>, <code>np.log(x)</code>, <code>math.sqrt(x)</code></li>
+        <li>Constants like <code>np.pi</code>, <code>math.e</code></li>
+    </ul>
+    <h2>Examples:</h2>
+    <ul>
+        <li><strong>Convert nanometers to electronvolts (eV) on X-axis:</strong><br>
+            Formula: <code>1239.84193 / x</code>
+        </li>
+        <li><strong>Convert Celsius to Fahrenheit on Y-axis:</strong><br>
+            Formula: <code>(y * 9/5) + 32</code>
+        </li>
+        <li><strong>Apply logarithmic scale to Y-axis:</strong><br>
+            Formula: <code>np.log(y)</code>
+        </li>
+        <li><strong>Scale Y-axis values by a factor of 1000:</strong><br>
+            Formula: <code>y * 1000</code>
+        </li>
+        <li><strong>Convert energy from eV to Joules on X-axis:</strong><br>
+            Formula: <code>x * 1.60218e-19</code>
+        </li>
+    </ul>
+    <h2>Important Notes:</h2>
+    <ul>
+        <li>Ensure that your formulas are valid Python expressions.</li>
+        <li>Use <code>x</code> for the X-axis data and <code>y</code> for the Y-axis data.</li>
+        <li>You have access to functions from the <code>numpy</code> and <code>math</code> libraries.</li>
+        <li>If an error occurs during the application of the formula, an error message will be displayed.</li>
+    </ul>
+    <h2>Advantages:</h2>
+    <ul>
+        <li><strong>Flexibility:</strong> Allows for custom transformations tailored to your specific needs.</li>
+        <li><strong>Simplicity:</strong> Easy to use by inputting standard mathematical expressions.</li>
+        <li><strong>Efficiency:</strong> Quickly apply unit conversions without the need to modify the original data files.</li>
+    </ul>
+    <h2>When to Use:</h2>
+    <ul>
+        <li>When you need to convert data units for consistency or comparison purposes.</li>
+        <li>When scaling data for analysis or visualization.</li>
+        <li>When applying mathematical transformations to explore different representations of your data.</li>
+    </ul>
+</body>
+</html>
+"""
