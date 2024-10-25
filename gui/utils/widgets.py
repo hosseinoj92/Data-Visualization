@@ -1,5 +1,5 @@
 import os
-from PyQt5.QtWidgets import QListWidget, QListWidgetItem, QApplication, QMenu, QMessageBox
+from PyQt5.QtWidgets import QListWidget, QListWidgetItem, QApplication, QMenu, QMessageBox, QInputDialog
 from PyQt5.QtCore import Qt, QUrl, QMimeData
 import sys
 
@@ -11,6 +11,7 @@ def resource_path(relative_path):
     except AttributeError:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
+############################################################
 
 class DraggableListWidget(QListWidget):
     def __init__(self, parent=None):
@@ -82,13 +83,16 @@ class DraggableListWidget(QListWidget):
 
     def open_context_menu(self, position):
         """
-        Create a context menu with a 'Delete' option on right-click.
+        Create a context menu with 'Delete' and 'Rename' options on right-click.
         """
         context_menu = QMenu(self)
         delete_action = context_menu.addAction("Delete")
+        rename_action = context_menu.addAction("Rename")
         action = context_menu.exec_(self.mapToGlobal(position))
         if action == delete_action:
             self.delete_selected_items()
+        elif action == rename_action:
+            self.rename_selected_item()
 
     def dragEnterEvent(self, event):
         """
@@ -136,3 +140,37 @@ class DraggableListWidget(QListWidget):
         item.setCheckState(Qt.Unchecked)
         item.setData(Qt.UserRole, file_path)
         self.addItem(item)
+
+    def rename_selected_item(self):
+        """
+        Rename the selected item in the list.
+        """
+        selected_items = self.selectedItems()
+        if len(selected_items) != 1:
+            QMessageBox.warning(self, "Rename Error", "Please select a single file to rename.")
+            return
+        
+        item = selected_items[0]
+        current_name = item.text()
+        file_path = item.data(Qt.UserRole)
+        new_name, ok = QInputDialog.getText(self, "Rename File", "Enter new name:", text=current_name)
+        
+        if ok and new_name:
+            # Validate the new name (e.g., no forbidden characters)
+            if any(c in new_name for c in r'\/:*?"<>|'):
+                QMessageBox.warning(self, "Invalid Name", "The file name contains invalid characters.")
+                return
+            
+            # Check for duplicate names
+            existing_names = [self.item(i).text() for i in range(self.count())]
+            if new_name in existing_names:
+                QMessageBox.warning(self, "Duplicate Name", "A file with this name already exists in the list.")
+                return
+            
+            # Optionally, preserve the file extension
+            _, ext = os.path.splitext(current_name)
+            if not os.path.splitext(new_name)[1]:
+                new_name += ext  # Append the original extension if not provided
+            
+            item.setText(new_name)
+            QMessageBox.information(self, "Rename Successful", f"File renamed to {new_name}.")
