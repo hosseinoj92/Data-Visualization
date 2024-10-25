@@ -98,7 +98,7 @@ class SplashScreen(QWidget):
         self.text_background_layout.addWidget(self.sub_text_label)
 
         # Version label inside the transparent black box
-        self.version_label = QLabel("Version 2.3.8", self.text_background_frame)
+        self.version_label = QLabel("Version 2.4.2", self.text_background_frame)
         self.version_label.setFont(QFont("Segoe UI", 12))
         self.version_label.setStyleSheet("color: white;")
         self.version_label.setAlignment(Qt.AlignCenter)
