@@ -8,7 +8,7 @@ a = Analysis(
     datas=[
         ('style.qss', '.'), 
         ('gui/resources', 'gui/resources'),
-        ('gui/images/min-max.png', 'gui/images')  # Added image here
+        ('gui/images', 'gui/images')  
     ],
     hiddenimports=[],
     hookspath=[],

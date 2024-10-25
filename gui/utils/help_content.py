@@ -1,6 +1,22 @@
 # In gui/help_content.py
 
-MIN_MAX_NORMALIZATION_HELP = """
+
+import os
+import sys
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for PyInstaller and development. """
+    try:
+        base_path = sys._MEIPASS  # This is where PyInstaller stores the resources.
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
+
+min_max_image_path = resource_path('gui/images/min-max.png')
+
+MIN_MAX_NORMALIZATION_HELP = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -11,26 +27,26 @@ MIN_MAX_NORMALIZATION_HELP = """
         src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
-        body {
+        body {{
             font-family: Arial, sans-serif;
             padding: 20px;
             line-height: 1.6;
-        }
-        h1, h2 {
+        }}
+        h1, h2 {{
             color: #2E8B57;
-        }
-        p, ul {
+        }}
+        p, ul {{
             font-size: 16px;
-        }
-        ul {
+        }}
+        ul {{
             margin-left: 20px;
-        }
-        img {
+        }}
+        img {{
             display: block;
             margin: 20px auto;
             max-width: 100%;
             height: auto;
-        }
+        }}
     </style>
 </head>
 <body>
@@ -43,7 +59,7 @@ MIN_MAX_NORMALIZATION_HELP = """
     </p>
     <p>
         <!-- Image placeholder for the formula screenshot -->
-        <img src="images/min-max.png" alt="Min-Max Normalization Formula">
+        <img src="{min_max_image_path}" alt="Min-Max Normalization Formula">
     </p>
     <h2>Usage:</h2>
     <ul>
@@ -70,7 +86,6 @@ MIN_MAX_NORMALIZATION_HELP = """
 </body>
 </html>
 """
-
 
 Z_SCORE_NORMALIZATION_HELP = """
 <!DOCTYPE html>
@@ -147,8 +162,10 @@ Z_SCORE_NORMALIZATION_HELP = """
 </html>
 """
 
+# Dynamically get the path for the robust scaling image
+robust_scaling_image_path = resource_path('gui/images/robust_scaling.png')
 
-ROBUST_SCALING_NORMALIZATION_HELP = """
+ROBUST_SCALING_NORMALIZATION_HELP = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -159,26 +176,26 @@ ROBUST_SCALING_NORMALIZATION_HELP = """
         src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
-        body {
+        body {{
             font-family: Arial, sans-serif;
             padding: 20px;
             line-height: 1.6;
-        }
-        h1, h2 {
+        }}
+        h1, h2 {{
             color: #2E8B57;
-        }
-        p, ul {
+        }}
+        p, ul {{
             font-size: 16px;
-        }
-        ul {
+        }}
+        ul {{
             margin-left: 20px;
-        }
-        img {
+        }}
+        img {{
             display: block;
             margin: 20px auto;
             max-width: 100%;
             height: auto;
-        }
+        }}
     </style>
 </head>
 <body>
@@ -187,9 +204,9 @@ ROBUST_SCALING_NORMALIZATION_HELP = """
         Robust Scaling Normalization scales data based on the interquartile range (IQR) instead of the mean and variance, making it less sensitive to outliers. It centers the data around the median and scales it by the IQR, which is the range between the first quartile (25th percentile) and third quartile (75th percentile).
     </p>
     <h2>Formula:</h2>
- 
+    <p>
         <!-- Image placeholder for the formula screenshot -->
-        <img src="images/robust_scaling.png" alt="Robust Scaling Normalization Formula">
+        <img src="{robust_scaling_image_path}" alt="Robust Scaling Normalization Formula">
     </p>
     <h2>Usage:</h2>
     <ul>
@@ -215,7 +232,11 @@ ROBUST_SCALING_NORMALIZATION_HELP = """
 </html>
 """
 
-AUC_NORMALIZATION_HELP = """
+
+# Dynamically get the path for the AUC image
+auc_image_path = resource_path('gui/images/AUC.png')
+
+AUC_NORMALIZATION_HELP = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -226,26 +247,26 @@ AUC_NORMALIZATION_HELP = """
         src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
-        body {
+        body {{
             font-family: Arial, sans-serif;
             padding: 20px;
             line-height: 1.6;
-        }
-        h1, h2 {
+        }}
+        h1, h2 {{
             color: #2E8B57;
-        }
-        p, ul {
+        }}
+        p, ul {{
             font-size: 16px;
-        }
-        ul {
+        }}
+        ul {{
             margin-left: 20px;
-        }
-        img {
+        }}
+        img {{
             display: block;
             margin: 20px auto;
             max-width: 100%;
             height: auto;
-        }
+        }}
     </style>
 </head>
 <body>
@@ -257,9 +278,9 @@ AUC_NORMALIZATION_HELP = """
     <p>
         The area under the curve (AUC) can be approximated using the <strong>Trapezoidal Rule</strong> for discrete data points \( (x_i, y_i) \):
     </p>
-   
+    <p>
         <!-- Image placeholder for the formula screenshot -->
-        <img src="images/AUC.png" alt="AUC Normalization Formula">
+        <img src="{auc_image_path}" alt="AUC Normalization Formula">
     </p>
     <h2>Usage:</h2>
     <ul>
@@ -289,7 +310,10 @@ AUC_NORMALIZATION_HELP = """
 """
 
 
-INTERVAL_AUC_NORMALIZATION_HELP = """
+# Dynamically get the path for the Interval AUC image
+interval_auc_image_path = resource_path('gui/images/interval_auc.png')
+
+INTERVAL_AUC_NORMALIZATION_HELP = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -300,26 +324,26 @@ INTERVAL_AUC_NORMALIZATION_HELP = """
         src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
-        body {
+        body {{
             font-family: Arial, sans-serif;
             padding: 20px;
             line-height: 1.6;
-        }
-        h1, h2 {
+        }}
+        h1, h2 {{
             color: #2E8B57;
-        }
-        p, ul {
+        }}
+        p, ul {{
             font-size: 16px;
-        }
-        ul {
+        }}
+        ul {{
             margin-left: 20px;
-        }
-        img {
+        }}
+        img {{
             display: block;
             margin: 20px auto;
             max-width: 100%;
             height: auto;
-        }
+        }}
     </style>
 </head>
 <body>
@@ -328,10 +352,9 @@ INTERVAL_AUC_NORMALIZATION_HELP = """
         Interval AUC Normalization is a technique that rescales data based on the desired area under the curve (AUC) over a specified interval. This method is often used in time series data, signal processing, or experimental data where the total magnitude of the curve needs to be standardized across different datasets.
     </p>
     <h2>Formula:</h2>
-
     <p>
         <!-- Image placeholder for the formula screenshot -->
-        <img src="images/interval_auc.png" alt="Interval AUC Normalization Formula">
+        <img src="{interval_auc_image_path}" alt="Interval AUC Normalization Formula">
     </p>
     <h2>Usage:</h2>
     <ul>
@@ -365,7 +388,10 @@ INTERVAL_AUC_NORMALIZATION_HELP = """
 """
 
 
-TOTAL_INTENSITY_NORMALIZATION_HELP = """
+# Dynamically get the path for the Total Intensity image
+total_intensity_image_path = resource_path('gui/images/total_intensity.png')
+
+TOTAL_INTENSITY_NORMALIZATION_HELP = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -376,26 +402,26 @@ TOTAL_INTENSITY_NORMALIZATION_HELP = """
         src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
-        body {
+        body {{
             font-family: Arial, sans-serif;
             padding: 20px;
             line-height: 1.6;
-        }
-        h1, h2 {
+        }}
+        h1, h2 {{
             color: #2E8B57;
-        }
-        p, ul {
+        }}
+        p, ul {{
             font-size: 16px;
-        }
-        ul {
+        }}
+        ul {{
             margin-left: 20px;
-        }
-        img {
+        }}
+        img {{
             display: block;
             margin: 20px auto;
             max-width: 100%;
             height: auto;
-        }
+        }}
     </style>
 </head>
 <body>
@@ -405,9 +431,8 @@ TOTAL_INTENSITY_NORMALIZATION_HELP = """
     </p>
     <h2>Formula:</h2>
     <p>
-
         <!-- Image placeholder for the formula screenshot -->
-        <img src="images/total_intensity.png" alt="Total Intensity Normalization Formula">
+        <img src="{total_intensity_image_path}" alt="Total Intensity Normalization Formula">
     </p>
 
     <h2>Usage:</h2>
@@ -441,7 +466,10 @@ TOTAL_INTENSITY_NORMALIZATION_HELP = """
 </html>
 """
 
-REFERENCE_PEAK_NORMALIZATION_HELP = """
+# Dynamically get the path for the Reference Peak image
+reference_peak_image_path = resource_path('gui/images/reference_peak.png')
+
+REFERENCE_PEAK_NORMALIZATION_HELP = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -452,26 +480,26 @@ REFERENCE_PEAK_NORMALIZATION_HELP = """
         src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
-        body {
+        body {{
             font-family: Arial, sans-serif;
             padding: 20px;
             line-height: 1.6;
-        }
-        h1, h2 {
+        }}
+        h1, h2 {{
             color: #2E8B57;
-        }
-        p, ul {
+        }}
+        p, ul {{
             font-size: 16px;
-        }
-        ul {
+        }}
+        ul {{
             margin-left: 20px;
-        }
-        img {
+        }}
+        img {{
             display: block;
             margin: 20px auto;
             max-width: 100%;
             height: auto;
-        }
+        }}
     </style>
 </head>
 <body>
@@ -480,9 +508,10 @@ REFERENCE_PEAK_NORMALIZATION_HELP = """
         Reference Peak Normalization is a technique used to rescale data by normalizing all values relative to a specific reference peak within the dataset. This method ensures that the intensity of the reference peak is consistent across different datasets, allowing for easier comparison. It is commonly used in fields such as chromatography, mass spectrometry, and spectroscopy.
     </p>
     <h2>Formula:</h2>
-  
+    <p>
         <!-- Image placeholder for the formula screenshot -->
-        <img src="images/reference_peak.png" alt="Reference Peak Normalization Formula">
+        <img src="{reference_peak_image_path}" alt="Reference Peak Normalization Formula">
+    </p>
 
     <h2>Usage:</h2>
     <ul>
@@ -515,7 +544,10 @@ REFERENCE_PEAK_NORMALIZATION_HELP = """
 </html>
 """
 
-BASELINE_CORRECTION_NORMALIZATION_HELP = """
+# Dynamically get the path for the Baseline Correction image
+baseline_correction_image_path = resource_path('gui/images/baseline_correction.png')
+
+BASELINE_CORRECTION_NORMALIZATION_HELP = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -526,35 +558,35 @@ BASELINE_CORRECTION_NORMALIZATION_HELP = """
         src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
-        body {
+        body {{
             font-family: Arial, sans-serif;
             padding: 20px;
             line-height: 1.6;
-        }
-        h1, h2 {
+        }}
+        h1, h2 {{
             color: #2E8B57;
-        }
-        p, ul {
+        }}
+        p, ul {{
             font-size: 16px;
-        }
-        ul {
+        }}
+        ul {{
             margin-left: 20px;
-        }
-        img {
+        }}
+        img {{
             display: block;
             margin: 20px auto;
             max-width: 100%;
             height: auto;
-        }
-        .parameter-section {
+        }}
+        .parameter-section {{
             margin-top: 20px;
-        }
-        .parameter-section h3 {
+        }}
+        .parameter-section h3 {{
             color: #4682B4;
-        }
-        .parameter-section ul {
+        }}
+        .parameter-section ul {{
             list-style-type: disc;
-        }
+        }}
     </style>
 </head>
 <body>
@@ -563,11 +595,11 @@ BASELINE_CORRECTION_NORMALIZATION_HELP = """
         Baseline Correction Normalization is a technique used to remove background noise or drift in data by subtracting the baseline from the data points. This method is commonly applied to datasets where the signal is affected by a non-zero baseline, such as in spectroscopy, chromatography, or time-series data. The goal is to bring the baseline of the data to zero, enabling clearer analysis of the signal or feature of interest.
     </p>
     <h2>Formula:</h2>
-    
+    <p>
         <!-- Image placeholder for the formula screenshot -->
-        <img src="images/baseline_correction.png" alt="Baseline Correction Formula">
-
-        
+        <img src="{baseline_correction_image_path}" alt="Baseline Correction Formula">
+    </p>
+    
     <h2>Usage:</h2>
     <ul>
         <li><strong>Signal correction:</strong> Baseline correction is often used in signal-based data, such as spectroscopy or chromatography, to remove background noise or drift and focus on the actual signal.</li>
@@ -643,6 +675,8 @@ BASELINE_CORRECTION_NORMALIZATION_HELP = """
 """
 
 
+
+
 SUBTRACTION_NORMALIZATION_HELP = """
 <!DOCTYPE html>
 <html>
@@ -716,8 +750,12 @@ SUBTRACTION_NORMALIZATION_HELP = """
 </body>
 </html>
 """
+# Dynamically get paths for images used in Noise Reduction HTML content
+moving_average_image_path = resource_path('gui/images/moving_average.png')
+golay_image_path = resource_path('gui/images/golay.png')
+wavelet_image_path = resource_path('gui/images/wavelet.png')
 
-NOISE_REDUCTION = """
+NOISE_REDUCTION = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -728,20 +766,20 @@ NOISE_REDUCTION = """
         src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
-        body {
+        body {{
             font-family: Arial, sans-serif;
             padding: 20px;
             line-height: 1.6;
-        }
-        h1, h2, h3, h4 {
+        }}
+        h1, h2, h3, h4 {{
             color: #2E8B57;
-        }
-        p, ul {
+        }}
+        p, ul {{
             font-size: 16px;
-        }
-        ul {
+        }}
+        ul {{
             margin-left: 20px;
-        }
+        }}
     </style>
 </head>
 <body>
@@ -757,10 +795,8 @@ NOISE_REDUCTION = """
 
     <h3>Mathematical Description:</h3>
     <p>
-    
-        <!-- Image placeholder for the formula screenshot -->
-        <img src="images/moving_average.png" alt="Moving Average Formula">
-
+        <img src="{moving_average_image_path}" alt="Moving Average Formula">
+    </p>
 
     <h3>Parameters:</h3>
     <ul>
@@ -798,10 +834,8 @@ NOISE_REDUCTION = """
 
     <h3>Mathematical Description:</h3>
     <p>
-
-        <!-- Image placeholder for the formula screenshot -->
-        <img src="images/golay.png" alt="Savitzky-Golay Formula">
-
+        <img src="{golay_image_path}" alt="Savitzky-Golay Formula">
+    </p>
 
     <h3>Parameters:</h3>
     <ul>
@@ -840,9 +874,8 @@ NOISE_REDUCTION = """
 
     <h3>Mathematical Description:</h3>
     <p>
-       
-        <!-- Image placeholder for the formula screenshot -->
-        <img src="images/wavelet.png" alt="Wavelet Denoising Formula">
+        <img src="{wavelet_image_path}" alt="Wavelet Denoising Formula">
+    </p>
 
     <h3>Parameters:</h3>
     <ul>
@@ -884,6 +917,7 @@ NOISE_REDUCTION = """
 </body>
 </html>
 """
+
 
 UNIT_CONVERTER_HELP = """
 <!DOCTYPE html>
