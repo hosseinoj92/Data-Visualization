@@ -33,6 +33,17 @@ from PyQt5.QtCore import Qt, pyqtSignal, QEvent
 
 
 
+
+
+def resource_path(relative_path):
+    """Get the absolute path to a resource, works for development and PyInstaller."""
+    try:
+        # PyInstaller creates a temporary folder and stores its path in sys._MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 ####################################
 
 class CollapsibleSection(QWidget):
@@ -271,6 +282,8 @@ class SubplotConfigWidget(QWidget):
 
         # Advanced Options Button
         self.advanced_options_button = QPushButton("Advanced Options")
+        advanced_options_icon_path = resource_path("gui/resources/advanced_options_icon.png")
+        self.advanced_options_button.setIcon(QIcon(advanced_options_icon_path))
         self.advanced_options_button.clicked.connect(self.open_advanced_options_dialog)
         layout.addWidget(self.advanced_options_button)
 
@@ -281,8 +294,18 @@ class SubplotConfigWidget(QWidget):
         # Buttons to add/remove datasets
         datasets_buttons_layout = QHBoxLayout()
         self.add_dataset_button = QPushButton("Add Dataset")
+
+        # Set the icon for Add Dataset button
+        add_icon_path = resource_path("gui/resources/add.png")
+        self.add_dataset_button.setIcon(QIcon(add_icon_path))
+
         self.add_dataset_button.clicked.connect(self.add_dataset)
         self.remove_dataset_button = QPushButton("Remove Selected Dataset")
+
+        # Set the icon for Remove Selected Dataset button
+        remove_icon_path = resource_path("gui/resources/remove.png")
+        self.remove_dataset_button.setIcon(QIcon(remove_icon_path))
+
         self.remove_dataset_button.clicked.connect(self.remove_selected_datasets)
         datasets_buttons_layout.addWidget(self.add_dataset_button)
         datasets_buttons_layout.addWidget(self.remove_dataset_button)
