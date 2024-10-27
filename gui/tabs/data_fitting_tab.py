@@ -28,6 +28,12 @@ from gui.dialogs.save_plot_dialog import SavePlotDialog
 import sys
 from utils import read_numeric_data
 from functools import partial
+from gui.panels.data_fitting_panels import GaussianFittingPanel
+from functools import partial
+from scipy.optimize import curve_fit
+from scipy.signal import find_peaks, peak_widths  # Ensure peak_widths is imported
+
+
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for development and PyInstaller."""
@@ -45,8 +51,15 @@ class DataFittingTab(QWidget):
         super().__init__(parent)
         self.general_tab = general_tab
         self.is_collapsing = False  # Flag to prevent recursive signal handling
+        self.fitted_data = {}  # To store fitted data
+        self._updating_plot = False  # Initialize the flag
+        self.column_names = {}  # Initialize column names dictionary
+
+
+
         self.init_ui()
         self.expanded_window = None  # To track the expanded window
+        
 
         # Apply global stylesheet
         self.apply_stylesheet()
@@ -124,12 +137,60 @@ class DataFittingTab(QWidget):
         column0_widget.setLayout(column0_layout)
         self.layout.addWidget(column0_widget, 0, 0)
 
-        # Column 1: Empty for now (reserved for future functionalities)
+        # Column 1: Fitting Functionalities with Collapsible Sections
+        # Create a QGroupBox for Fitting Methods
+        self.fitting_methods_groupbox = QGroupBox("Fitting Methods")
+        self.fitting_methods_groupbox.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)  # Set size policy
+
+        fitting_methods_layout = QVBoxLayout()
+        self.fitting_methods_groupbox.setLayout(fitting_methods_layout)
+
+        # Add stretch at the end to push content to the top
+        fitting_methods_layout.addStretch()
+
+
+        self.fitting_methods = [
+            ("Gaussian and Lorentzian Fitting", GaussianFittingPanel),
+            # You can add more methods here in the future
+        ]
+
+        self.fitting_sections = []
+
+                # Create FittingMethodPanel for each method
+        for method_name, panel_class in self.fitting_methods:
+            panel = panel_class()
+            section = CollapsibleSection(method_name, panel)
+            section.section_expanded.connect(self.on_fitting_section_expanded)
+            self.fitting_sections.append(section)
+            
+            # Connect Apply, Save, and Send to Data Panel buttons using partial
+            panel.apply_button.clicked.connect(partial(self.apply_fitting, panel))
+            panel.save_button.clicked.connect(partial(self.save_fitted_data, panel))
+            panel.send_to_data_panel_button.clicked.connect(partial(self.send_fitted_data_to_data_panel, panel))
+            
+            # Connect Run Peak Finder signal
+            panel.run_peak_finder_signal.connect(partial(self.run_peak_finder, panel))
+
+            # Connect parameters_changed signal
+            panel.parameters_changed.connect(partial(self.update_fitted_plot, panel))
+
+            fitting_methods_layout.addWidget(section)
+
+        # Arrange Column 1
         column1_layout = QVBoxLayout()
-        column1_layout.addStretch()
+        column1_layout.setContentsMargins(0, 0, 0, 0)
+        column1_layout.setSpacing(10)
+
+        # Add the fitting methods groupbox to Column 1
+        column1_layout.addWidget(self.fitting_methods_groupbox)
+
+
+       # Set alignment for column1_layout to push content to the top
+        column1_layout.addStretch()  # Add stretch to push content to the top
+
         column1_widget = QWidget()
         column1_widget.setLayout(column1_layout)
-        self.layout.addWidget(column1_widget, 0, 1)
+        self.layout.addWidget(column1_widget, 0, 1)    
 
         # Column 2: Plotting Interface
         # Plot area
@@ -322,6 +383,568 @@ class DataFittingTab(QWidget):
         else:
             QMessageBox.information(self, "No New Files", "No new files were added (they may already exist).")
 
+
+    def on_fitting_section_expanded(self, expanded_section):
+        if self.is_collapsing:
+            return
+        self.is_collapsing = True
+        # When a section is expanded, collapse all other sections
+        for section in self.fitting_sections:
+            if section != expanded_section and section.toggle_button.isChecked():
+                section.toggle_button.setChecked(False)
+        self.is_collapsing = False
+
+    def apply_fitting(self, panel, update_plot=True):
+        # Get the selected data files
+        data_files = self.selected_data_panel.get_selected_files()
+        if not data_files:
+            QMessageBox.warning(self, "No Data Selected", "Please select data files to fit.")
+            return
+
+        # Get fitting parameters from the panel
+        params = panel.get_parameters()
+        if params is None:
+            return  # Error message already shown
+
+        # Get the function type from the panel
+        function_type = panel.function_type_combo.currentText()
+
+        # Prepare to store any errors
+        fitting_errors = []
+
+        # Process each data file
+        for file_path in data_files:
+            try:
+                # Use read_numeric_data to read the file
+                df, x, y = self.read_numeric_data(file_path)
+                if df is None:
+                    print(f"Skipping file {file_path} due to insufficient data.")
+                    continue
+
+                # Extract column names
+                if len(df.columns) >= 2:
+                    x_col_name = df.columns[0]
+                    y_col_name = df.columns[1]
+                else:
+                    x_col_name = 'X'
+                    y_col_name = 'Y'
+
+                self.column_names[file_path] = (x_col_name, y_col_name)  # Store column names
+
+                # Perform fitting based on selected function
+                if function_type == "Gaussian":
+                    fitted_y, fit_info = self.perform_gaussian_fitting(x, y, params['peaks'])
+                elif function_type == "Lorentzian":
+                    fitted_y, fit_info = self.perform_lorentzian_fitting(x, y, params['peaks'])
+                else:
+                    QMessageBox.warning(self, "Unknown Function Type", f"Function type {function_type} is not supported.")
+                    continue
+
+                if fitted_y is None or fit_info is None:
+                    error_message = f"Fitting failed for file {file_path}."
+                    fitting_errors.append(error_message)
+                    print(error_message)
+                    continue  # Skip this file
+
+                # Store fitted data
+                self.fitted_data[file_path] = (x, y, fitted_y, fit_info)
+
+            except Exception as e:
+                error_message = f"Error fitting file {file_path}: {e}"
+                fitting_errors.append(error_message)
+                print(error_message)
+
+        if fitting_errors:
+            QMessageBox.warning(self, "Fitting Errors", "\n".join(fitting_errors))
+
+        # Open a separate interactive matplotlib window with the results
+        self.plot_fitting_results(data_files)
+
+        panel.save_button.setEnabled(True)
+        panel.send_to_data_panel_button.setEnabled(True)
+
+
+    def plot_fitting_results(self, data_files):
+
+        # Create a new figure
+        fig, ax = plt.subplots()
+
+        # For each file, plot the data and the fit
+        for file_path in data_files:
+            if file_path in self.fitted_data:
+                x, y, fitted_y, fit_info = self.fitted_data[file_path]
+                label = os.path.basename(file_path)
+                # Prepare label with additional parameters
+                r_squared = fit_info['r_squared']
+                reduced_chi_squared = fit_info['reduced_chi_squared']
+
+                # Collect errors for each peak
+                fit_params = fit_info['fit_params']
+                param_errors = []
+                for i, params in enumerate(fit_params):
+                    amplitude_err = params['amplitude_err']
+                    center_err = params['center_err']
+                    width_err = params['width_err']
+                    param_errors.append(
+                        f"Peak {i+1}: Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, Width_err={width_err:.2e}"
+                    )
+
+                errors_text = '\n'.join(param_errors)
+                label_fit = f"{label} Fit\n$R^2$={r_squared:.4f}, $\chi^2$={reduced_chi_squared:.4f}\n{errors_text}"
+
+                # Plot original data
+                ax.plot(x, y, 'b.', label=f"{label} Data")
+                # Plot fitted curve
+                ax.plot(x, fitted_y, 'r-', label=label_fit)
+            else:
+                print(f"No fitted data for file {file_path}")
+
+        # Set labels
+        if self.fitted_data:
+            first_file_path = next(iter(self.fitted_data))
+            x_col_name, y_col_name = self.column_names.get(first_file_path, ('X', 'Y'))
+            ax.set_xlabel(x_col_name)
+            ax.set_ylabel(y_col_name)
+        else:
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+
+        ax.legend(loc='best', fontsize='small')
+        plt.title('Fitting Results')
+        plt.show()
+    
+
+
+    def perform_gaussian_fitting(self, x, y, peaks):
+        from scipy.optimize import curve_fit
+
+        # Ensure x and y are numpy arrays
+        x = np.array(x)
+        y = np.array(y)
+
+        # Define the composite Gaussian function
+        def gaussian(x, *params):
+            y_fit = np.zeros_like(x)
+            for i in range(0, len(params), 3):
+                amplitude = params[i]
+                center = params[i+1]
+                width = params[i+2]
+                y_fit += amplitude * np.exp(-((x - center) ** 2) / (2 * width ** 2))
+            return y_fit
+
+        # Prepare initial guesses
+        initial_guesses = []
+        for peak in peaks:
+            initial_guesses.extend([
+                peak['amplitude'],
+                peak['center'],
+                peak['width']
+            ])
+
+        # Define bounds: amplitude >0, width>0
+        lower_bounds = []
+        upper_bounds = []
+        for _ in peaks:
+            lower_bounds.extend([0, -np.inf, 0])  # amplitude >=0, center any, width >0
+            upper_bounds.extend([np.inf, np.inf, np.inf])  # no upper bounds
+
+        try:
+            popt, pcov = curve_fit(
+                gaussian,
+                x,
+                y,
+                p0=initial_guesses,
+                bounds=(lower_bounds, upper_bounds)
+            )
+        except RuntimeError as e:
+            QMessageBox.warning(self, "Fitting Error", f"Gaussian fitting failed: {e}")
+            print(f"Gaussian fitting failed: {e}")
+            return None, None
+
+        # Generate fitted y-values
+        fitted_y = gaussian(x, *popt)
+
+        # Extract fitted parameters with uncertainties
+        fit_params = []
+        for i in range(0, len(popt), 3):
+            amplitude = popt[i]
+            center = popt[i+1]
+            width = popt[i+2]
+            amplitude_err = np.sqrt(pcov[i, i]) if pcov[i, i] > 0 else np.nan
+            center_err = np.sqrt(pcov[i+1, i+1]) if pcov[i+1, i+1] > 0 else np.nan
+            width_err = np.sqrt(pcov[i+2, i+2]) if pcov[i+2, i+2] > 0 else np.nan
+            fit_params.append({
+                'amplitude': amplitude,
+                'amplitude_err': amplitude_err,
+                'center': center,
+                'center_err': center_err,
+                'width': width,
+                'width_err': width_err
+            })
+
+        # Calculate residuals
+        residuals = y - fitted_y
+
+        # Calculate R-squared
+        ss_res = np.sum(residuals**2)
+        ss_tot = np.sum((y - np.mean(y))**2)
+        r_squared = 1 - (ss_res / ss_tot)
+
+        # Calculate Reduced Chi-Squared
+        degrees_of_freedom = len(y) - len(popt)
+        reduced_chi_squared = ss_res / degrees_of_freedom if degrees_of_freedom > 0 else np.nan
+
+        # Prepare fit_info dictionary
+        fit_info = {
+            'fit_params': fit_params,
+            'residuals': residuals,
+            'r_squared': r_squared,
+            'reduced_chi_squared': reduced_chi_squared,
+        }
+
+        print(f"Fitted Gaussian Parameters: {fit_params}")  # Debugging statement
+        print(f"Fitted Y-values Sample: {fitted_y[:5]}")  # Debugging statement
+        print(f"R-squared: {r_squared}, Reduced Chi-Squared: {reduced_chi_squared}")
+
+        return fitted_y, fit_info
+
+
+    def perform_lorentzian_fitting(self, x, y, peaks):
+        from scipy.optimize import curve_fit
+
+        # Ensure x and y are numpy arrays
+        x = np.array(x)
+        y = np.array(y)
+
+        # Define the composite Lorentzian function
+        def lorentzian(x, *params):
+            y = np.zeros_like(x)
+            for i in range(0, len(params), 3):
+                amplitude = params[i]
+                center = params[i+1]
+                width = params[i+2]
+                y += amplitude * (width ** 2 / ((x - center) ** 2 + width ** 2))
+            return y
+
+        # Prepare initial guesses
+        initial_guesses = []
+        for peak in peaks:
+            initial_guesses.extend([
+                peak['amplitude'],
+                peak['center'],
+                peak['width']
+            ])
+
+        # Define bounds: amplitude >0, width>0
+        lower_bounds = []
+        upper_bounds = []
+        for _ in peaks:
+            lower_bounds.extend([0, -np.inf, 0])  # amplitude >=0, center any, width >0
+            upper_bounds.extend([np.inf, np.inf, np.inf])  # no upper bounds
+
+        try:
+            popt, pcov = curve_fit(
+                lorentzian, 
+                x, 
+                y, 
+                p0=initial_guesses, 
+                bounds=(lower_bounds, upper_bounds)
+            )
+        except RuntimeError as e:
+            QMessageBox.warning(self, "Fitting Error", f"Lorentzian fitting failed: {e}")
+            print(f"Lorentzian fitting failed: {e}")
+            return None, None
+
+        # Generate fitted y-values
+        fitted_y = lorentzian(x, *popt)
+
+        # Extract fitted parameters with uncertainties
+        fit_params = []
+        for i in range(0, len(popt), 3):
+            amplitude = popt[i]
+            center = popt[i+1]
+            width = popt[i+2]
+            amplitude_err = np.sqrt(pcov[i, i]) if pcov[i, i] > 0 else np.nan
+            center_err = np.sqrt(pcov[i+1, i+1]) if pcov[i+1, i+1] > 0 else np.nan
+            width_err = np.sqrt(pcov[i+2, i+2]) if pcov[i+2, i+2] > 0 else np.nan
+            fit_params.append({
+                'amplitude': amplitude,
+                'amplitude_err': amplitude_err,
+                'center': center,
+                'center_err': center_err,
+                'width': width,
+                'width_err': width_err
+            })
+
+        # Calculate residuals
+        residuals = y - fitted_y
+
+        # Calculate R-squared
+        ss_res = np.sum(residuals**2)
+        ss_tot = np.sum((y - np.mean(y))**2)
+        r_squared = 1 - (ss_res / ss_tot)
+
+        # Calculate Reduced Chi-Squared
+        degrees_of_freedom = len(y) - len(popt)
+        reduced_chi_squared = ss_res / degrees_of_freedom if degrees_of_freedom > 0 else np.nan
+
+        # Prepare fit_info dictionary
+        fit_info = {
+            'fit_params': fit_params,
+            'residuals': residuals,
+            'r_squared': r_squared,
+            'reduced_chi_squared': reduced_chi_squared,
+        }
+
+        print(f"Fitted Lorentzian Parameters: {fit_params}")  # Debugging statement
+        print(f"Fitted Y-values Sample: {fitted_y[:5]}")  # Debugging statement
+        print(f"R-squared: {r_squared}, Reduced Chi-Squared: {reduced_chi_squared}")
+
+        return fitted_y, fit_info
+
+
+    def send_fitted_data_to_data_panel(self, panel):
+        if not self.fitted_data:
+            QMessageBox.warning(self, "No Fitted Data", "Please apply fitting first.")
+            return
+
+        # Get currently selected files
+        data_files = self.selected_data_panel.get_selected_files()
+        if not data_files:
+            QMessageBox.warning(self, "No Data Selected", "Please select data files to send.")
+            return
+
+        # Prepare to send data to the data panel
+        # For this example, we'll save the fitted data to temporary files and add them to the selected data panel
+
+        import tempfile
+
+        fitted_file_paths = []
+
+        for file_path in data_files:
+            if file_path in self.fitted_data:
+                x, y, fitted_y, fit_info = self.fitted_data[file_path]
+                try:
+                    base_name = os.path.splitext(os.path.basename(file_path))[0]
+                    new_file_name = f"{base_name}_fitted.csv"
+                    temp_dir = tempfile.gettempdir()
+                    new_file_path = os.path.join(temp_dir, new_file_name)
+
+                    # Get original column names
+                    x_col_name, y_col_name = self.column_names.get(file_path, ('X', 'Y'))
+
+                    # Save x and fitted_y to CSV
+                    df = pd.DataFrame({
+                        x_col_name: x,
+                        'Fitted_' + y_col_name: fitted_y
+                    })
+
+                    df.to_csv(new_file_path, index=False)
+                    fitted_file_paths.append(new_file_path)
+
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
+
+        if fitted_file_paths:
+            # Add fitted files to Selected Data panel
+            self.selected_data_panel.add_files(fitted_file_paths)
+            QMessageBox.information(self, "Send Successful", "Fitted data sent to Selected Data panel.")
+        else:
+            QMessageBox.warning(self, "No Data Sent", "No fitted data was sent to the Selected Data panel.")
+
+    def run_peak_finder(self, panel):
+        # Get the selected data files
+        data_files = self.selected_data_panel.get_selected_files()
+        if not data_files:
+            QMessageBox.warning(self, "No Data Selected", "Please select a data file to run the peak finder.")
+            return
+
+        # For simplicity, use the first selected data file
+        file_path = data_files[0]
+
+        try:
+            # Read the data
+            df, x, y = self.read_numeric_data(file_path)
+            if df is None:
+                QMessageBox.warning(self, "Data Error", "Failed to read the data file or insufficient data.")
+                return
+
+            # Get sensitivity from panel
+            try:
+                sensitivity = float(panel.sensitivity_input.text())
+                if not (0.0 < sensitivity < 1.0):
+                    raise ValueError
+            except ValueError:
+                QMessageBox.warning(self, "Invalid Sensitivity", "Please enter a valid sensitivity value between 0 and 1.")
+                return
+
+            # Adjust parameters based on sensitivity
+            # Lower sensitivity -> higher threshold (fewer peaks)
+            # Higher sensitivity -> lower threshold (more peaks)
+            height_threshold = max(y) * sensitivity
+            prominence_threshold = max(y) * (0.1 * sensitivity)  # Adjust as needed
+            distance_threshold = max(1, len(x) // 100)  # Adjust based on data density
+
+            # Find peaks
+            peaks_indices, properties = find_peaks(y, height=height_threshold, prominence=prominence_threshold, distance=distance_threshold)
+
+            if len(peaks_indices) == 0:
+                QMessageBox.information(self, "No Peaks Found", "No peaks were found with the given sensitivity.")
+                return
+
+            # Calculate peak widths using peak_widths
+            widths_result = peak_widths(y, peaks_indices, rel_height=0.5)
+            widths = widths_result[0]
+
+            # Clear existing peaks in the table
+            panel.peak_table.setRowCount(0)
+
+            # Add detected peaks to the table
+            for idx, width in zip(peaks_indices, widths):
+                amplitude = y[idx]
+                center = x[idx]
+                panel.add_peak_row(amplitude, center, width)
+
+            QMessageBox.information(self, "Peak Finder", f"Found {len(peaks_indices)} peak(s).")
+
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Error running peak finder: {e}")
+            print(f"Error running peak finder: {e}")
+
+
+    def update_fitted_plot(self, panel=None):
+        if not self.fitted_data:
+            print("No fitted data to plot.")  # Debugging statement
+            return
+
+        # If panel parameter is provided, re-apply fitting
+        if panel:
+            if self._updating_plot:
+                return  # Prevent recursion if already updating
+            self._updating_plot = True
+            try:
+                self.apply_fitting(panel, update_plot=False)
+            except Exception as e:
+                QMessageBox.warning(self, "Error", f"Error during fitting: {e}")
+                print(f"Error during fitting: {e}")
+            finally:
+                self._updating_plot = False
+            # After re-applying fitting, update the plot
+            self.update_fitted_plot()  # Call without panel to plot
+            return
+
+        # Clear the figure
+        self.figure.clear()
+
+        # Prepare the axis
+        ax = self.figure.add_subplot(111)
+
+        # Plot each fitted data
+        for file_path, (x, y, fitted_y, fit_info) in self.fitted_data.items():
+            label = os.path.basename(file_path)
+            # Prepare label with additional parameters
+            r_squared = fit_info['r_squared']
+            reduced_chi_squared = fit_info['reduced_chi_squared']
+            label_fit = f"{label} Fit\n$R^2$={r_squared:.4f}, $\chi^2$={reduced_chi_squared:.4f}"
+            # Plot original data
+            ax.plot(x, y, 'b.', label=f"{label} Data")
+            # Plot fitted curve
+            ax.plot(x, fitted_y, 'r-', label=label_fit)
+
+        # Set labels
+        if self.fitted_data:
+            first_file_path = next(iter(self.fitted_data))
+            x_col_name, y_col_name = self.column_names.get(first_file_path, ('X', 'Y'))
+            ax.set_xlabel(x_col_name)
+            ax.set_ylabel(y_col_name)
+        else:
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+
+        ax.legend()
+
+        self.canvas.draw_idle()
+        print("Plot updated with fitted data.")  # Debugging statement
+
+
+
+    def save_fitted_data(self, panel):
+        if not self.fitted_data:
+            QMessageBox.warning(self, "No Fitted Data", "Please apply fitting first.")
+            return
+
+        # Get currently selected files
+        data_files = self.selected_data_panel.get_selected_files()
+        if not data_files:
+            QMessageBox.warning(self, "No Data Selected", "Please select data files to save.")
+            return
+
+        # Ask user to select folder to save files
+        directory = QFileDialog.getExistingDirectory(self, "Select Directory to Save Fitted Data")
+        if not directory:
+            return
+
+        for file_path in data_files:
+            if file_path in self.fitted_data:
+                x, y, fitted_y, fit_info = self.fitted_data[file_path]
+                try:
+                    base_name = os.path.splitext(os.path.basename(file_path))[0]
+                    new_file_name = f"{base_name}_fitted.csv"
+                    new_file_path = os.path.join(directory, new_file_name)
+
+                    # Get original column names
+                    x_col_name, y_col_name = self.column_names.get(file_path, ('X', 'Y'))
+
+                    # Save x, original y, fitted y, residuals to CSV
+                    df = pd.DataFrame({
+                        x_col_name: x,
+                        y_col_name: y,
+                        'Fitted_' + y_col_name: fitted_y,
+                        'Residuals': fit_info['residuals']
+                    })
+
+                    df.to_csv(new_file_path, index=False)
+
+                    # Save fitting parameters to a separate file
+                    params_file_name = f"{base_name}_fit_parameters.csv"
+                    params_file_path = os.path.join(directory, params_file_name)
+
+                    # Prepare parameters DataFrame
+                    fit_params = fit_info['fit_params']
+                    params_data = []
+                    for i, peak_params in enumerate(fit_params):
+                        params_data.append({
+                            'Peak': i+1,
+                            'Amplitude': peak_params['amplitude'],
+                            'Amplitude_err': peak_params['amplitude_err'],
+                            'Center': peak_params['center'],
+                            'Center_err': peak_params['center_err'],
+                            'Width': peak_params['width'],
+                            'Width_err': peak_params['width_err'],
+                        })
+                    params_df = pd.DataFrame(params_data)
+                    # Add R-squared and Reduced Chi-Squared at the end
+                    params_df.loc[len(params_df)] = {
+                        'Peak': 'Overall',
+                        'Amplitude': np.nan,
+                        'Amplitude_err': np.nan,
+                        'Center': np.nan,
+                        'Center_err': np.nan,
+                        'Width': np.nan,
+                        'Width_err': np.nan,
+                        'R_squared': fit_info['r_squared'],
+                        'Reduced_Chi_squared': fit_info['reduced_chi_squared']
+                    }
+
+                    params_df.to_csv(params_file_path, index=False)
+
+                except Exception as e:
+                    QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
+
+        QMessageBox.information(self, "Save Successful", f"Fitted data saved to {directory}")
+        print("All fitted files saved successfully.")
+
+
     def update_plot(self):
         # Gather all parameters from panels
         print("DataFittingTab: update_plot called")
@@ -400,6 +1023,7 @@ class DataFittingTab(QWidget):
         self.data_window.setLayout(self.data_layout)
         self.data_window.setGeometry(150, 150, 800, 600)
         self.data_window.show()
+
 
     def show_raw_data(self, file_path):
         try:
@@ -590,6 +1214,7 @@ class DataFittingTab(QWidget):
     def read_numeric_data(self, file_path):
         return read_numeric_data(file_path, parent=self)
 
+
     def save_plot_with_options(self):
         print("Save Plot button clicked.")
         dialog = SavePlotDialog(self)
@@ -645,4 +1270,3 @@ class DataFittingTab(QWidget):
         # Redraw the canvas to make sure the interactive plot looks normal after saving
         self.canvas.draw_idle()
         print("Figure size and DPI restored to original after saving.")
-
