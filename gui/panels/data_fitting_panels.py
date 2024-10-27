@@ -19,17 +19,10 @@ class GaussianFittingPanel(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
-        # Function Type Selection
-        function_layout = QHBoxLayout()
-        function_layout.addWidget(QLabel("Function Type:"))
-        self.function_type_combo = QComboBox()
-        self.function_type_combo.addItems(["Gaussian", "Lorentzian"])
-        function_layout.addWidget(self.function_type_combo)
-        layout.addLayout(function_layout)
 
         # Peak Parameters Table
-        self.peak_table = QTableWidget(0, 4)
-        self.peak_table.setHorizontalHeaderLabels(['Amplitude', 'Center', 'Width', 'Enable'])
+        self.peak_table = QTableWidget(0, 5)
+        self.peak_table.setHorizontalHeaderLabels(['Function', 'Amplitude', 'Center', 'Width', 'Enable'])
         self.peak_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         layout.addWidget(QLabel("Peaks"))
         layout.addWidget(self.peak_table)
@@ -86,7 +79,7 @@ class GaussianFittingPanel(QWidget):
         # Disable Save and Send buttons initially
         self.save_button.setEnabled(False)
         self.send_to_data_panel_button.setEnabled(False)
-        
+            
     def add_peak(self):
         self.add_peak_row(1.0, 0.0, 1.0)
 
@@ -108,11 +101,18 @@ class GaussianFittingPanel(QWidget):
             QMessageBox.warning(self, "Remove Peak", "Please select a peak to remove.")
 
 
-    def add_peak_row(self, amplitude, center, width):
+    def add_peak_row(self, amplitude, center, width, function_type='Gaussian'):
         try:
             self.peak_table.blockSignals(True)  # Block signals to prevent premature fitting
             row_position = self.peak_table.rowCount()
             self.peak_table.insertRow(row_position)
+            
+            # Function Type ComboBox
+            function_combo = QComboBox()
+            function_combo.addItems(['Gaussian', 'Lorentzian'])
+            function_combo.setCurrentText(function_type)
+            self.peak_table.setCellWidget(row_position, 0, function_combo)
+            
             amplitude_item = QTableWidgetItem(f"{amplitude}")
             center_item = QTableWidgetItem(f"{center}")
             width_item = QTableWidgetItem(f"{width}")
@@ -120,14 +120,15 @@ class GaussianFittingPanel(QWidget):
             enable_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             enable_item.setCheckState(Qt.Checked)
 
-            self.peak_table.setItem(row_position, 0, amplitude_item)
-            self.peak_table.setItem(row_position, 1, center_item)
-            self.peak_table.setItem(row_position, 2, width_item)
-            self.peak_table.setItem(row_position, 3, enable_item)
+            self.peak_table.setItem(row_position, 1, amplitude_item)
+            self.peak_table.setItem(row_position, 2, center_item)
+            self.peak_table.setItem(row_position, 3, width_item)
+            self.peak_table.setItem(row_position, 4, enable_item)
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error adding peak: {e}")
         finally:
             self.peak_table.blockSignals(False)  # Re-enable signals after adding the row
+
 
 
     def run_peak_finder(self):
@@ -140,16 +141,19 @@ class GaussianFittingPanel(QWidget):
     def get_parameters(self):
         peaks = []
         for row in range(self.peak_table.rowCount()):
-            amplitude_item = self.peak_table.item(row, 0)
-            center_item = self.peak_table.item(row, 1)
-            width_item = self.peak_table.item(row, 2)
-            enable_item = self.peak_table.item(row, 3)
+            function_combo = self.peak_table.cellWidget(row, 0)
+            function_type = function_combo.currentText()
+            amplitude_item = self.peak_table.item(row, 1)
+            center_item = self.peak_table.item(row, 2)
+            width_item = self.peak_table.item(row, 3)
+            enable_item = self.peak_table.item(row, 4)
             if enable_item.checkState() == Qt.Checked:
                 try:
                     amplitude = float(amplitude_item.text())
                     center = float(center_item.text())
                     width = float(width_item.text())
                     peaks.append({
+                        'function_type': function_type,
                         'amplitude': amplitude,
                         'center': center,
                         'width': width

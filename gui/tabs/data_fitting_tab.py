@@ -406,9 +406,6 @@ class DataFittingTab(QWidget):
         if params is None:
             return  # Error message already shown
 
-        # Get the function type from the panel
-        function_type = panel.function_type_combo.currentText()
-
         # Prepare to store any errors
         fitting_errors = []
 
@@ -431,14 +428,8 @@ class DataFittingTab(QWidget):
 
                 self.column_names[file_path] = (x_col_name, y_col_name)  # Store column names
 
-                # Perform fitting based on selected function
-                if function_type == "Gaussian":
-                    fitted_y, fit_info = self.perform_gaussian_fitting(x, y, params['peaks'])
-                elif function_type == "Lorentzian":
-                    fitted_y, fit_info = self.perform_lorentzian_fitting(x, y, params['peaks'])
-                else:
-                    QMessageBox.warning(self, "Unknown Function Type", f"Function type {function_type} is not supported.")
-                    continue
+                # Perform fitting with mixed function types
+                fitted_y, fit_info = self.perform_mixed_fitting(x, y, params['peaks'])
 
                 if fitted_y is None or fit_info is None:
                     error_message = f"Fitting failed for file {file_path}."
@@ -465,6 +456,7 @@ class DataFittingTab(QWidget):
 
 
     def plot_fitting_results(self, data_files):
+        import matplotlib.pyplot as plt
 
         # Create a new figure
         fig, ax = plt.subplots()
@@ -478,19 +470,20 @@ class DataFittingTab(QWidget):
                 r_squared = fit_info['r_squared']
                 reduced_chi_squared = fit_info['reduced_chi_squared']
 
-                # Collect errors for each peak
+                # Collect errors and function types for each peak
                 fit_params = fit_info['fit_params']
-                param_errors = []
+                param_info = []
                 for i, params in enumerate(fit_params):
+                    function_type = params['function_type']
                     amplitude_err = params['amplitude_err']
                     center_err = params['center_err']
                     width_err = params['width_err']
-                    param_errors.append(
-                        f"Peak {i+1}: Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, Width_err={width_err:.2e}"
+                    param_info.append(
+                        f"Peak {i+1} ({function_type}): Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, Width_err={width_err:.2e}"
                     )
 
-                errors_text = '\n'.join(param_errors)
-                label_fit = f"{label} Fit\n$R^2$={r_squared:.4f}, $\chi^2$={reduced_chi_squared:.4f}\n{errors_text}"
+                params_text = '\n'.join(param_info)
+                label_fit = f"{label} Fit\n$R^2$={r_squared:.4f}, $\chi^2$={reduced_chi_squared:.4f}\n{params_text}"
 
                 # Plot original data
                 ax.plot(x, y, 'b.', label=f"{label} Data")
@@ -512,8 +505,104 @@ class DataFittingTab(QWidget):
         ax.legend(loc='best', fontsize='small')
         plt.title('Fitting Results')
         plt.show()
+
     
 
+    def perform_mixed_fitting(self, x, y, peaks):
+        from scipy.optimize import curve_fit
+
+        # Ensure x and y are numpy arrays
+        x = np.array(x)
+        y = np.array(y)
+
+        # Define the composite function
+        def composite_function(x, *params):
+            y_fit = np.zeros_like(x)
+            for i, peak in enumerate(peaks):
+                amplitude = params[i*3]
+                center = params[i*3 + 1]
+                width = params[i*3 + 2]
+                function_type = peak['function_type']
+                if function_type == 'Gaussian':
+                    y_fit += amplitude * np.exp(-((x - center) ** 2) / (2 * width ** 2))
+                elif function_type == 'Lorentzian':
+                    y_fit += amplitude * (width ** 2 / ((x - center) ** 2 + width ** 2))
+            return y_fit
+
+        # Prepare initial guesses and bounds
+        initial_guesses = []
+        lower_bounds = []
+        upper_bounds = []
+
+        for peak in peaks:
+            initial_guesses.extend([
+                peak['amplitude'],
+                peak['center'],
+                peak['width']
+            ])
+            lower_bounds.extend([0, -np.inf, 0])  # amplitude >=0, center any, width >0
+            upper_bounds.extend([np.inf, np.inf, np.inf])  # no upper bounds
+
+        try:
+            popt, pcov = curve_fit(
+                composite_function,
+                x,
+                y,
+                p0=initial_guesses,
+                bounds=(lower_bounds, upper_bounds)
+            )
+        except RuntimeError as e:
+            QMessageBox.warning(self, "Fitting Error", f"Fitting failed: {e}")
+            print(f"Fitting failed: {e}")
+            return None, None
+
+        # Generate fitted y-values
+        fitted_y = composite_function(x, *popt)
+
+        # Extract fitted parameters with uncertainties
+        fit_params = []
+        for i in range(len(peaks)):
+            amplitude = popt[i*3]
+            center = popt[i*3 + 1]
+            width = popt[i*3 + 2]
+            amplitude_err = np.sqrt(pcov[i*3, i*3]) if pcov[i*3, i*3] > 0 else np.nan
+            center_err = np.sqrt(pcov[i*3 + 1, i*3 + 1]) if pcov[i*3 + 1, i*3 + 1] > 0 else np.nan
+            width_err = np.sqrt(pcov[i*3 + 2, i*3 + 2]) if pcov[i*3 + 2, i*3 + 2] > 0 else np.nan
+            fit_params.append({
+                'function_type': peaks[i]['function_type'],
+                'amplitude': amplitude,
+                'amplitude_err': amplitude_err,
+                'center': center,
+                'center_err': center_err,
+                'width': width,
+                'width_err': width_err
+            })
+
+        # Calculate residuals
+        residuals = y - fitted_y
+
+        # Calculate R-squared
+        ss_res = np.sum(residuals**2)
+        ss_tot = np.sum((y - np.mean(y))**2)
+        r_squared = 1 - (ss_res / ss_tot)
+
+        # Calculate Reduced Chi-Squared
+        degrees_of_freedom = len(y) - len(popt)
+        reduced_chi_squared = ss_res / degrees_of_freedom if degrees_of_freedom > 0 else np.nan
+
+        # Prepare fit_info dictionary
+        fit_info = {
+            'fit_params': fit_params,
+            'residuals': residuals,
+            'r_squared': r_squared,
+            'reduced_chi_squared': reduced_chi_squared,
+        }
+
+        print(f"Fitted Parameters: {fit_params}")  # Debugging statement
+        print(f"Fitted Y-values Sample: {fitted_y[:5]}")  # Debugging statement
+        print(f"R-squared: {r_squared}, Reduced Chi-Squared: {reduced_chi_squared}")
+
+        return fitted_y, fit_info
 
     def perform_gaussian_fitting(self, x, y, peaks):
         from scipy.optimize import curve_fit
@@ -799,18 +888,17 @@ class DataFittingTab(QWidget):
             # Clear existing peaks in the table
             panel.peak_table.setRowCount(0)
 
-            # Add detected peaks to the table
+            # Add detected peaks to the table with default function type
             for idx, width in zip(peaks_indices, widths):
                 amplitude = y[idx]
                 center = x[idx]
-                panel.add_peak_row(amplitude, center, width)
+                panel.add_peak_row(amplitude, center, width, function_type='Gaussian')  # Default function type
 
             QMessageBox.information(self, "Peak Finder", f"Found {len(peaks_indices)} peak(s).")
 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error running peak finder: {e}")
             print(f"Error running peak finder: {e}")
-
 
     def update_fitted_plot(self, panel=None):
         if not self.fitted_data:
