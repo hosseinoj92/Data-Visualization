@@ -38,7 +38,7 @@ class MainWindow(QMainWindow):
         # Initialize tabs
         self.general_tab = GeneralTab()
         self.normalization_tab = NormalizationTab(general_tab=self.general_tab)
-        self.data_fitting_tab = DataFittingTab()
+        self.data_fitting_tab = DataFittingTab(general_tab=self.general_tab)  
 
         # Add tabs to the tab widget with icons
         general_icon_path = resource_path('gui/resources/general_icon.png')
