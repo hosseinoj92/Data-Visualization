@@ -172,7 +172,7 @@ class DataFittingTab(QWidget):
             panel.run_peak_finder_signal.connect(partial(self.run_peak_finder, panel))
 
             # Connect parameters_changed signal
-            panel.parameters_changed.connect(partial(self.update_fitted_plot, panel))
+            #panel.parameters_changed.connect(partial(self.update_fitted_plot, panel))
 
             fitting_methods_layout.addWidget(section)
 
@@ -515,19 +515,24 @@ class DataFittingTab(QWidget):
         x = np.array(x)
         y = np.array(y)
 
-        # Define the composite function
+        # Add debugging statement
+        print("perform_mixed_fitting: Received peaks:", peaks)
+
         def composite_function(x, *params):
             y_fit = np.zeros_like(x)
+            epsilon = 1e-10  # Small value to prevent division by zero
             for i, peak in enumerate(peaks):
                 amplitude = params[i*3]
                 center = params[i*3 + 1]
                 width = params[i*3 + 2]
+                width = max(width, epsilon)  # Ensure width is not zero
                 function_type = peak['function_type']
                 if function_type == 'Gaussian':
                     y_fit += amplitude * np.exp(-((x - center) ** 2) / (2 * width ** 2))
                 elif function_type == 'Lorentzian':
                     y_fit += amplitude * (width ** 2 / ((x - center) ** 2 + width ** 2))
             return y_fit
+
 
         # Prepare initial guesses and bounds
         initial_guesses = []
@@ -543,13 +548,19 @@ class DataFittingTab(QWidget):
             lower_bounds.extend([0, -np.inf, 0])  # amplitude >=0, center any, width >0
             upper_bounds.extend([np.inf, np.inf, np.inf])  # no upper bounds
 
+        # Add debugging statement
+        print("Initial guesses:", initial_guesses)
+        print("Lower bounds:", lower_bounds)
+        print("Upper bounds:", upper_bounds)
+
         try:
             popt, pcov = curve_fit(
                 composite_function,
                 x,
                 y,
                 p0=initial_guesses,
-                bounds=(lower_bounds, upper_bounds)
+                bounds=(lower_bounds, upper_bounds),
+                max_nfev=10000  # Increase maximum number of function evaluations
             )
         except RuntimeError as e:
             QMessageBox.warning(self, "Fitting Error", f"Fitting failed: {e}")

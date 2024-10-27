@@ -164,4 +164,8 @@ class GaussianFittingPanel(QWidget):
         if not peaks:
             QMessageBox.warning(self, "No Peaks", "Please add and enable at least one peak.")
             return None
+
+        # Add debugging statement
+        print("get_parameters: Retrieved peaks:", peaks)
+
         return {'peaks': peaks}
