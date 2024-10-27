@@ -1,3 +1,5 @@
+#gui/panels selected_data_panel.py
+
 import os
 from PyQt5.QtWidgets import (
     QGroupBox, QVBoxLayout, QHBoxLayout, QPushButton, QScrollArea, QFileDialog, QMessageBox

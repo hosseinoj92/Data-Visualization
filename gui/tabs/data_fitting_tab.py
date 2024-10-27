@@ -1,8 +1,8 @@
-# gui/data_handling_tab.py
+# gui/tabs/data_fitting_tab.py
 
 from PyQt5.QtWidgets import QWidget, QHBoxLayout
 
-class DataHandlingTab(QWidget):
+class DataFittingTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.init_ui()

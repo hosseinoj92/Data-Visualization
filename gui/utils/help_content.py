@@ -1,4 +1,4 @@
-# In gui/help_content.py
+#gui/utils/help_content.py
 
 
 import os

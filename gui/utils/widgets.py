@@ -1,3 +1,5 @@
+# gui/utils/widgets.py
+
 import os
 from PyQt5.QtWidgets import QListWidget, QListWidgetItem, QApplication, QMenu, QMessageBox, QInputDialog
 from PyQt5.QtCore import Qt, QUrl, QMimeData

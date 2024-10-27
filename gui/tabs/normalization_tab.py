@@ -1,4 +1,4 @@
-# gui/normalization_tab.py
+# gui/tabs/normalization_tab.py
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QLabel, QToolButton, QScrollArea, QSizePolicy,

@@ -1,4 +1,4 @@
-# gui/collapsible_sections.py
+# gui/utils/collapsible_sections.py
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QLabel, QToolButton, QScrollArea, QSizePolicy,

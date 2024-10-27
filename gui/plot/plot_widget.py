@@ -1,4 +1,4 @@
-# gui/plot_widget.py
+# gui/plot/plot_widget.py
 
 import os
 import numpy as np

@@ -1,3 +1,5 @@
+#gui/panels data_correction_panles.py
+
 from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QPushButton, QCheckBox, QLabel, 
     QDoubleSpinBox, QLineEdit, QSpinBox, QFileDialog,

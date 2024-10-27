@@ -1,4 +1,4 @@
-# gui/plot_config.py
+# gui/plot/plot_config.py
 
 from PyQt5.QtCore import QObject, pyqtSignal
 

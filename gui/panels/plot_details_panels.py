@@ -1,4 +1,7 @@
 
+#gui/panels plot_details_panels.py
+
+
 import os
 from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QGroupBox, QPushButton, QLabel, QFileDialog, QListWidgetItem, 

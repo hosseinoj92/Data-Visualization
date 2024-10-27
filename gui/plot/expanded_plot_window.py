@@ -1,4 +1,4 @@
-# gui/expanded_plot_window.py
+# gui/plot/expanded_plot_window.py
 
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas, NavigationToolbar2QT as NavigationToolbar

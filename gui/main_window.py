@@ -6,7 +6,7 @@ from PyQt5.QtGui import QIcon
 # Import the tab classes
 from gui.tabs.general_tab import GeneralTab
 from gui.tabs.normalization_tab import NormalizationTab
-from gui.tabs.data_handling_tab import DataHandlingTab  # Import the new DataHandlingTab
+from gui.tabs.data_fitting_tab import DataFittingTab  # Import the new DataHandlingTab
 
 
 def resource_path(relative_path):
@@ -23,7 +23,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Data Wiz Pro by Hossein Ostovar ")
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1200, 800)                        
 
         self.init_ui()
 
@@ -38,19 +38,19 @@ class MainWindow(QMainWindow):
         # Initialize tabs
         self.general_tab = GeneralTab()
         self.normalization_tab = NormalizationTab(general_tab=self.general_tab)
-        self.data_handling_tab = DataHandlingTab()
+        self.data_fitting_tab = DataFittingTab()
 
         # Add tabs to the tab widget with icons
         general_icon_path = resource_path('gui/resources/general_icon.png')
         normalization_icon_path = resource_path('gui/resources/normalization_icon.png')
-        data_icon_path = resource_path('gui/resources/data_icon.png')
+        data_icon_path = resource_path('gui/resources/fitting_icon.png')
 
         self.setWindowIcon(QIcon(resource_path('gui/resources/icon.png')))
 
 
         self.tabs.addTab(self.general_tab, QIcon(general_icon_path), "General")
         self.tabs.addTab(self.normalization_tab, QIcon(normalization_icon_path), "Normalization")
-        self.tabs.addTab(self.data_handling_tab, QIcon(data_icon_path), "Data Handling")
+        self.tabs.addTab(self.data_fitting_tab, QIcon(data_icon_path), "Fitting")
 
         # Optionally, set the default tab
         self.tabs.setCurrentWidget(self.general_tab)
