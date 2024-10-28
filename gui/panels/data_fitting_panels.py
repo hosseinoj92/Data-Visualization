@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QDoubleValidator
+from functools import partial
 
 class GaussianFittingPanel(QWidget):
     parameters_changed = pyqtSignal()
@@ -142,85 +143,62 @@ class GaussianFittingPanel(QWidget):
             
             # Function Type ComboBox
             function_combo = QComboBox()
-            function_combo.addItems(['Gaussian', 'Lorentzian', 'Voigt', 'Pseudo-Voigt'])  # Added new functions here
+            function_combo.addItems(['Gaussian', 'Lorentzian', 'Voigt', 'Pseudo-Voigt'])
             function_combo.setCurrentText(function_type)
-            function_combo.currentTextChanged.connect(lambda _, row=row_position: self.update_row_parameters(row))
+            function_combo.currentTextChanged.connect(partial(self.update_row_parameters, row_position))
             self.peak_table.setCellWidget(row_position, 0, function_combo)
             
-            # Initialize parameter items
-            param1_item = QTableWidgetItem(f"{amplitude}")
-            param2_item = QTableWidgetItem(f"{center}")
-            param3_item = QTableWidgetItem(f"{width}")
-            param4_item = QTableWidgetItem("")  # Additional parameter for Voigt and Pseudo-Voigt
+            # Initialize parameter widgets based on function type
+            self.create_parameter_widgets(row_position, function_type, amplitude, center, width)
+            
+            # Enable checkbox
             enable_item = QTableWidgetItem()
             enable_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             enable_item.setCheckState(Qt.Checked)
-
-            self.peak_table.setItem(row_position, 1, param1_item)
-            self.peak_table.setItem(row_position, 2, param2_item)
-            self.peak_table.setItem(row_position, 3, param3_item)
-            self.peak_table.setItem(row_position, 4, param4_item)
             self.peak_table.setItem(row_position, 5, enable_item)
-
-            # Update parameters based on function type
-            self.update_row_parameters(row_position)
+        
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error adding peak: {e}")
         finally:
-            self.peak_table.blockSignals(False)  # Re-enable signals after adding the row
+            self.peak_table.blockSignals(False)  # Re-enable signals after adding the row)
+
+    def create_parameter_widgets(self, row, function_type, amplitude=1.0, center=0.0, width=1.0):
+        # Remove existing parameter widgets if any
+        for col in range(1, 5):
+            old_widget = self.peak_table.cellWidget(row, col)
+            if old_widget is not None:
+                old_widget.deleteLater()
+                self.peak_table.setCellWidget(row, col, None)
+
+        # Initialize parameter widgets
+        param_widgets = []
+        if function_type in ['Gaussian', 'Lorentzian']:
+            param_widgets.append(ParameterWidget('Amplitude', amplitude))
+            param_widgets.append(ParameterWidget('Center', center))
+            param_widgets.append(ParameterWidget('Width', width))
+            param_widgets.append(QWidget())  # Empty widget for param4
+        elif function_type == 'Voigt':
+            param_widgets.append(ParameterWidget('Amplitude', amplitude))
+            param_widgets.append(ParameterWidget('Center', center))
+            param_widgets.append(ParameterWidget('Sigma', width))
+            param_widgets.append(ParameterWidget('Gamma', 1.0))  # Default gamma
+        elif function_type == 'Pseudo-Voigt':
+            param_widgets.append(ParameterWidget('Amplitude', amplitude))
+            param_widgets.append(ParameterWidget('Center', center))
+            param_widgets.append(ParameterWidget('Width', width))
+            param_widgets.append(ParameterWidget('Fraction', 0.5))  # Default fraction
+        else:
+            param_widgets.extend([QWidget(), QWidget(), QWidget(), QWidget()])
+
+        # Set parameter widgets
+        for col, widget in enumerate(param_widgets, start=1):
+            self.peak_table.setCellWidget(row, col, widget)
+
 
     def update_row_parameters(self, row):
         function_combo = self.peak_table.cellWidget(row, 0)
         function_type = function_combo.currentText()
-
-        # Get parameter items
-        param1_item = self.peak_table.item(row, 1)
-        param2_item = self.peak_table.item(row, 2)
-        param3_item = self.peak_table.item(row, 3)
-        param4_item = self.peak_table.item(row, 4)
-
-        # Set default values and parameter names based on function type
-        if function_type in ['Gaussian', 'Lorentzian']:
-            # Set tooltips
-            param1_item.setToolTip('Amplitude')
-            param2_item.setToolTip('Center')
-            param3_item.setToolTip('Width')
-            param4_item.setToolTip('N/A')
-            param4_item.setFlags(Qt.NoItemFlags)
-            param4_item.setText('')
-
-            # Set default values
-            param1_item.setText(param1_item.text() or '1.0')
-            param2_item.setText(param2_item.text() or '0.0')
-            param3_item.setText(param3_item.text() or '1.0')
-
-        elif function_type == 'Voigt':
-            # Set tooltips
-            param1_item.setToolTip('Amplitude')
-            param2_item.setToolTip('Center')
-            param3_item.setToolTip('Sigma')
-            param4_item.setToolTip('Gamma')
-            param4_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
-
-            # Set default values
-            param1_item.setText(param1_item.text() or '1.0')
-            param2_item.setText(param2_item.text() or '0.0')
-            param3_item.setText(param3_item.text() or '1.0')
-            param4_item.setText(param4_item.text() or '1.0')
-
-        elif function_type == 'Pseudo-Voigt':
-            # Set tooltips
-            param1_item.setToolTip('Amplitude')
-            param2_item.setToolTip('Center')
-            param3_item.setToolTip('Width')
-            param4_item.setToolTip('Fraction')
-            param4_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
-
-            # Set default values
-            param1_item.setText(param1_item.text() or '1.0')
-            param2_item.setText(param2_item.text() or '0.0')
-            param3_item.setText(param3_item.text() or '1.0')
-            param4_item.setText(param4_item.text() or '0.5')
+        self.create_parameter_widgets(row, function_type)
 
 
 
@@ -228,6 +206,7 @@ class GaussianFittingPanel(QWidget):
     def run_peak_finder(self):
         # Emit the signal to notify the parent to run the peak finder
         self.run_peak_finder_signal.emit()
+
 
     def show_help(self):
         QMessageBox.information(self, "Gaussian Fitting Help", "This is where you can provide help information about Gaussian fitting.")
@@ -237,17 +216,19 @@ class GaussianFittingPanel(QWidget):
         for row in range(self.peak_table.rowCount()):
             function_combo = self.peak_table.cellWidget(row, 0)
             function_type = function_combo.currentText()
-            param1_item = self.peak_table.item(row, 1)
-            param2_item = self.peak_table.item(row, 2)
-            param3_item = self.peak_table.item(row, 3)
-            param4_item = self.peak_table.item(row, 4)
             enable_item = self.peak_table.item(row, 5)
             if enable_item.checkState() == Qt.Checked:
                 try:
-                    amplitude = float(param1_item.text())
-                    center = float(param2_item.text())
+                    param_widgets = [self.peak_table.cellWidget(row, col) for col in range(1, 5)]
+                    param_values = {}
+                    for widget in param_widgets:
+                        if isinstance(widget, ParameterWidget):
+                            param_values[widget.get_param_name()] = float(widget.get_value())
+
+                    amplitude = param_values.get('Amplitude', 1.0)
+                    center = param_values.get('Center', 0.0)
                     if function_type in ['Gaussian', 'Lorentzian']:
-                        width = float(param3_item.text())
+                        width = param_values.get('Width', 1.0)
                         peaks.append({
                             'function_type': function_type,
                             'amplitude': amplitude,
@@ -255,8 +236,8 @@ class GaussianFittingPanel(QWidget):
                             'width': width
                         })
                     elif function_type == 'Voigt':
-                        sigma = float(param3_item.text())
-                        gamma = float(param4_item.text())
+                        sigma = param_values.get('Sigma', 1.0)
+                        gamma = param_values.get('Gamma', 1.0)
                         peaks.append({
                             'function_type': function_type,
                             'amplitude': amplitude,
@@ -265,8 +246,8 @@ class GaussianFittingPanel(QWidget):
                             'gamma': gamma
                         })
                     elif function_type == 'Pseudo-Voigt':
-                        width = float(param3_item.text())
-                        fraction = float(param4_item.text())
+                        width = param_values.get('Width', 1.0)
+                        fraction = param_values.get('Fraction', 0.5)
                         peaks.append({
                             'function_type': function_type,
                             'amplitude': amplitude,
@@ -285,3 +266,29 @@ class GaussianFittingPanel(QWidget):
 
         return {'peaks': peaks}
 
+
+
+class ParameterWidget(QWidget):
+    def __init__(self, param_name, param_value):
+        super().__init__()
+        self.param_name = param_name
+        self.layout = QHBoxLayout(self)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.label = QLabel(param_name)
+        self.line_edit = QLineEdit()
+        self.line_edit.setText(str(param_value))
+        self.layout.addWidget(self.label)
+        self.layout.addWidget(self.line_edit)
+
+    def get_value(self):
+        return self.line_edit.text()
+
+    def get_param_name(self):
+        return self.param_name
+
+    def set_param_name(self, name):
+        self.param_name = name
+        self.label.setText(name)
+
+    def set_value(self, value):
+        self.line_edit.setText(str(value))
