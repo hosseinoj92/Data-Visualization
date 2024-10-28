@@ -34,6 +34,8 @@ from functools import partial
 from scipy.signal import find_peaks, peak_widths  # Ensure peak_widths is imported
 
 from lmfit import Model, Parameters
+from scipy.special import wofz  # For Voigt function
+from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
 
 
 def resource_path(relative_path):
@@ -266,9 +268,10 @@ class DataFittingTab(QWidget):
         plot_widget.setLayout(plot_layout)
         self.layout.addWidget(plot_widget, 0, 2)
 
-        self.layout.setColumnStretch(0, 2)
-        self.layout.setColumnStretch(1, 2)  # Column 1 is now equally stretched
-        self.layout.setColumnStretch(2, 4)
+        # Adjust column stretches
+        self.layout.setColumnStretch(0, 2)  # Column 0: Selected Data
+        self.layout.setColumnStretch(1, 5)  # Column 1: Fitting Panels
+        self.layout.setColumnStretch(2, 3)  # Column 2: Plotting Area
 
         # Initialize plot type and other variables
         self.plot_type = "2D"
@@ -407,13 +410,6 @@ class DataFittingTab(QWidget):
         QApplication.restoreOverrideCursor()
         # Ensure the button is unchecked
         panel.manual_peak_picker_button.setChecked(False)
-        # Remove manual peak picking markers
-        for marker in self.annotations:
-            if marker.get_marker() == 'x' and marker.get_color() == 'r':
-                marker.remove()
-        self.annotations = [ann for ann in self.annotations if not (ann.get_marker() == 'x' and ann.get_color() == 'r')]
-        self.canvas.draw_idle()
-
 
 
     def on_fitting_section_expanded(self, expanded_section):
@@ -512,10 +508,29 @@ class DataFittingTab(QWidget):
                     function_type = params['function_type']
                     amplitude_err = params['amplitude_err'] if params['amplitude_err'] is not None else np.nan
                     center_err = params['center_err'] if params['center_err'] is not None else np.nan
-                    width_err = params['width_err'] if params['width_err'] is not None else np.nan
-                    param_info.append(
-                        f"Peak {i+1} ({function_type}): Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, Width_err={width_err:.2e}"
-                    )
+
+                    if function_type in ['Gaussian', 'Lorentzian']:
+                        width_err = params['width_err'] if params['width_err'] is not None else np.nan
+                        param_info.append(
+                            f"Peak {i+1} ({function_type}): "
+                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, Width_err={width_err:.2e}"
+                        )
+                    elif function_type == 'Voigt':
+                        sigma_err = params['sigma_err'] if params['sigma_err'] is not None else np.nan
+                        gamma_err = params['gamma_err'] if params['gamma_err'] is not None else np.nan
+                        param_info.append(
+                            f"Peak {i+1} ({function_type}): "
+                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
+                            f"Sigma_err={sigma_err:.2e}, Gamma_err={gamma_err:.2e}"
+                        )
+                    elif function_type == 'Pseudo-Voigt':
+                        width_err = params['width_err'] if params['width_err'] is not None else np.nan
+                        fraction_err = params['fraction_err'] if params['fraction_err'] is not None else np.nan
+                        param_info.append(
+                            f"Peak {i+1} ({function_type}): "
+                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
+                            f"Width_err={width_err:.2e}, Fraction_err={fraction_err:.2e}"
+                        )
 
                 params_text = '\n'.join(param_info)
                 label_fit = f"{label} Fit\n$R^2$={r_squared:.4f}, $\\chi^2$={reduced_chi_squared:.4f}\n{params_text}"
@@ -541,16 +556,14 @@ class DataFittingTab(QWidget):
         plt.title('Fitting Results')
         plt.show()
 
-    
 
     def perform_mixed_fitting(self, x, y, peaks):
-        from lmfit import Model, Parameters
+        from lmfit import Parameters
+        from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
 
-        # Ensure x and y are numpy arrays
         x = np.array(x)
         y = np.array(y)
 
-        # Create an empty CompositeModel
         composite_model = None
         params = Parameters()
 
@@ -558,42 +571,36 @@ class DataFittingTab(QWidget):
             function_type = peak['function_type']
             amplitude_init = peak['amplitude']
             center_init = peak['center']
-            width_init = peak['width']
+            prefix = f"p{idx}_"
 
-            # Define individual models
             if function_type == 'Gaussian':
-                def gaussian(x, amplitude, center, width):
-                    return amplitude * np.exp(-((x - center) ** 2) / (2 * width ** 2))
-                prefix = f"g{idx}_"
-                model = Model(gaussian, prefix=prefix)
+                model = GaussianModel(prefix=prefix)
+                params.update(model.make_params())
+                params[prefix+'sigma'].set(value=peak['width'], min=1e-5)
             elif function_type == 'Lorentzian':
-                def lorentzian(x, amplitude, center, width):
-                    return amplitude * (width ** 2 / ((x - center) ** 2 + width ** 2))
-                prefix = f"l{idx}_"
-                model = Model(lorentzian, prefix=prefix)
+                model = LorentzianModel(prefix=prefix)
+                params.update(model.make_params())
+                params[prefix+'sigma'].set(value=peak['width'], min=1e-5)
+            elif function_type == 'Voigt':
+                model = VoigtModel(prefix=prefix)
+                params.update(model.make_params())
+                params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
+                params[prefix+'gamma'].set(value=peak['gamma'], min=1e-5)
+            elif function_type == 'Pseudo-Voigt':
+                model = PseudoVoigtModel(prefix=prefix)
+                params.update(model.make_params())
+                params[prefix+'sigma'].set(value=peak['width'], min=1e-5)
+                params[prefix+'fraction'].set(value=peak['fraction'], min=0, max=1)
             else:
                 print(f"Unknown function type: {function_type}")
                 continue
 
-            # Initialize parameters
-            model.set_param_hint(f'{prefix}amplitude', value=amplitude_init, min=0)
-            model.set_param_hint(f'{prefix}center', value=center_init)
-            model.set_param_hint(f'{prefix}width', value=width_init, min=1e-5)
+            # Set common parameters
+            params[prefix+'amplitude'].set(value=amplitude_init, min=0)
+            params[prefix+'center'].set(value=center_init)
 
-            # If you want to fix parameters, set vary=False
-            # For example, to fix the width:
-            # model.set_param_hint(f'{prefix}width', value=width_init, vary=False)
+            composite_model = model if composite_model is None else composite_model + model
 
-            # Update the composite model
-            if composite_model is None:
-                composite_model = model
-            else:
-                composite_model += model
-
-            # Add parameters to the global params
-            params.update(model.make_params())
-
-        # Perform the fit
         try:
             result = composite_model.fit(y, params, x=x)
         except Exception as e:
@@ -601,28 +608,61 @@ class DataFittingTab(QWidget):
             print(f"Fitting failed: {e}")
             return None, None
 
-        # Generate fitted y-values
         fitted_y = result.best_fit
-
-        # Extract fitted parameters with uncertainties
         fit_params = []
+
         for idx, peak in enumerate(peaks):
-            prefix = f"g{idx}_" if peak['function_type'] == 'Gaussian' else f"l{idx}_"
+            function_type = peak['function_type']
+            prefix = f"p{idx}_"
             amplitude = result.params[f'{prefix}amplitude'].value
             amplitude_err = result.params[f'{prefix}amplitude'].stderr
             center = result.params[f'{prefix}center'].value
             center_err = result.params[f'{prefix}center'].stderr
-            width = result.params[f'{prefix}width'].value
-            width_err = result.params[f'{prefix}width'].stderr
-            fit_params.append({
-                'function_type': peak['function_type'],
-                'amplitude': amplitude,
-                'amplitude_err': amplitude_err,
-                'center': center,
-                'center_err': center_err,
-                'width': width,
-                'width_err': width_err
-            })
+
+            if function_type in ['Gaussian', 'Lorentzian']:
+                width = result.params[f'{prefix}sigma'].value
+                width_err = result.params[f'{prefix}sigma'].stderr
+                fit_params.append({
+                    'function_type': function_type,
+                    'amplitude': amplitude,
+                    'amplitude_err': amplitude_err,
+                    'center': center,
+                    'center_err': center_err,
+                    'width': width,
+                    'width_err': width_err
+                })
+            elif function_type == 'Voigt':
+                sigma = result.params[f'{prefix}sigma'].value
+                sigma_err = result.params[f'{prefix}sigma'].stderr
+                gamma = result.params[f'{prefix}gamma'].value
+                gamma_err = result.params[f'{prefix}gamma'].stderr
+                fit_params.append({
+                    'function_type': function_type,
+                    'amplitude': amplitude,
+                    'amplitude_err': amplitude_err,
+                    'center': center,
+                    'center_err': center_err,
+                    'sigma': sigma,
+                    'sigma_err': sigma_err,
+                    'gamma': gamma,
+                    'gamma_err': gamma_err
+                })
+            elif function_type == 'Pseudo-Voigt':
+                width = result.params[f'{prefix}sigma'].value
+                width_err = result.params[f'{prefix}sigma'].stderr
+                fraction = result.params[f'{prefix}fraction'].value
+                fraction_err = result.params[f'{prefix}fraction'].stderr
+                fit_params.append({
+                    'function_type': function_type,
+                    'amplitude': amplitude,
+                    'amplitude_err': amplitude_err,
+                    'center': center,
+                    'center_err': center_err,
+                    'width': width,
+                    'width_err': width_err,
+                    'fraction': fraction,
+                    'fraction_err': fraction_err
+                })
 
         # Calculate residuals
         residuals = y - fitted_y
@@ -650,6 +690,7 @@ class DataFittingTab(QWidget):
         print(f"R-squared: {r_squared}, Reduced Chi-Squared: {reduced_chi_squared}")
 
         return fitted_y, fit_info
+
 
 
 
@@ -862,28 +903,50 @@ class DataFittingTab(QWidget):
                     fit_params = fit_info['fit_params']
                     params_data = []
                     for i, peak_params in enumerate(fit_params):
-                        params_data.append({
-                            'Peak': i+1,
+                        param_dict = {
+                            'Peak': i + 1,
+                            'Function_Type': peak_params['function_type'],
                             'Amplitude': peak_params['amplitude'],
                             'Amplitude_err': peak_params['amplitude_err'],
                             'Center': peak_params['center'],
                             'Center_err': peak_params['center_err'],
-                            'Width': peak_params['width'],
-                            'Width_err': peak_params['width_err'],
-                        })
-                    params_df = pd.DataFrame(params_data)
+                        }
+                        function_type = peak_params['function_type']
+                        if function_type in ['Gaussian', 'Lorentzian']:
+                            param_dict.update({
+                                'Width': peak_params['width'],
+                                'Width_err': peak_params['width_err'],
+                            })
+                        elif function_type == 'Voigt':
+                            param_dict.update({
+                                'Sigma': peak_params['sigma'],
+                                'Sigma_err': peak_params['sigma_err'],
+                                'Gamma': peak_params['gamma'],
+                                'Gamma_err': peak_params['gamma_err'],
+                            })
+                        elif function_type == 'Pseudo-Voigt':
+                            param_dict.update({
+                                'Width': peak_params['width'],
+                                'Width_err': peak_params['width_err'],
+                                'Fraction': peak_params['fraction'],
+                                'Fraction_err': peak_params['fraction_err'],
+                            })
+                        params_data.append(param_dict)
+
+                    # Ensure all possible keys are included
+                    all_keys = set().union(*(d.keys() for d in params_data))
+
+                    # Create DataFrame with all keys
+                    params_df = pd.DataFrame(params_data, columns=all_keys)
+
                     # Add R-squared and Reduced Chi-Squared at the end
-                    params_df.loc[len(params_df)] = {
+                    overall_stats = {key: np.nan for key in all_keys}
+                    overall_stats.update({
                         'Peak': 'Overall',
-                        'Amplitude': np.nan,
-                        'Amplitude_err': np.nan,
-                        'Center': np.nan,
-                        'Center_err': np.nan,
-                        'Width': np.nan,
-                        'Width_err': np.nan,
                         'R_squared': fit_info['r_squared'],
                         'Reduced_Chi_squared': fit_info['reduced_chi_squared']
-                    }
+                    })
+                    params_df = params_df.append(overall_stats, ignore_index=True)
 
                     params_df.to_csv(params_file_path, index=False)
 
@@ -892,6 +955,7 @@ class DataFittingTab(QWidget):
 
         QMessageBox.information(self, "Save Successful", f"Fitted data saved to {directory}")
         print("All fitted files saved successfully.")
+
 
 
     def update_plot(self):

@@ -2,7 +2,7 @@
 
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QComboBox
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QComboBox,QSizePolicy
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QDoubleValidator
@@ -23,9 +23,27 @@ class GaussianFittingPanel(QWidget):
 
 
         # Peak Parameters Table
-        self.peak_table = QTableWidget(0, 5)
-        self.peak_table.setHorizontalHeaderLabels(['Function', 'Amplitude', 'Center', 'Width', 'Enable'])
-        self.peak_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.peak_table = QTableWidget(0, 6)
+        self.peak_table.setHorizontalHeaderLabels(['Function', 'Param1', 'Param2', 'Param3', 'Param4', 'Enable'])
+        self.peak_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # Set specific column widths
+        self.peak_table.setColumnWidth(0, 120)  # Function column
+        self.peak_table.setColumnWidth(1, 80)   # Param1
+        self.peak_table.setColumnWidth(2, 80)   # Param2
+        self.peak_table.setColumnWidth(3, 80)   # Param3
+        self.peak_table.setColumnWidth(4, 80)   # Param4
+        self.peak_table.setColumnWidth(5, 60)   # Enable column
+
+        # Set resize mode for horizontal header
+        header = self.peak_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.Fixed)
+        header.setSectionResizeMode(5, QHeaderView.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        header.setSectionResizeMode(3, QHeaderView.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.Stretch)
+
         layout.addWidget(QLabel("Peaks"))
         layout.addWidget(self.peak_table)
 
@@ -94,7 +112,7 @@ class GaussianFittingPanel(QWidget):
         else:
             # Emit signal to exit manual peak picking mode
             self.manual_peak_picker_signal.emit(False)
-            
+
     def add_peak(self):
         self.add_peak_row(1.0, 0.0, 1.0)
 
@@ -124,25 +142,86 @@ class GaussianFittingPanel(QWidget):
             
             # Function Type ComboBox
             function_combo = QComboBox()
-            function_combo.addItems(['Gaussian', 'Lorentzian'])
+            function_combo.addItems(['Gaussian', 'Lorentzian', 'Voigt', 'Pseudo-Voigt'])  # Added new functions here
             function_combo.setCurrentText(function_type)
+            function_combo.currentTextChanged.connect(lambda _, row=row_position: self.update_row_parameters(row))
             self.peak_table.setCellWidget(row_position, 0, function_combo)
             
-            amplitude_item = QTableWidgetItem(f"{amplitude}")
-            center_item = QTableWidgetItem(f"{center}")
-            width_item = QTableWidgetItem(f"{width}")
+            # Initialize parameter items
+            param1_item = QTableWidgetItem(f"{amplitude}")
+            param2_item = QTableWidgetItem(f"{center}")
+            param3_item = QTableWidgetItem(f"{width}")
+            param4_item = QTableWidgetItem("")  # Additional parameter for Voigt and Pseudo-Voigt
             enable_item = QTableWidgetItem()
             enable_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
             enable_item.setCheckState(Qt.Checked)
 
-            self.peak_table.setItem(row_position, 1, amplitude_item)
-            self.peak_table.setItem(row_position, 2, center_item)
-            self.peak_table.setItem(row_position, 3, width_item)
-            self.peak_table.setItem(row_position, 4, enable_item)
+            self.peak_table.setItem(row_position, 1, param1_item)
+            self.peak_table.setItem(row_position, 2, param2_item)
+            self.peak_table.setItem(row_position, 3, param3_item)
+            self.peak_table.setItem(row_position, 4, param4_item)
+            self.peak_table.setItem(row_position, 5, enable_item)
+
+            # Update parameters based on function type
+            self.update_row_parameters(row_position)
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error adding peak: {e}")
         finally:
             self.peak_table.blockSignals(False)  # Re-enable signals after adding the row
+
+    def update_row_parameters(self, row):
+        function_combo = self.peak_table.cellWidget(row, 0)
+        function_type = function_combo.currentText()
+
+        # Get parameter items
+        param1_item = self.peak_table.item(row, 1)
+        param2_item = self.peak_table.item(row, 2)
+        param3_item = self.peak_table.item(row, 3)
+        param4_item = self.peak_table.item(row, 4)
+
+        # Set default values and parameter names based on function type
+        if function_type in ['Gaussian', 'Lorentzian']:
+            # Set tooltips
+            param1_item.setToolTip('Amplitude')
+            param2_item.setToolTip('Center')
+            param3_item.setToolTip('Width')
+            param4_item.setToolTip('N/A')
+            param4_item.setFlags(Qt.NoItemFlags)
+            param4_item.setText('')
+
+            # Set default values
+            param1_item.setText(param1_item.text() or '1.0')
+            param2_item.setText(param2_item.text() or '0.0')
+            param3_item.setText(param3_item.text() or '1.0')
+
+        elif function_type == 'Voigt':
+            # Set tooltips
+            param1_item.setToolTip('Amplitude')
+            param2_item.setToolTip('Center')
+            param3_item.setToolTip('Sigma')
+            param4_item.setToolTip('Gamma')
+            param4_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
+
+            # Set default values
+            param1_item.setText(param1_item.text() or '1.0')
+            param2_item.setText(param2_item.text() or '0.0')
+            param3_item.setText(param3_item.text() or '1.0')
+            param4_item.setText(param4_item.text() or '1.0')
+
+        elif function_type == 'Pseudo-Voigt':
+            # Set tooltips
+            param1_item.setToolTip('Amplitude')
+            param2_item.setToolTip('Center')
+            param3_item.setToolTip('Width')
+            param4_item.setToolTip('Fraction')
+            param4_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
+
+            # Set default values
+            param1_item.setText(param1_item.text() or '1.0')
+            param2_item.setText(param2_item.text() or '0.0')
+            param3_item.setText(param3_item.text() or '1.0')
+            param4_item.setText(param4_item.text() or '0.5')
+
 
 
 
@@ -158,21 +237,43 @@ class GaussianFittingPanel(QWidget):
         for row in range(self.peak_table.rowCount()):
             function_combo = self.peak_table.cellWidget(row, 0)
             function_type = function_combo.currentText()
-            amplitude_item = self.peak_table.item(row, 1)
-            center_item = self.peak_table.item(row, 2)
-            width_item = self.peak_table.item(row, 3)
-            enable_item = self.peak_table.item(row, 4)
+            param1_item = self.peak_table.item(row, 1)
+            param2_item = self.peak_table.item(row, 2)
+            param3_item = self.peak_table.item(row, 3)
+            param4_item = self.peak_table.item(row, 4)
+            enable_item = self.peak_table.item(row, 5)
             if enable_item.checkState() == Qt.Checked:
                 try:
-                    amplitude = float(amplitude_item.text())
-                    center = float(center_item.text())
-                    width = float(width_item.text())
-                    peaks.append({
-                        'function_type': function_type,
-                        'amplitude': amplitude,
-                        'center': center,
-                        'width': width
-                    })
+                    amplitude = float(param1_item.text())
+                    center = float(param2_item.text())
+                    if function_type in ['Gaussian', 'Lorentzian']:
+                        width = float(param3_item.text())
+                        peaks.append({
+                            'function_type': function_type,
+                            'amplitude': amplitude,
+                            'center': center,
+                            'width': width
+                        })
+                    elif function_type == 'Voigt':
+                        sigma = float(param3_item.text())
+                        gamma = float(param4_item.text())
+                        peaks.append({
+                            'function_type': function_type,
+                            'amplitude': amplitude,
+                            'center': center,
+                            'sigma': sigma,
+                            'gamma': gamma
+                        })
+                    elif function_type == 'Pseudo-Voigt':
+                        width = float(param3_item.text())
+                        fraction = float(param4_item.text())
+                        peaks.append({
+                            'function_type': function_type,
+                            'amplitude': amplitude,
+                            'center': center,
+                            'width': width,
+                            'fraction': fraction
+                        })
                 except ValueError:
                     QMessageBox.warning(self, "Invalid Input", f"Invalid numerical value in row {row + 1}.")
                     return None
@@ -180,7 +281,7 @@ class GaussianFittingPanel(QWidget):
             QMessageBox.warning(self, "No Peaks", "Please add and enable at least one peak.")
             return None
 
-        # Add debugging statement
         print("get_parameters: Retrieved peaks:", peaks)
 
         return {'peaks': peaks}
+
