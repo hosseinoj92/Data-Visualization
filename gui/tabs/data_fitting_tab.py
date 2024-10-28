@@ -576,28 +576,32 @@ class DataFittingTab(QWidget):
             if function_type == 'Gaussian':
                 model = GaussianModel(prefix=prefix)
                 params.update(model.make_params())
-                params[prefix+'sigma'].set(value=peak['width'], min=1e-5)
+                params[prefix+'amplitude'].set(value=amplitude_init, min=0)
+                params[prefix+'center'].set(value=center_init)
+                params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
             elif function_type == 'Lorentzian':
                 model = LorentzianModel(prefix=prefix)
                 params.update(model.make_params())
-                params[prefix+'sigma'].set(value=peak['width'], min=1e-5)
+                params[prefix+'amplitude'].set(value=amplitude_init, min=0)
+                params[prefix+'center'].set(value=center_init)
+                params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
             elif function_type == 'Voigt':
                 model = VoigtModel(prefix=prefix)
                 params.update(model.make_params())
+                params[prefix+'amplitude'].set(value=amplitude_init, min=0)
+                params[prefix+'center'].set(value=center_init)
                 params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
                 params[prefix+'gamma'].set(value=peak['gamma'], min=1e-5)
             elif function_type == 'Pseudo-Voigt':
                 model = PseudoVoigtModel(prefix=prefix)
                 params.update(model.make_params())
-                params[prefix+'sigma'].set(value=peak['width'], min=1e-5)
+                params[prefix+'amplitude'].set(value=amplitude_init, min=0)
+                params[prefix+'center'].set(value=center_init)
+                params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
                 params[prefix+'fraction'].set(value=peak['fraction'], min=0, max=1)
             else:
                 print(f"Unknown function type: {function_type}")
                 continue
-
-            # Set common parameters
-            params[prefix+'amplitude'].set(value=amplitude_init, min=0)
-            params[prefix+'center'].set(value=center_init)
 
             composite_model = model if composite_model is None else composite_model + model
 
@@ -610,6 +614,7 @@ class DataFittingTab(QWidget):
 
         fitted_y = result.best_fit
         fit_params = []
+
 
         for idx, peak in enumerate(peaks):
             function_type = peak['function_type']
