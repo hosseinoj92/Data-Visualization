@@ -3,7 +3,8 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QLabel, QToolButton, QScrollArea, QSizePolicy,
     QPushButton, QHBoxLayout, QFrame, QFileDialog, QListWidgetItem, QColorDialog, QTableWidget, QHeaderView, QTableWidgetItem,
-    QMessageBox, QTextEdit, QButtonGroup, QGroupBox, QVBoxLayout, QDialog, QComboBox, QSpinBox, QCheckBox, QLineEdit
+    QMessageBox, QTextEdit, QButtonGroup, QGroupBox, QVBoxLayout, QDialog,
+      QComboBox, QSpinBox, QCheckBox, QLineEdit,QApplication
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QEvent
 from PyQt5.QtGui import QIcon
@@ -55,7 +56,8 @@ class DataFittingTab(QWidget):
         self._updating_plot = False  # Initialize the flag
         self.column_names = {}  # Initialize column names dictionary
 
-
+        self.manual_peak_picking_mode = False  # Add this variable
+        self.current_fitting_panel = None  # To keep track of the current fitting panel
 
         self.init_ui()
         self.expanded_window = None  # To track the expanded window
@@ -170,6 +172,10 @@ class DataFittingTab(QWidget):
             
             # Connect Run Peak Finder signal
             panel.run_peak_finder_signal.connect(partial(self.run_peak_finder, panel))
+
+             # Connect Manual Peak Picker signal
+            panel.manual_peak_picker_signal.connect(partial(self.toggle_manual_peak_picking_mode, panel))
+
 
             # Connect parameters_changed signal
             #panel.parameters_changed.connect(partial(self.update_fitted_plot, panel))
@@ -382,6 +388,32 @@ class DataFittingTab(QWidget):
             QMessageBox.information(self, "Retract Successful", f"Added {len(added_files)} file(s) to the Data Fitting Tab.")
         else:
             QMessageBox.information(self, "No New Files", "No new files were added (they may already exist).")
+
+    def toggle_manual_peak_picking_mode(self, panel, enter_mode):
+        if enter_mode:
+            self.enter_manual_peak_picking_mode(panel)
+        else:
+            self.exit_manual_peak_picking_mode(panel)
+
+    def enter_manual_peak_picking_mode(self, panel):
+        self.manual_peak_picking_mode = True
+        self.current_fitting_panel = panel  # Keep reference to the panel
+        QApplication.setOverrideCursor(Qt.CrossCursor)
+        QMessageBox.information(self, "Manual Peak Picking Mode", "Click on the plot to select peaks.\nClick the 'Manual Peak Picker' button again to exit.")
+
+    def exit_manual_peak_picking_mode(self, panel):
+        self.manual_peak_picking_mode = False
+        self.current_fitting_panel = None
+        QApplication.restoreOverrideCursor()
+        # Ensure the button is unchecked
+        panel.manual_peak_picker_button.setChecked(False)
+        # Remove manual peak picking markers
+        for marker in self.annotations:
+            if marker.get_marker() == 'x' and marker.get_color() == 'r':
+                marker.remove()
+        self.annotations = [ann for ann in self.annotations if not (ann.get_marker() == 'x' and ann.get_color() == 'r')]
+        self.canvas.draw_idle()
+
 
 
     def on_fitting_section_expanded(self, expanded_section):
@@ -1017,7 +1049,11 @@ class DataFittingTab(QWidget):
     def on_click(self, event):
         if self.plot_type != "2D":
             return
-
+        
+        if self.manual_peak_picking_mode:
+            self.handle_manual_peak_picking(event)
+            return
+        
         annotation_type = self.custom_annotations_panel.get_annotation_type()
         if annotation_type == "Annotation Point":
             self.add_annotation_point(event)
@@ -1027,6 +1063,24 @@ class DataFittingTab(QWidget):
             self.add_horizontal_line(event)
         elif annotation_type == "None":
             self.select_line(event)
+
+    def handle_manual_peak_picking(self, event):
+        if event.xdata is None or event.ydata is None:
+            return
+        x = event.xdata
+        y = event.ydata
+
+        # Add a marker to the plot to show where the peak was picked
+        marker, = self.figure.gca().plot(x, y, 'rx')  # red x marker
+        self.annotations.append(marker)
+        self.canvas.draw_idle()
+
+        # Add a new peak to the fitting panel's peak table
+        default_amplitude = y  # Use the y-value at the clicked point
+        default_width = 1.0  # Some default value, or estimate
+
+        # Call a method in the fitting panel to add a new peak
+        self.current_fitting_panel.add_peak_row(default_amplitude, x, default_width)
 
     def on_mouse_move(self, event):
         if self.plot_type != "2D" or not self.annotation_mode:

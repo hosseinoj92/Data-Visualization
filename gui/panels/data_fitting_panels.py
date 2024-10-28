@@ -9,7 +9,9 @@ from PyQt5.QtGui import QDoubleValidator
 
 class GaussianFittingPanel(QWidget):
     parameters_changed = pyqtSignal()
-    run_peak_finder_signal = pyqtSignal()  # Define the signal
+    run_peak_finder_signal = pyqtSignal()  
+    manual_peak_picker_signal = pyqtSignal(bool)  # Add this signal
+
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -26,13 +28,17 @@ class GaussianFittingPanel(QWidget):
         self.peak_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         layout.addWidget(QLabel("Peaks"))
         layout.addWidget(self.peak_table)
-        
+
         # Buttons to manage peaks
         buttons_layout = QHBoxLayout()
         self.add_peak_button = QPushButton("Add Peak")
         self.remove_peak_button = QPushButton("Remove Peak")
+        # Add Manual Peak Picker button
+        self.manual_peak_picker_button = QPushButton("Manual Peak Picker")
+        self.manual_peak_picker_button.setCheckable(True)  # Make it a toggle button
         buttons_layout.addWidget(self.add_peak_button)
         buttons_layout.addWidget(self.remove_peak_button)
+        buttons_layout.addWidget(self.manual_peak_picker_button)
         layout.addLayout(buttons_layout)
         
         # Peak Finder Parameters
@@ -65,6 +71,7 @@ class GaussianFittingPanel(QWidget):
         # Connect Signals
         self.add_peak_button.clicked.connect(self.add_peak)
         self.remove_peak_button.clicked.connect(self.remove_peak)
+        self.manual_peak_picker_button.clicked.connect(self.manual_peak_picker)
         self.run_peak_finder_button.clicked.connect(self.run_peak_finder)
         self.help_button.clicked.connect(self.show_help)
 
@@ -79,6 +86,14 @@ class GaussianFittingPanel(QWidget):
         # Disable Save and Send buttons initially
         self.save_button.setEnabled(False)
         self.send_to_data_panel_button.setEnabled(False)
+
+    def manual_peak_picker(self):
+        if self.manual_peak_picker_button.isChecked():
+            # Emit the signal to notify the DataFittingTab to enter manual peak picking mode
+            self.manual_peak_picker_signal.emit(True)
+        else:
+            # Emit signal to exit manual peak picking mode
+            self.manual_peak_picker_signal.emit(False)
             
     def add_peak(self):
         self.add_peak_row(1.0, 0.0, 1.0)
