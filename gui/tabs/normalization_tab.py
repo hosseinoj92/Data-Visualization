@@ -164,36 +164,24 @@ class NormalizationTab(QWidget):
             ("Reference Peak Normalization", ReferencePeakNormalizationPanel),
             ("Baseline Correction Normalization", BaselineCorrectionNormalizationPanel), 
             ("Baseline Correction with File", BaselineCorrectionWithFileNormalizationPanel)
-            
-            
         ]
 
-        self.normalization_sections = []
+        # Create buttons for each normalization method
+        self.normalization_methods_buttons = []
 
-        # Create NormalizationMethodPanel for each method
         for method_name, panel_class in self.normalization_methods:
-            panel = panel_class()
-            section = CollapsibleSection(method_name, panel)
-            section.section_expanded.connect(self.on_normalization_section_expanded)
-            self.normalization_sections.append(section)
-
-            # Connect Apply, Save, and Send to Data Panel buttons
-            panel.apply_button.clicked.connect(lambda checked, p=panel: self.apply_normalization(p))
-            panel.save_button.clicked.connect(lambda checked, p=panel: self.save_normalized_data(p))
-            panel.send_to_data_panel_button.clicked.connect(lambda checked, p=panel: self.send_normalized_data_to_data_panel(p))
+            button = QPushButton(method_name)
+            button.clicked.connect(partial(self.open_normalization_window, method_name, panel_class))
+            self.normalization_methods_buttons.append(button)
 
         # QGroupBox for Normalization Methods
         self.normalization_methods_groupbox = QGroupBox("Normalization Methods")
         normalization_methods_layout = QVBoxLayout()
         self.normalization_methods_groupbox.setLayout(normalization_methods_layout)
 
-        # Add normalization sections to the normalization methods layout
-        for section in self.normalization_sections:
-            normalization_methods_layout.addWidget(section)
-
-        # Optionally, add a label if no normalization methods are available
-        if not self.normalization_methods:
-            normalization_methods_layout.addWidget(QLabel("No normalization methods available."))
+        # Add buttons to the normalization methods layout
+        for button in self.normalization_methods_buttons:
+            normalization_methods_layout.addWidget(button)
 
         # Basic Corrections GroupBox (empty for now)
         self.basic_corrections_groupbox = QGroupBox("Basic Corrections")
@@ -210,21 +198,22 @@ class NormalizationTab(QWidget):
 
         ]
 
-        self.basic_corrections_panels = []
+        # Create buttons for each basic correction method
+        self.basic_corrections_buttons = []
 
         for method_name, panel_class in self.basic_corrections_methods:
-            panel = panel_class()
-            section = CollapsibleSection(method_name, panel)
-            section.section_expanded.connect(self.on_basic_corrections_section_expanded)
-            self.basic_corrections_panels.append(section)
+            button = QPushButton(method_name)
+            button.clicked.connect(partial(self.open_basic_correction_window, method_name, panel_class))
+            self.basic_corrections_buttons.append(button)
 
-            # Connect Apply, Save, and Send to Data Panel buttons
-            panel.apply_button.clicked.connect(lambda checked, p=panel: self.apply_basic_correction(p))
-            panel.save_button.clicked.connect(lambda checked, p=panel: self.save_normalized_data(p))
-            panel.send_to_data_panel_button.clicked.connect(lambda checked, p=panel: self.send_normalized_data_to_data_panel(p))
+        # Basic Corrections GroupBox
+        self.basic_corrections_groupbox = QGroupBox("Basic Corrections")
+        basic_corrections_layout = QVBoxLayout()
+        self.basic_corrections_groupbox.setLayout(basic_corrections_layout)
 
-            basic_corrections_layout.addWidget(section)
-
+        # Add buttons to the basic corrections layout
+        for button in self.basic_corrections_buttons:
+            basic_corrections_layout.addWidget(button)  
 
 
         # Arrange Column 1
@@ -240,6 +229,10 @@ class NormalizationTab(QWidget):
         column1_widget = QWidget()
         column1_widget.setLayout(column1_layout)
         self.layout.addWidget(column1_widget, 0, 1)
+
+        # Initialize dictionaries to keep track of open windows
+        self.normalization_method_windows = {}
+        self.basic_corrections_windows = {}
 
         # Column 2: Plotting Interface
         # Plot area
@@ -310,9 +303,10 @@ class NormalizationTab(QWidget):
         plot_widget.setLayout(plot_layout)
         self.layout.addWidget(plot_widget, 0, 2)
 
-        self.layout.setColumnStretch(0, 2)
-        self.layout.setColumnStretch(1, 2)  # Column 1 is now equally stretched
-        self.layout.setColumnStretch(2, 4)
+        # Adjust column stretches
+        self.layout.setColumnStretch(0, 1)  # Column 0: Selected Data
+        self.layout.setColumnStretch(1, 1)  # Column 1: Fitting Panels (now narrower)
+        self.layout.setColumnStretch(2, 4)  # Column 2: Plotting Area (now wider)
 
         # Initialize plot type and other variables
         self.plot_type = "2D"
@@ -322,6 +316,7 @@ class NormalizationTab(QWidget):
         self.temp_annotation = None
         self.selected_lines = []
         self.normalized_data = {}  # To store normalized data
+
 
         # Connect signals and slots from the panels
         self.connect_signals()
@@ -341,6 +336,87 @@ class NormalizationTab(QWidget):
 
         # Define normalization functions
         self.define_normalization_functions()
+
+    # Keep the on_section_expanded method for collapsible sections in column 0
+    def on_section_expanded(self, expanded_section):
+        print(f"Section '{expanded_section.toggle_button.text()}' expanded. Collapsing other sections.")
+        if hasattr(self, 'is_collapsing') and self.is_collapsing:
+            return
+        self.is_collapsing = True
+        # When a section is expanded, collapse all other sections
+        for section in self.collapsible_sections:
+            if section != expanded_section and section.toggle_button.isChecked():
+                print(f"Collapsing section '{section.toggle_button.text()}'")
+                section.toggle_button.setChecked(False)
+        self.is_collapsing = False
+
+    def open_normalization_window(self, method_name, panel_class):
+        # Check if the window is already open
+        if method_name in self.normalization_method_windows:
+            window = self.normalization_method_windows[method_name]
+            window.show()
+            window.raise_()
+            return
+
+        # Create the panel
+        panel = panel_class(parent=self)
+        panel.method_name = method_name  # Set the method_name attribute if needed
+
+        # Create a new window
+        window = QDialog(self)
+        window.setWindowTitle(method_name)
+        layout = QVBoxLayout(window)
+        layout.addWidget(panel)
+        window.setLayout(layout)
+        window.resize(400, 300)
+        window.show()
+
+        # Store the window in the dictionary
+        self.normalization_method_windows[method_name] = window
+
+        # Connect signals from the panel
+        panel.apply_button.clicked.connect(lambda checked, p=panel: self.apply_normalization(p))
+        panel.save_button.clicked.connect(lambda checked, p=panel: self.save_normalized_data(p))
+        panel.send_to_data_panel_button.clicked.connect(lambda checked, p=panel: self.send_normalized_data_to_data_panel(p))
+
+        # Handle window close event to remove from dictionary
+        def on_window_closed():
+            del self.normalization_method_windows[method_name]
+        window.finished.connect(on_window_closed)
+
+    def open_basic_correction_window(self, method_name, panel_class):
+        # Check if the window is already open
+        if method_name in self.basic_corrections_windows:
+            window = self.basic_corrections_windows[method_name]
+            window.show()
+            window.raise_()
+            return
+
+        # Create the panel
+        panel = panel_class(parent=self)
+        panel.method_name = method_name  # Set the method_name attribute if needed
+
+        # Create a new window
+        window = QDialog(self)
+        window.setWindowTitle(method_name)
+        layout = QVBoxLayout(window)
+        layout.addWidget(panel)
+        window.setLayout(layout)
+        window.resize(400, 300)
+        window.show()
+
+        # Store the window in the dictionary
+        self.basic_corrections_windows[method_name] = window
+
+        # Connect signals from the panel
+        panel.apply_button.clicked.connect(lambda checked, p=panel: self.apply_basic_correction(p))
+        panel.save_button.clicked.connect(lambda checked, p=panel: self.save_normalized_data(p))
+        panel.send_to_data_panel_button.clicked.connect(lambda checked, p=panel: self.send_normalized_data_to_data_panel(p))
+
+        # Handle window close event to remove from dictionary
+        def on_window_closed():
+            del self.basic_corrections_windows[method_name]
+        window.finished.connect(on_window_closed)
 
     def apply_basic_correction(self, panel):
         # Clear the previous normalized data
@@ -1096,15 +1172,6 @@ class NormalizationTab(QWidget):
         else:
             QMessageBox.warning(self, "No Data Sent", "No normalized data was sent to the Selected Data panel.")
 
-    def on_normalization_section_expanded(self, expanded_section):
-        if self.is_collapsing:
-            return
-        self.is_collapsing = True
-        # When a section is expanded, collapse all other sections
-        for section in self.normalization_sections:
-            if section != expanded_section and section.toggle_button.isChecked():
-                section.toggle_button.setChecked(False)
-        self.is_collapsing = False
 
     def connect_signals(self):
         # Access panels
@@ -1135,16 +1202,6 @@ class NormalizationTab(QWidget):
         for section in self.collapsible_sections:
             if section != expanded_section and section.toggle_button.isChecked():
                 print(f"Collapsing section '{section.toggle_button.text()}'")
-                section.toggle_button.setChecked(False)
-        self.is_collapsing = False
-
-    def on_basic_corrections_section_expanded(self, expanded_section):
-        if self.is_collapsing:
-            return
-        self.is_collapsing = True
-        # When a section is expanded, collapse all other sections in basic corrections
-        for section in self.basic_corrections_panels:
-            if section != expanded_section and section.toggle_button.isChecked():
                 section.toggle_button.setChecked(False)
         self.is_collapsing = False
 
