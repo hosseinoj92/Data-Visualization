@@ -38,6 +38,7 @@ from scipy.special import wofz  # For Voigt function
 from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
 
 
+
 def resource_path(relative_path):
     """ Get absolute path to resource, works for development and PyInstaller."""
     try:
@@ -92,6 +93,8 @@ class DataFittingTab(QWidget):
         # Create collapsible sections for other panels
         self.collapsible_sections = []
 
+ 
+ 
         # Plot Details Section
         self.plot_details_panel = PlotDetailsPanel()
         plot_details_section = CollapsibleSection("Plot Details", self.plot_details_panel)
@@ -141,64 +144,42 @@ class DataFittingTab(QWidget):
         column0_widget.setLayout(column0_layout)
         self.layout.addWidget(column0_widget, 0, 0)
 
-        # Column 1: Fitting Functionalities with Collapsible Sections
-        # Create a QGroupBox for Fitting Methods
-        self.fitting_methods_groupbox = QGroupBox("Fitting Methods")
-        self.fitting_methods_groupbox.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)  # Set size policy
+        # ==================== COLUMN 1: Fitting Methods Buttons ====================
 
-        fitting_methods_layout = QVBoxLayout()
-        self.fitting_methods_groupbox.setLayout(fitting_methods_layout)
+        # Create a QGroupBox for Fitting Methods Buttons
+        self.fitting_methods_buttons_groupbox = QGroupBox("Fitting Methods")
+        fitting_methods_buttons_layout = QVBoxLayout()
+        self.fitting_methods_buttons_groupbox.setLayout(fitting_methods_buttons_layout)
 
-        # Add stretch at the end to push content to the top
-        fitting_methods_layout.addStretch()
-
-
+        # Define fitting methods and their corresponding panel classes
         self.fitting_methods = [
-            ("Gaussian and Lorentzian Fitting", GaussianFittingPanel),
-            # You can add more methods here in the future
+            ("Peak Fitting", GaussianFittingPanel, 'gui/resources/gaussian_fitting_icon.png'),
+            # Add more fitting methods here as tuples: ("Method Name", PanelClass)
+            # Example:
+            # ("Lorentzian Fitting", LorentzianFittingPanel),
+            # ("Voigt Fitting", VoigtFittingPanel),
+            # ("Pseudo-Voigt Fitting", PseudoVoigtFittingPanel),
         ]
+        # Create and add buttons for each fitting method
+        self.fitting_method_windows = {}  # To keep references to the opened windows
 
-        self.fitting_sections = []
+        for method_name, panel_class, icon_relative_path in self.fitting_methods:
+            button = QPushButton(method_name)
+            icon_path = resource_path(icon_relative_path)
+            button.setIcon(QIcon(icon_path))
+            button.clicked.connect(partial(self.open_fitting_window, method_name, panel_class))
+            fitting_methods_buttons_layout.addWidget(button)
+        # Add stretch to push buttons to the top
+        fitting_methods_buttons_layout.addStretch()
 
-                # Create FittingMethodPanel for each method
-        for method_name, panel_class in self.fitting_methods:
-            panel = panel_class()
-            section = CollapsibleSection(method_name, panel)
-            section.section_expanded.connect(self.on_fitting_section_expanded)
-            self.fitting_sections.append(section)
-            
-            # Connect Apply, Save, and Send to Data Panel buttons using partial
-            panel.apply_button.clicked.connect(partial(self.apply_fitting, panel))
-            panel.save_button.clicked.connect(partial(self.save_fitted_data, panel))
-            panel.send_to_data_panel_button.clicked.connect(partial(self.send_fitted_data_to_data_panel, panel))
-            
-            # Connect Run Peak Finder signal
-            panel.run_peak_finder_signal.connect(partial(self.run_peak_finder, panel))
-
-             # Connect Manual Peak Picker signal
-            panel.manual_peak_picker_signal.connect(partial(self.toggle_manual_peak_picking_mode, panel))
-
-
-            # Connect parameters_changed signal
-            #panel.parameters_changed.connect(partial(self.update_fitted_plot, panel))
-
-            fitting_methods_layout.addWidget(section)
-
-        # Arrange Column 1
+        # Arrange Column 1 Layout
         column1_layout = QVBoxLayout()
-        column1_layout.setContentsMargins(0, 0, 0, 0)
-        column1_layout.setSpacing(10)
-
-        # Add the fitting methods groupbox to Column 1
-        column1_layout.addWidget(self.fitting_methods_groupbox)
-
-
-       # Set alignment for column1_layout to push content to the top
-        column1_layout.addStretch()  # Add stretch to push content to the top
+        column1_layout.addWidget(self.fitting_methods_buttons_groupbox)
+        column1_layout.addStretch()  # Push content to the top
 
         column1_widget = QWidget()
         column1_widget.setLayout(column1_layout)
-        self.layout.addWidget(column1_widget, 0, 1)    
+        self.layout.addWidget(column1_widget, 0, 1) 
 
         # Column 2: Plotting Interface
         # Plot area
@@ -269,9 +250,10 @@ class DataFittingTab(QWidget):
         self.layout.addWidget(plot_widget, 0, 2)
 
         # Adjust column stretches
-        self.layout.setColumnStretch(0, 2)  # Column 0: Selected Data
-        self.layout.setColumnStretch(1, 5)  # Column 1: Fitting Panels
-        self.layout.setColumnStretch(2, 3)  # Column 2: Plotting Area
+        self.layout.setColumnStretch(0, 1)  # Column 0: Selected Data
+        self.layout.setColumnStretch(1, 1)  # Column 1: Fitting Panels (now narrower)
+        self.layout.setColumnStretch(2, 4)  # Column 2: Plotting Area (now wider)
+
 
         # Initialize plot type and other variables
         self.plot_type = "2D"
@@ -296,6 +278,15 @@ class DataFittingTab(QWidget):
                 background-color: #ffffff;  /* Set to white */
             }
         """)
+        
+    def load_icon(method_name):
+        icon_filename = f"{method_name.replace(' ', '_').lower()}_icon.png"
+        icon_path = resource_path(f'gui/resources/{icon_filename}')
+        if os.path.exists(icon_path):
+            return QIcon(icon_path)
+        else:
+            print(f"Warning: Icon for '{method_name}' not found at {icon_path}")
+            return QIcon()  # Return an empty icon to avoid errors
 
     def connect_signals(self):
         # Access panels
@@ -323,6 +314,25 @@ class DataFittingTab(QWidget):
             if section != expanded_section and section.toggle_button.isChecked():
                 section.toggle_button.setChecked(False)
         self.is_collapsing = False
+
+    def open_fitting_window(self, method_name, panel_class):
+        """Opens a new window containing the specified fitting panel."""
+        if method_name in self.fitting_method_windows:
+            # If the window is already open, bring it to focus
+            window = self.fitting_method_windows[method_name]
+            window.raise_()
+            window.activateWindow()
+        else:
+            # Create a new window
+            window = FittingMethodWindow(method_name, panel_class, self)
+            self.fitting_method_windows[method_name] = window
+            window.closed.connect(lambda: self.on_fitting_window_closed(method_name))
+            window.show()
+
+    def on_fitting_window_closed(self, method_name):
+        """Removes the reference to the closed window."""
+        if method_name in self.fitting_method_windows:
+            del self.fitting_method_windows[method_name]
 
     # Implement all other methods from NormalizationTab that are necessary
     # for the functionalities of the first and third columns
@@ -412,15 +422,6 @@ class DataFittingTab(QWidget):
         panel.manual_peak_picker_button.setChecked(False)
 
 
-    def on_fitting_section_expanded(self, expanded_section):
-        if self.is_collapsing:
-            return
-        self.is_collapsing = True
-        # When a section is expanded, collapse all other sections
-        for section in self.fitting_sections:
-            if section != expanded_section and section.toggle_button.isChecked():
-                section.toggle_button.setChecked(False)
-        self.is_collapsing = False
 
     def apply_fitting(self, panel, update_plot=True):
         # Ensure that any pending edits are committed
@@ -1310,3 +1311,38 @@ class DataFittingTab(QWidget):
         # Redraw the canvas to make sure the interactive plot looks normal after saving
         self.canvas.draw_idle()
         print("Figure size and DPI restored to original after saving.")
+
+class FittingMethodWindow(QDialog):
+    """A separate window to host a fitting panel."""
+    closed = pyqtSignal()  # Signal emitted when the window is closed
+
+    def __init__(self, method_name, panel_class, parent=None):
+        super().__init__(parent)
+        self.method_name = method_name
+        self.panel = panel_class()
+        self.setWindowTitle(f"{method_name} Window")
+        self.setMinimumSize(400, 300)  # Adjust size as needed
+
+        # Set layout
+        layout = QVBoxLayout()
+        layout.addWidget(self.panel)
+        self.setLayout(layout)
+
+        # Connect panel signals to parent slots
+        self.connect_panel_signals()
+
+    def connect_panel_signals(self):
+        """Connect signals from the fitting panel to the parent DataFittingTab."""
+        parent = self.parent()
+        if parent:
+            # Example: Connect 'apply_button' from panel to 'apply_fitting' in parent
+            self.panel.apply_button.clicked.connect(partial(parent.apply_fitting, self.panel))
+            self.panel.save_button.clicked.connect(partial(parent.save_fitted_data, self.panel))
+            self.panel.send_to_data_panel_button.clicked.connect(partial(parent.send_fitted_data_to_data_panel, self.panel))
+            self.panel.run_peak_finder_signal.connect(partial(parent.run_peak_finder, self.panel))
+            self.panel.manual_peak_picker_signal.connect(partial(parent.toggle_manual_peak_picking_mode, self.panel))
+
+    def closeEvent(self, event):
+        """Handle the window close event."""
+        self.closed.emit()
+        event.accept()
