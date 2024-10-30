@@ -138,7 +138,9 @@ class GaussianFittingPanel(QWidget):
 
             # Function Type ComboBox in first row
             function_combo = QComboBox()
-            function_combo.addItems(['Gaussian', 'Lorentzian', 'Voigt', 'Pseudo-Voigt'])
+            function_combo.addItems(['Gaussian', 'Lorentzian', 'Voigt', 
+                                     'Pseudo-Voigt', 'Exponential Gaussian', 
+                                     'Split Gaussian', 'Split Lorentzian'])
             function_combo.setCurrentText(function_type)
             function_combo.currentTextChanged.connect(partial(self.update_row_parameters, row_position))
             self.peak_table.setCellWidget(row_position, 0, function_combo)
@@ -211,6 +213,21 @@ class GaussianFittingPanel(QWidget):
             param_widgets.append(ParameterWidget('', param2))  # Center
             param_widgets.append(ParameterWidget('', param3))  # Width
             param_widgets.append(ParameterWidget('', param4))  # Fraction
+        elif function_type == 'Exponential Gaussian':
+            param_widgets.append(ParameterWidget('', param1))  # Amplitude
+            param_widgets.append(ParameterWidget('', param2))  # Center
+            param_widgets.append(ParameterWidget('', param3))  # Sigma
+            param_widgets.append(ParameterWidget('', param4))  # Gamma
+        elif function_type == 'Split Gaussian':
+            param_widgets.append(ParameterWidget('', param1))  # Amplitude
+            param_widgets.append(ParameterWidget('', param2))  # Center
+            param_widgets.append(ParameterWidget('', param3))  # Sigma_Left
+            param_widgets.append(ParameterWidget('', param4))  # Sigma_Right
+        elif function_type == 'Split Lorentzian':
+            param_widgets.append(ParameterWidget('', param1))  # Amplitude
+            param_widgets.append(ParameterWidget('', param2))  # Center
+            param_widgets.append(ParameterWidget('', param3))  # Gamma_Left
+            param_widgets.append(ParameterWidget('', param4))  # Gamma_Right
         else:
             param_widgets.extend([QWidget(), QWidget(), QWidget(), QWidget()])
 
@@ -230,6 +247,12 @@ class GaussianFittingPanel(QWidget):
             param_labels = ['Amplitude', 'Center', 'Sigma', 'Gamma']
         elif function_type == 'Pseudo-Voigt':
             param_labels = ['Amplitude', 'Center', 'Width', 'Fraction']
+        elif function_type == 'Exponential Gaussian':
+            param_labels = ['Amplitude', 'Center', 'Sigma', 'Gamma']
+        elif function_type == 'Split Gaussian':
+            param_labels = ['Amplitude', 'Center', 'Sigma_Left', 'Sigma_Right']
+        elif function_type == 'Split Lorentzian':
+            param_labels = ['Amplitude', 'Center', 'Gamma_Left', 'Gamma_Right']
         else:
             param_labels = ['', '', '', '']
 
@@ -303,15 +326,47 @@ class GaussianFittingPanel(QWidget):
                             'sigma': sigma,
                             'gamma': gamma
                         })
+                        
                     elif function_type == 'Pseudo-Voigt':
-                        width = param_values[2] if param_values[2] is not None else 1.0
+                        sigma = param_values[2] if param_values[2] is not None else 1.0
                         fraction = param_values[3] if param_values[3] is not None else 0.5
                         peaks.append({
                             'function_type': function_type,
                             'amplitude': amplitude,
                             'center': center,
-                            'sigma': width,  # Use 'sigma' to match model parameter
+                            'sigma': sigma,  # Use 'sigma' to match model parameter
                             'fraction': fraction
+                        })
+
+                    elif function_type == 'Exponential Gaussian':
+                        sigma = param_values[2] if param_values[2] is not None else 1.0
+                        gamma = param_values[3] if param_values[3] is not None else 1.0
+                        peaks.append({
+                            'function_type': function_type,
+                            'amplitude': amplitude,
+                            'center': center,
+                            'sigma': sigma,
+                            'gamma': gamma
+                        })
+                    elif function_type == 'Split Gaussian':
+                        sigma_left = param_values[2] if param_values[2] is not None else 1.0
+                        sigma_right = param_values[3] if param_values[3] is not None else 1.0
+                        peaks.append({
+                            'function_type': function_type,
+                            'amplitude': amplitude,
+                            'center': center,
+                            'sigma_left': sigma_left,
+                            'sigma_right': sigma_right
+                        })
+                    elif function_type == 'Split Lorentzian':
+                        gamma_left = param_values[2] if param_values[2] is not None else 1.0
+                        gamma_right = param_values[3] if param_values[3] is not None else 1.0
+                        peaks.append({
+                            'function_type': function_type,
+                            'amplitude': amplitude,
+                            'center': center,
+                            'gamma_left': gamma_left,
+                            'gamma_right': gamma_right
                         })
                 except ValueError:
                     QMessageBox.warning(self, "Invalid Input", f"Invalid numerical value in peak starting at row {row + 1}.")

@@ -35,7 +35,7 @@ from scipy.signal import find_peaks, peak_widths  # Ensure peak_widths is import
 
 from lmfit import Model, Parameters
 from scipy.special import wofz  # For Voigt function
-from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
+from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel,ExponentialGaussianModel
 
 
 
@@ -46,6 +46,37 @@ def resource_path(relative_path):
     except AttributeError:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
+
+
+def split_gaussian(x, amplitude, center, sigma_left, sigma_right):
+    """Split Gaussian function with different sigma on each side of the center."""
+    sigma = np.where(x < center, sigma_left, sigma_right)
+    return amplitude * np.exp(-((x - center) ** 2) / (2 * sigma ** 2))
+
+def split_lorentzian(x, amplitude, center, gamma_left, gamma_right):
+    """Split Lorentzian function with different gamma on each side of the center."""
+    gamma = np.where(x < center, gamma_left, gamma_right)
+    return amplitude * (gamma ** 2) / ((x - center) ** 2 + gamma ** 2)
+
+def exponential_gaussian(x, amplitude, center, sigma, gamma):
+    """
+    Exponential Gaussian function with exponential tail on the left side.
+
+    Parameters:
+    - x: Independent variable.
+    - amplitude: Amplitude of the Gaussian.
+    - center: Center of the Gaussian.
+    - sigma: Standard deviation of the Gaussian.
+    - gamma: Exponential decay rate on the left side.
+
+    Returns:
+    - y: Calculated y-values based on the Exponential Gaussian model.
+    """
+    # Apply exponential only to the left side (x < center)
+    exp_component = np.where(x < center, np.exp(-gamma * (center - x)), 1.0)
+    gaussian_component = np.exp(-((x - center) ** 2) / (2 * sigma ** 2))
+    return amplitude * exp_component * gaussian_component
+
 
 class DataFittingTab(QWidget):
 
@@ -532,6 +563,31 @@ class DataFittingTab(QWidget):
                             f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
                             f"Width_err={width_err:.2e}, Fraction_err={fraction_err:.2e}"
                         )
+                        
+                    elif function_type == 'Exponential Gaussian':
+                        sigma_err = params['sigma_err'] if params['sigma_err'] is not None else np.nan
+                        gamma_err = params['gamma_err'] if params['gamma_err'] is not None else np.nan
+                        param_info.append(
+                            f"Peak {i+1} ({function_type}): "
+                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
+                            f"Sigma_err={sigma_err:.2e}, Gamma_err={gamma_err:.2e}"
+                        )
+                    elif function_type == 'Split Gaussian':
+                        sigma_left_err = params['sigma_left_err'] if params['sigma_left_err'] is not None else np.nan
+                        sigma_right_err = params['sigma_right_err'] if params['sigma_right_err'] is not None else np.nan
+                        param_info.append(
+                            f"Peak {i+1} ({function_type}): "
+                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
+                            f"Sigma_Left_err={sigma_left_err:.2e}, Sigma_Right_err={sigma_right_err:.2e}"
+                        )
+                    elif function_type == 'Split Lorentzian':
+                        gamma_left_err = params['gamma_left_err'] if params['gamma_left_err'] is not None else np.nan
+                        gamma_right_err = params['gamma_right_err'] if params['gamma_right_err'] is not None else np.nan
+                        param_info.append(
+                            f"Peak {i+1} ({function_type}): "
+                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
+                            f"Gamma_Left_err={gamma_left_err:.2e}, Gamma_Right_err={gamma_right_err:.2e}"
+                        )
 
                 params_text = '\n'.join(param_info)
                 label_fit = f"{label} Fit\n$R^2$={r_squared:.4f}, $\\chi^2$={reduced_chi_squared:.4f}\n{params_text}"
@@ -556,10 +612,9 @@ class DataFittingTab(QWidget):
         ax.legend(loc='best', fontsize='small')
         plt.title('Fitting Results')
         plt.show()
-
-
+        
     def perform_mixed_fitting(self, x, y, peaks):
-        from lmfit import Parameters
+        from lmfit import Parameters, Model
         from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
 
         x = np.array(x)
@@ -600,6 +655,27 @@ class DataFittingTab(QWidget):
                 params[prefix+'center'].set(value=center_init)
                 params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
                 params[prefix+'fraction'].set(value=peak['fraction'], min=0, max=1)
+            elif function_type == 'Exponential Gaussian':
+                model = Model(exponential_gaussian, prefix=prefix)
+                params.update(model.make_params())
+                params[prefix+'amplitude'].set(value=amplitude_init, min=0)
+                params[prefix+'center'].set(value=center_init)
+                params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
+                params[prefix+'gamma'].set(value=peak['gamma'], min=1e-5, max=10)  # Set a reasonable max for gamma
+            elif function_type == 'Split Gaussian':
+                model = Model(split_gaussian, prefix=prefix)
+                params.update(model.make_params())
+                params[prefix+'amplitude'].set(value=amplitude_init, min=0)
+                params[prefix+'center'].set(value=center_init)
+                params[prefix+'sigma_left'].set(value=peak['sigma_left'], min=1e-5)
+                params[prefix+'sigma_right'].set(value=peak['sigma_right'], min=1e-5)
+            elif function_type == 'Split Lorentzian':
+                model = Model(split_lorentzian, prefix=prefix)
+                params.update(model.make_params())
+                params[prefix+'amplitude'].set(value=amplitude_init, min=0)
+                params[prefix+'center'].set(value=center_init)
+                params[prefix+'gamma_left'].set(value=peak['gamma_left'], min=1e-5)
+                params[prefix+'gamma_right'].set(value=peak['gamma_right'], min=1e-5)
             else:
                 print(f"Unknown function type: {function_type}")
                 continue
@@ -615,7 +691,6 @@ class DataFittingTab(QWidget):
 
         fitted_y = result.best_fit
         fit_params = []
-
 
         for idx, peak in enumerate(peaks):
             function_type = peak['function_type']
@@ -654,8 +729,8 @@ class DataFittingTab(QWidget):
                     'gamma_err': gamma_err
                 })
             elif function_type == 'Pseudo-Voigt':
-                width = result.params[f'{prefix}sigma'].value
-                width_err = result.params[f'{prefix}sigma'].stderr
+                sigma = result.params[f'{prefix}sigma'].value
+                sigma_err = result.params[f'{prefix}sigma'].stderr
                 fraction = result.params[f'{prefix}fraction'].value
                 fraction_err = result.params[f'{prefix}fraction'].stderr
                 fit_params.append({
@@ -664,10 +739,58 @@ class DataFittingTab(QWidget):
                     'amplitude_err': amplitude_err,
                     'center': center,
                     'center_err': center_err,
-                    'width': width,
-                    'width_err': width_err,
+                    'sigma': sigma,
+                    'sigma_err': sigma_err,
                     'fraction': fraction,
                     'fraction_err': fraction_err
+                })
+            elif function_type == 'Exponential Gaussian':
+                sigma = result.params[f'{prefix}sigma'].value
+                sigma_err = result.params[f'{prefix}sigma'].stderr
+                gamma = result.params[f'{prefix}gamma'].value
+                gamma_err = result.params[f'{prefix}gamma'].stderr
+                fit_params.append({
+                    'function_type': function_type,
+                    'amplitude': amplitude,
+                    'amplitude_err': amplitude_err,
+                    'center': center,
+                    'center_err': center_err,
+                    'sigma': sigma,
+                    'sigma_err': sigma_err,
+                    'gamma': gamma,
+                    'gamma_err': gamma_err
+                })
+            elif function_type == 'Split Gaussian':
+                sigma_left = result.params[f'{prefix}sigma_left'].value
+                sigma_left_err = result.params[f'{prefix}sigma_left'].stderr
+                sigma_right = result.params[f'{prefix}sigma_right'].value
+                sigma_right_err = result.params[f'{prefix}sigma_right'].stderr
+                fit_params.append({
+                    'function_type': function_type,
+                    'amplitude': amplitude,
+                    'amplitude_err': amplitude_err,
+                    'center': center,
+                    'center_err': center_err,
+                    'sigma_left': sigma_left,
+                    'sigma_left_err': sigma_left_err,
+                    'sigma_right': sigma_right,
+                    'sigma_right_err': sigma_right_err
+                })
+            elif function_type == 'Split Lorentzian':
+                gamma_left = result.params[f'{prefix}gamma_left'].value
+                gamma_left_err = result.params[f'{prefix}gamma_left'].stderr
+                gamma_right = result.params[f'{prefix}gamma_right'].value
+                gamma_right_err = result.params[f'{prefix}gamma_right'].stderr
+                fit_params.append({
+                    'function_type': function_type,
+                    'amplitude': amplitude,
+                    'amplitude_err': amplitude_err,
+                    'center': center,
+                    'center_err': center_err,
+                    'gamma_left': gamma_left,
+                    'gamma_left_err': gamma_left_err,
+                    'gamma_right': gamma_right,
+                    'gamma_right_err': gamma_right_err
                 })
 
         # Calculate residuals
@@ -696,6 +819,7 @@ class DataFittingTab(QWidget):
         print(f"R-squared: {r_squared}, Reduced Chi-Squared: {reduced_chi_squared}")
 
         return fitted_y, fit_info
+
 
 
 
@@ -937,6 +1061,29 @@ class DataFittingTab(QWidget):
                                 'Fraction': peak_params['fraction'],
                                 'Fraction_err': peak_params['fraction_err'],
                             })
+
+                        elif function_type == 'Exponential Gaussian':
+                            param_dict.update({
+                                'Sigma': peak_params['sigma'],
+                                'Sigma_err': peak_params['sigma_err'],
+                                'Gamma': peak_params['gamma'],
+                                'Gamma_err': peak_params['gamma_err'],
+                            })
+                        elif function_type == 'Split Gaussian':
+                            param_dict.update({
+                                'Sigma_Left': peak_params['sigma_left'],
+                                'Sigma_Left_err': peak_params['sigma_left_err'],
+                                'Sigma_Right': peak_params['sigma_right'],
+                                'Sigma_Right_err': peak_params['sigma_right_err'],
+                            })
+                        elif function_type == 'Split Lorentzian':
+                            param_dict.update({
+                                'Gamma_Left': peak_params['gamma_left'],
+                                'Gamma_Left_err': peak_params['gamma_left_err'],
+                                'Gamma_Right': peak_params['gamma_right'],
+                                'Gamma_Right_err': peak_params['gamma_right_err'],
+                            })
+                            
                         params_data.append(param_dict)
 
                     # Ensure all possible keys are included
