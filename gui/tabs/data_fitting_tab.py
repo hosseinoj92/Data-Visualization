@@ -1573,7 +1573,7 @@ class FittingMethodWindow(QDialog):
         self.method_name = method_name
         self.panel = panel_class()
         self.setWindowTitle(f"{method_name} Window")
-        self.setMinimumSize(400, 300)  # Adjust size as needed
+        self.setMinimumSize(400, 200)  # Adjust size as needed
 
         # Set layout
         layout = QVBoxLayout()
