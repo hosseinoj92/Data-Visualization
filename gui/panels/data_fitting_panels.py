@@ -2,7 +2,8 @@
 
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QComboBox, QSizePolicy
+    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
+    QComboBox, QSizePolicy, QRadioButton, QButtonGroup, QSpinBox
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QDoubleValidator
@@ -153,6 +154,12 @@ class GaussianFittingPanel(QWidget):
                 param_labels = ['Amplitude', 'Center', 'Sigma', 'Gamma']
             elif function_type == 'Pseudo-Voigt':
                 param_labels = ['Amplitude', 'Center', 'Width', 'Fraction']
+            elif function_type == 'Exponential Gaussian':
+                param_labels = ['Amplitude', 'Center', 'Sigma', 'Gamma']
+            elif function_type == 'Split Gaussian':
+                param_labels = ['Amplitude', 'Center', 'Sigma_Left', 'Sigma_Right']
+            elif function_type == 'Split Lorentzian':
+                param_labels = ['Amplitude', 'Center', 'Gamma_Left', 'Gamma_Right']
             else:
                 param_labels = ['', '', '', '']
 
@@ -176,9 +183,6 @@ class GaussianFittingPanel(QWidget):
             # Create parameter widgets in the second row
             self.create_parameter_widgets(row_position + 1, function_type, amplitude, center, width)
 
-            # Set cell spans if needed (e.g., span Function cell over two rows)
-            # self.peak_table.setSpan(row_position, 0, 2, 1)  # Optional: Span Function cell over two rows
-
             # Adjust the row heights if needed
             self.peak_table.setRowHeight(row_position, 20)
             self.peak_table.setRowHeight(row_position + 1, 30)
@@ -199,42 +203,41 @@ class GaussianFittingPanel(QWidget):
         # Initialize parameter widgets with empty labels
         param_widgets = []
         if function_type in ['Gaussian', 'Lorentzian']:
-            param_widgets.append(ParameterWidget('', param1))  # Amplitude
-            param_widgets.append(ParameterWidget('', param2))  # Center
-            param_widgets.append(ParameterWidget('', param3))  # Width
+            param_widgets.append(ParameterWidget('Amplitude', param1))
+            param_widgets.append(ParameterWidget('Center', param2))
+            param_widgets.append(ParameterWidget('Width', param3))
             param_widgets.append(QWidget())  # Empty widget for param4
         elif function_type == 'Voigt':
-            param_widgets.append(ParameterWidget('', param1))  # Amplitude
-            param_widgets.append(ParameterWidget('', param2))  # Center
-            param_widgets.append(ParameterWidget('', param3))  # Sigma
-            param_widgets.append(ParameterWidget('', param4))  # Gamma
+            param_widgets.append(ParameterWidget('Amplitude', param1))
+            param_widgets.append(ParameterWidget('Center', param2))
+            param_widgets.append(ParameterWidget('Sigma', param3))
+            param_widgets.append(ParameterWidget('Gamma', param4))
         elif function_type == 'Pseudo-Voigt':
-            param_widgets.append(ParameterWidget('', param1))  # Amplitude
-            param_widgets.append(ParameterWidget('', param2))  # Center
-            param_widgets.append(ParameterWidget('', param3))  # Width
-            param_widgets.append(ParameterWidget('', param4))  # Fraction
+            param_widgets.append(ParameterWidget('Amplitude', param1))
+            param_widgets.append(ParameterWidget('Center', param2))
+            param_widgets.append(ParameterWidget('Width', param3))
+            param_widgets.append(ParameterWidget('Fraction', param4))
         elif function_type == 'Exponential Gaussian':
-            param_widgets.append(ParameterWidget('', param1))  # Amplitude
-            param_widgets.append(ParameterWidget('', param2))  # Center
-            param_widgets.append(ParameterWidget('', param3))  # Sigma
-            param_widgets.append(ParameterWidget('', param4))  # Gamma
+            param_widgets.append(ParameterWidget('Amplitude', param1))
+            param_widgets.append(ParameterWidget('Center', param2))
+            param_widgets.append(ParameterWidget('Sigma', param3))
+            param_widgets.append(ParameterWidget('Gamma', param4))
         elif function_type == 'Split Gaussian':
-            param_widgets.append(ParameterWidget('', param1))  # Amplitude
-            param_widgets.append(ParameterWidget('', param2))  # Center
-            param_widgets.append(ParameterWidget('', param3))  # Sigma_Left
-            param_widgets.append(ParameterWidget('', param4))  # Sigma_Right
+            param_widgets.append(ParameterWidget('Amplitude', param1))
+            param_widgets.append(ParameterWidget('Center', param2))
+            param_widgets.append(ParameterWidget('Sigma_Left', param3))
+            param_widgets.append(ParameterWidget('Sigma_Right', param4))
         elif function_type == 'Split Lorentzian':
-            param_widgets.append(ParameterWidget('', param1))  # Amplitude
-            param_widgets.append(ParameterWidget('', param2))  # Center
-            param_widgets.append(ParameterWidget('', param3))  # Gamma_Left
-            param_widgets.append(ParameterWidget('', param4))  # Gamma_Right
+            param_widgets.append(ParameterWidget('Amplitude', param1))
+            param_widgets.append(ParameterWidget('Center', param2))
+            param_widgets.append(ParameterWidget('Gamma_Left', param3))
+            param_widgets.append(ParameterWidget('Gamma_Right', param4))
         else:
             param_widgets.extend([QWidget(), QWidget(), QWidget(), QWidget()])
 
         # Set parameter widgets
         for col, widget in enumerate(param_widgets, start=1):
             self.peak_table.setCellWidget(row, col, widget)
-
 
     def update_row_parameters(self, row):
         function_combo = self.peak_table.cellWidget(row, 0)
@@ -277,7 +280,6 @@ class GaussianFittingPanel(QWidget):
 
         # Now recreate the parameter widgets with existing values
         self.create_parameter_widgets(param_row, function_type, *current_values)
-
 
     def run_peak_finder(self):
         # Emit the signal to notify the parent to run the peak finder
@@ -378,11 +380,6 @@ class GaussianFittingPanel(QWidget):
         print("get_parameters: Retrieved peaks:", peaks)
         return {'peaks': peaks}
 
-
-from PyQt5.QtWidgets import QWidget, QLabel, QLineEdit, QHBoxLayout
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QDoubleValidator
-
 class ParameterWidget(QWidget):
     def __init__(self, param_name, param_value):
         super().__init__()
@@ -426,3 +423,85 @@ class ParameterWidget(QWidget):
     
     def set_value(self, value):
         self.line_edit.setText(f"{value:.2f}")
+
+class PolynomialFittingPanel(QWidget):
+    parameters_changed = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.method_name = "Polynomial Fitting"
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+
+        # Fitting Type Selection
+        layout.addWidget(QLabel("Select Fitting Type:"))
+        self.linear_radio = QRadioButton("Linear Fitting")
+        self.polynomial_radio = QRadioButton("Polynomial Fitting")
+        self.linear_radio.setChecked(True)
+
+        self.fitting_type_group = QButtonGroup()
+        self.fitting_type_group.addButton(self.linear_radio)
+        self.fitting_type_group.addButton(self.polynomial_radio)
+
+        layout.addWidget(self.linear_radio)
+        layout.addWidget(self.polynomial_radio)
+
+        # Degree of Polynomial
+        self.degree_label = QLabel("Polynomial Degree:")
+        self.degree_spinbox = QSpinBox()
+        self.degree_spinbox.setMinimum(2)
+        self.degree_spinbox.setMaximum(10)
+        self.degree_spinbox.setValue(2)
+        self.degree_label.setVisible(False)
+        self.degree_spinbox.setVisible(False)
+
+        degree_layout = QHBoxLayout()
+        degree_layout.addWidget(self.degree_label)
+        degree_layout.addWidget(self.degree_spinbox)
+        layout.addLayout(degree_layout)
+
+        # Buttons: Apply, Save, Send to Data Panel, Help
+        buttons_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        self.help_button = QPushButton("Help")
+        buttons_layout.addWidget(self.apply_button)
+        buttons_layout.addWidget(self.save_button)
+        buttons_layout.addWidget(self.send_to_data_panel_button)
+        buttons_layout.addWidget(self.help_button)
+        layout.addLayout(buttons_layout)
+
+        # Disable Save and Send buttons initially
+        self.save_button.setEnabled(False)
+        self.send_to_data_panel_button.setEnabled(False)
+
+        self.setLayout(layout)
+
+        # Connect Signals
+        self.linear_radio.toggled.connect(self.toggle_degree_visibility)
+        self.apply_button.clicked.connect(self.parameters_changed.emit)
+        self.help_button.clicked.connect(self.show_help)
+
+    def toggle_degree_visibility(self):
+        is_polynomial = self.polynomial_radio.isChecked()
+        self.degree_label.setVisible(is_polynomial)
+        self.degree_spinbox.setVisible(is_polynomial)
+
+    def get_parameters(self):
+        if self.linear_radio.isChecked():
+            fitting_type = 'linear'
+            degree = 1
+        else:
+            fitting_type = 'polynomial'
+            degree = self.degree_spinbox.value()
+        return {'fitting_type': fitting_type, 'degree': degree}
+
+    def show_help(self):
+        QMessageBox.information(
+            self, "Polynomial Fitting Help",
+            "Select 'Linear Fitting' for a straight line fit.\n"
+            "Select 'Polynomial Fitting' and specify the degree for higher-order fitting."
+        )

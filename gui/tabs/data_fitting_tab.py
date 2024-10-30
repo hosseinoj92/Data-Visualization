@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QLabel, QToolButton, QScrollArea, QSizePolicy,
     QPushButton, QHBoxLayout, QFrame, QFileDialog, QListWidgetItem, QColorDialog, QTableWidget, QHeaderView, QTableWidgetItem,
     QMessageBox, QTextEdit, QButtonGroup, QGroupBox, QVBoxLayout, QDialog,
-      QComboBox, QSpinBox, QCheckBox, QLineEdit,QApplication
+    QComboBox, QSpinBox, QCheckBox, QLineEdit, QApplication
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QEvent
 from PyQt5.QtGui import QIcon
@@ -14,7 +14,7 @@ from gui.panels.plot_details_panels import (
     AxisDetailsPanel, AdditionalTextPanel,
     CustomAnnotationsPanel, PlotVisualsPanel, PlotDetailsPanel,
 )
-
+import json
 from plots.plotting import plot_data
 from gui.utils.collapsible_sections import *
 
@@ -29,15 +29,12 @@ from gui.dialogs.save_plot_dialog import SavePlotDialog
 import sys
 from utils import read_numeric_data
 from functools import partial
-from gui.panels.data_fitting_panels import GaussianFittingPanel
-from functools import partial
+from gui.panels.data_fitting_panels import GaussianFittingPanel, PolynomialFittingPanel
 from scipy.signal import find_peaks, peak_widths  # Ensure peak_widths is imported
 
 from lmfit import Model, Parameters
 from scipy.special import wofz  # For Voigt function
 from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
-
-
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for development and PyInstaller."""
@@ -95,7 +92,6 @@ class DataFittingTab(QWidget):
 
         self.init_ui()
         self.expanded_window = None  # To track the expanded window
-        
 
         # Apply global stylesheet
         self.apply_stylesheet()
@@ -124,8 +120,6 @@ class DataFittingTab(QWidget):
         # Create collapsible sections for other panels
         self.collapsible_sections = []
 
- 
- 
         # Plot Details Section
         self.plot_details_panel = PlotDetailsPanel()
         plot_details_section = CollapsibleSection("Plot Details", self.plot_details_panel)
@@ -185,11 +179,7 @@ class DataFittingTab(QWidget):
         # Define fitting methods and their corresponding panel classes
         self.fitting_methods = [
             ("Peak Fitting", GaussianFittingPanel, 'gui/resources/gaussian_fitting_icon.png'),
-            # Add more fitting methods here as tuples: ("Method Name", PanelClass)
-            # Example:
-            # ("Lorentzian Fitting", LorentzianFittingPanel),
-            # ("Voigt Fitting", VoigtFittingPanel),
-            # ("Pseudo-Voigt Fitting", PseudoVoigtFittingPanel),
+            ("Polynomial Fitting", PolynomialFittingPanel, 'gui/resources/polynomial_fitting_icon.png'),
         ]
         # Create and add buttons for each fitting method
         self.fitting_method_windows = {}  # To keep references to the opened windows
@@ -452,12 +442,11 @@ class DataFittingTab(QWidget):
         # Ensure the button is unchecked
         panel.manual_peak_picker_button.setChecked(False)
 
-
-
     def apply_fitting(self, panel, update_plot=True):
         # Ensure that any pending edits are committed
-        panel.peak_table.clearFocus()
-        
+        if hasattr(panel, 'peak_table'):
+            panel.peak_table.clearFocus()
+
         # Get the selected data files
         data_files = self.selected_data_panel.get_selected_files()
         if not data_files:
@@ -491,8 +480,13 @@ class DataFittingTab(QWidget):
 
                 self.column_names[file_path] = (x_col_name, y_col_name)  # Store column names
 
-                # Perform fitting with mixed function types using lmfit
-                fitted_y, fit_info = self.perform_mixed_fitting(x, y, params['peaks'])
+                # Check which panel is being used
+                if isinstance(panel, PolynomialFittingPanel):
+                    # Perform polynomial fitting
+                    fitted_y, fit_info = self.perform_polynomial_fitting(x, y, params)
+                else:
+                    # Perform peak fitting with mixed function types
+                    fitted_y, fit_info = self.perform_mixed_fitting(x, y, params['peaks'])
 
                 if fitted_y is None or fit_info is None:
                     error_message = f"Fitting failed for file {file_path}."
@@ -511,13 +505,52 @@ class DataFittingTab(QWidget):
         if fitting_errors:
             QMessageBox.warning(self, "Fitting Errors", "\n".join(fitting_errors))
 
-        # Open a separate interactive matplotlib window with the results
+        # Plot the fitting results
         self.plot_fitting_results(data_files)
 
         panel.save_button.setEnabled(True)
         panel.send_to_data_panel_button.setEnabled(True)
 
+    def perform_polynomial_fitting(self, x, y, params):
+        import numpy as np
 
+        x = np.array(x)
+        y = np.array(y)
+
+        degree = params['degree']
+        try:
+            # Fit polynomial
+            coeffs = np.polyfit(x, y, degree)
+            p = np.poly1d(coeffs)
+            fitted_y = p(x)
+
+            # Calculate residuals and fit statistics
+            residuals = y - fitted_y
+            ss_res = np.sum(residuals ** 2)
+            ss_tot = np.sum((y - np.mean(y)) ** 2)
+            r_squared = 1 - (ss_res / ss_tot)
+            degrees_of_freedom = len(y) - (degree + 1)
+            reduced_chi_squared = ss_res / degrees_of_freedom if degrees_of_freedom > 0 else np.nan
+
+            # Prepare fit_info dictionary
+            fit_info = {
+                'coefficients': coeffs,
+                'residuals': residuals,
+                'r_squared': r_squared,
+                'reduced_chi_squared': reduced_chi_squared,
+            }
+
+            print(f"Polynomial coefficients: {coeffs}")  # Debugging statement
+            print(f"R-squared: {r_squared}, Reduced Chi-Squared: {reduced_chi_squared}")
+
+            return fitted_y, fit_info
+
+        except Exception as e:
+            QMessageBox.warning(self, "Fitting Error", f"Fitting failed: {e}")
+            print(f"Fitting failed: {e}")
+            return None, None
+
+        
     def plot_fitting_results(self, data_files):
         import matplotlib.pyplot as plt
 
@@ -532,71 +565,94 @@ class DataFittingTab(QWidget):
                 x, y, fitted_y, fit_info = self.fitted_data[file_path]
                 label = os.path.basename(file_path)
                 # Prepare label with additional parameters
-                r_squared = fit_info['r_squared']
-                reduced_chi_squared = fit_info['reduced_chi_squared']
+                r_squared = fit_info.get('r_squared', np.nan)
+                reduced_chi_squared = fit_info.get('reduced_chi_squared', np.nan)
 
-                # Collect errors and function types for each peak
-                fit_params = fit_info['fit_params']
-                param_info = []
-                for i, params in enumerate(fit_params):
-                    function_type = params['function_type']
-                    amplitude_err = params['amplitude_err'] if params['amplitude_err'] is not None else np.nan
-                    center_err = params['center_err'] if params['center_err'] is not None else np.nan
+                label_fit = f"{label} Fit\n$R^2$={r_squared:.4f}, $\\chi^2$={reduced_chi_squared:.4f}"
 
-                    if function_type in ['Gaussian', 'Lorentzian']:
-                        width_err = params['width_err'] if params['width_err'] is not None else np.nan
-                        param_info.append(
-                            f"Peak {i+1} ({function_type}): "
-                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, Width_err={width_err:.2e}"
-                        )
-                    elif function_type == 'Voigt':
-                        sigma_err = params['sigma_err'] if params['sigma_err'] is not None else np.nan
-                        gamma_err = params['gamma_err'] if params['gamma_err'] is not None else np.nan
-                        param_info.append(
-                            f"Peak {i+1} ({function_type}): "
-                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
-                            f"Sigma_err={sigma_err:.2e}, Gamma_err={gamma_err:.2e}"
-                        )
-                    elif function_type == 'Pseudo-Voigt':
-                        sigma_err = params['sigma_err'] if params['sigma_err'] is not None else np.nan
-                        fraction_err = params['fraction_err'] if params['fraction_err'] is not None else np.nan
-                        param_info.append(
-                            f"Peak {i+1} ({function_type}): "
-                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
-                            f"Sigma_err={sigma_err:.2e}, Fraction_err={fraction_err:.2e}"
-    )
-                    elif function_type == 'Exponential Gaussian':
-                        sigma_err = params['sigma_err'] if params['sigma_err'] is not None else np.nan
-                        gamma_err = params['gamma_err'] if params['gamma_err'] is not None else np.nan
-                        param_info.append(
-                            f"Peak {i+1} ({function_type}): "
-                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
-                            f"Sigma_err={sigma_err:.2e}, Gamma_err={gamma_err:.2e}"
-                        )
-                    elif function_type == 'Split Gaussian':
-                        sigma_left_err = params['sigma_left_err'] if params['sigma_left_err'] is not None else np.nan
-                        sigma_right_err = params['sigma_right_err'] if params['sigma_right_err'] is not None else np.nan
-                        param_info.append(
-                            f"Peak {i+1} ({function_type}): "
-                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
-                            f"Sigma_Left_err={sigma_left_err:.2e}, Sigma_Right_err={sigma_right_err:.2e}"
-                        )
-                    elif function_type == 'Split Lorentzian':
-                        gamma_left_err = params['gamma_left_err'] if params['gamma_left_err'] is not None else np.nan
-                        gamma_right_err = params['gamma_right_err'] if params['gamma_right_err'] is not None else np.nan
-                        param_info.append(
-                            f"Peak {i+1} ({function_type}): "
-                            f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
-                            f"Gamma_Left_err={gamma_left_err:.2e}, Gamma_Right_err={gamma_right_err:.2e}"
-                        )
+                # Check if this is polynomial fitting
+                if 'coefficients' in fit_info:
+                    coeffs = fit_info['coefficients']
+                    # Create a string representation of the polynomial
+                    coeffs_text = " + ".join([f"{c:.2e}x^{i}" for i, c in enumerate(coeffs[::-1])])
+                    label_fit += f"\nPolynomial Coefficients:\n{coeffs_text}"
 
-                params_text = '\n'.join(param_info)
-                label_fit = f"{label} Fit\n$R^2$={r_squared:.4f}, $\\chi^2$={reduced_chi_squared:.4f}\n{params_text}"
+                    # Plot original data and fitted curve
+                    ax.plot(x, y, 'b.', label=f"{label} Data")
+                    ax.plot(x, fitted_y, 'r-', label=label_fit)
 
-                # Plot original data
-                ax.plot(x, y, 'b.', label=f"{label} Data")
-                # Plot fitted curve
-                ax.plot(x, fitted_y, 'r-', label=label_fit)
+                    # Add text annotation for polynomial coefficients
+                    ax.text(0.05, 0.95, label_fit, transform=ax.transAxes, fontsize=8,
+                            verticalalignment='top', bbox=dict(boxstyle="round", facecolor='wheat', alpha=0.5))
+                else:
+                    # Handle peak fitting
+                    # Collect errors and function types for each peak
+                    fit_params = fit_info['fit_params']
+                    param_info = []
+                    for i, params in enumerate(fit_params):
+                        function_type = params['function_type']
+                        amplitude_err = params.get('amplitude_err', np.nan)
+                        center_err = params.get('center_err', np.nan)
+
+                        if function_type in ['Gaussian', 'Lorentzian']:
+                            width_err = params.get('width_err', np.nan)
+                            param_info.append(
+                                f"Peak {i+1} ({function_type}): "
+                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, Width_err={width_err:.2e}"
+                            )
+                        elif function_type == 'Voigt':
+                            sigma_err = params.get('sigma_err', np.nan)
+                            gamma_err = params.get('gamma_err', np.nan)
+                            param_info.append(
+                                f"Peak {i+1} ({function_type}): "
+                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
+                                f"Sigma_err={sigma_err:.2e}, Gamma_err={gamma_err:.2e}"
+                            )
+                        elif function_type == 'Pseudo-Voigt':
+                            sigma_err = params.get('sigma_err', np.nan)
+                            fraction_err = params.get('fraction_err', np.nan)
+                            param_info.append(
+                                f"Peak {i+1} ({function_type}): "
+                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
+                                f"Sigma_err={sigma_err:.2e}, Fraction_err={fraction_err:.2e}"
+                            )
+                        elif function_type == 'Exponential Gaussian':
+                            sigma_err = params.get('sigma_err', np.nan)
+                            gamma_err = params.get('gamma_err', np.nan)
+                            param_info.append(
+                                f"Peak {i+1} ({function_type}): "
+                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
+                                f"Sigma_err={sigma_err:.2e}, Gamma_err={gamma_err:.2e}"
+                            )
+                        elif function_type == 'Split Gaussian':
+                            sigma_left_err = params.get('sigma_left_err', np.nan)
+                            sigma_right_err = params.get('sigma_right_err', np.nan)
+                            param_info.append(
+                                f"Peak {i+1} ({function_type}): "
+                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
+                                f"Sigma_Left_err={sigma_left_err:.2e}, Sigma_Right_err={sigma_right_err:.2e}"
+                            )
+                        elif function_type == 'Split Lorentzian':
+                            gamma_left_err = params.get('gamma_left_err', np.nan)
+                            gamma_right_err = params.get('gamma_right_err', np.nan)
+                            param_info.append(
+                                f"Peak {i+1} ({function_type}): "
+                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
+                                f"Gamma_Left_err={gamma_left_err:.2e}, Gamma_Right_err={gamma_right_err:.2e}"
+                            )
+                        else:
+                            param_info.append(f"Unknown function type: {function_type}")
+
+                    params_text = '\n'.join(param_info)
+                    label_fit += f"\n{params_text}"
+
+                    # Plot original data and fitted curve
+                    ax.plot(x, y, 'b.', label=f"{label} Data")
+                    ax.plot(x, fitted_y, 'r-', label=label_fit)
+
+                    # Add text annotation for peak parameters
+                    ax.text(0.05, 0.95, params_text, transform=ax.transAxes, fontsize=8,
+                            verticalalignment='top', bbox=dict(boxstyle="round", facecolor='wheat', alpha=0.5))
             else:
                 print(f"No fitted data for file {file_path}")
 
@@ -612,7 +668,7 @@ class DataFittingTab(QWidget):
 
         ax.legend(loc='best', fontsize='small')
         plt.title('Fitting Results')
-        self.canvas.draw_idle()  
+        self.canvas.draw_idle()
 
     def perform_mixed_fitting(self, x, y, peaks):
         from lmfit import Parameters, Model
@@ -635,48 +691,48 @@ class DataFittingTab(QWidget):
                 params.update(model.make_params())
                 params[prefix+'amplitude'].set(value=amplitude_init, min=0)
                 params[prefix+'center'].set(value=center_init)
-                params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
+                params[prefix+'sigma'].set(value=peak.get('sigma', 1.0), min=1e-5)
             elif function_type == 'Lorentzian':
                 model = LorentzianModel(prefix=prefix)
                 params.update(model.make_params())
                 params[prefix+'amplitude'].set(value=amplitude_init, min=0)
                 params[prefix+'center'].set(value=center_init)
-                params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
+                params[prefix+'sigma'].set(value=peak.get('sigma', 1.0), min=1e-5)
             elif function_type == 'Voigt':
                 model = VoigtModel(prefix=prefix)
                 params.update(model.make_params())
                 params[prefix+'amplitude'].set(value=amplitude_init, min=0)
                 params[prefix+'center'].set(value=center_init)
-                params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
-                params[prefix+'gamma'].set(value=peak['gamma'], min=1e-5)
+                params[prefix+'sigma'].set(value=peak.get('sigma', 1.0), min=1e-5)
+                params[prefix+'gamma'].set(value=peak.get('gamma', 1.0), min=1e-5)
             elif function_type == 'Pseudo-Voigt':
                 model = PseudoVoigtModel(prefix=prefix)
                 params.update(model.make_params())
                 params[prefix+'amplitude'].set(value=amplitude_init, min=0)
                 params[prefix+'center'].set(value=center_init)
-                params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
-                params[prefix+'fraction'].set(value=peak['fraction'], min=0, max=1)
+                params[prefix+'sigma'].set(value=peak.get('sigma', 1.0), min=1e-5)
+                params[prefix+'fraction'].set(value=peak.get('fraction', 0.5), min=0, max=1)
             elif function_type == 'Exponential Gaussian':
                 model = Model(exponential_gaussian, prefix=prefix)
                 params.update(model.make_params())
                 params[prefix+'amplitude'].set(value=amplitude_init, min=0)
                 params[prefix+'center'].set(value=center_init)
-                params[prefix+'sigma'].set(value=peak['sigma'], min=1e-5)
-                params[prefix+'gamma'].set(value=peak['gamma'], min=1e-5, max=10)  # Set a reasonable max for gamma
+                params[prefix+'sigma'].set(value=peak.get('sigma', 1.0), min=1e-5)
+                params[prefix+'gamma'].set(value=peak.get('gamma', 1.0), min=1e-5, max=10)  # Set a reasonable max for gamma
             elif function_type == 'Split Gaussian':
                 model = Model(split_gaussian, prefix=prefix)
                 params.update(model.make_params())
                 params[prefix+'amplitude'].set(value=amplitude_init, min=0)
                 params[prefix+'center'].set(value=center_init)
-                params[prefix+'sigma_left'].set(value=peak['sigma_left'], min=1e-5)
-                params[prefix+'sigma_right'].set(value=peak['sigma_right'], min=1e-5)
+                params[prefix+'sigma_left'].set(value=peak.get('sigma_left', 1.0), min=1e-5)
+                params[prefix+'sigma_right'].set(value=peak.get('sigma_right', 1.0), min=1e-5)
             elif function_type == 'Split Lorentzian':
                 model = Model(split_lorentzian, prefix=prefix)
                 params.update(model.make_params())
                 params[prefix+'amplitude'].set(value=amplitude_init, min=0)
                 params[prefix+'center'].set(value=center_init)
-                params[prefix+'gamma_left'].set(value=peak['gamma_left'], min=1e-5)
-                params[prefix+'gamma_right'].set(value=peak['gamma_right'], min=1e-5)
+                params[prefix+'gamma_left'].set(value=peak.get('gamma_left', 1.0), min=1e-5)
+                params[prefix+'gamma_right'].set(value=peak.get('gamma_right', 1.0), min=1e-5)
             else:
                 print(f"Unknown function type: {function_type}")
                 continue
@@ -821,10 +877,6 @@ class DataFittingTab(QWidget):
 
         return fitted_y, fit_info
 
-
-
-
-
     def send_fitted_data_to_data_panel(self, panel):
         if not self.fitted_data:
             QMessageBox.warning(self, "No Fitted Data", "Please apply fitting first.")
@@ -837,8 +889,6 @@ class DataFittingTab(QWidget):
             return
 
         # Prepare to send data to the data panel
-        # For this example, we'll save the fitted data to temporary files and add them to the selected data panel
-
         import tempfile
 
         fitted_file_paths = []
@@ -966,7 +1016,7 @@ class DataFittingTab(QWidget):
             # Prepare label with additional parameters
             r_squared = fit_info['r_squared']
             reduced_chi_squared = fit_info['reduced_chi_squared']
-            label_fit = f"{label} Fit\n$R^2$={r_squared:.4f}, $\chi^2$={reduced_chi_squared:.4f}"
+            label_fit = f"{label} Fit\n$R^2$={r_squared:.4f}, $\\chi^2$={reduced_chi_squared:.4f}"
             # Plot original data
             ax.plot(x, y, 'b.', label=f"{label} Data")
             # Plot fitted curve
@@ -987,7 +1037,6 @@ class DataFittingTab(QWidget):
         self.canvas.draw_idle()
         print("Plot updated with fitted data.")  # Debugging statement
 
-        
     def save_fitted_data(self, panel):
         if not self.fitted_data:
             QMessageBox.warning(self, "No Fitted Data", "Please apply fitting first.")
@@ -1009,7 +1058,7 @@ class DataFittingTab(QWidget):
                 x, y, fitted_y, fit_info = self.fitted_data[file_path]
                 base_name = os.path.splitext(os.path.basename(file_path))[0]
                 x_col_name, y_col_name = self.column_names.get(file_path, ('X', 'Y'))
-                
+
                 # === Saving CSV Files ===
                 try:
                     # Save x, original y, fitted y, residuals to CSV
@@ -1017,7 +1066,7 @@ class DataFittingTab(QWidget):
                         x_col_name: x,
                         y_col_name: y,
                         'Fitted_' + y_col_name: fitted_y,
-                        'Residuals': fit_info['residuals']
+                        'Residuals': fit_info.get('residuals', np.nan)
                     })
                     new_file_name = f"{base_name}_fitted.csv"
                     new_file_path = os.path.join(directory, new_file_name)
@@ -1028,133 +1077,106 @@ class DataFittingTab(QWidget):
                     print(f"Error saving CSV for {base_name}: {e}")
 
                 try:
-                    # === Saving Fit Parameters CSV ===
-                    fit_params = fit_info['fit_params']
-                    params_data = []
-                    for i, peak_params in enumerate(fit_params):
-                        param_dict = {
-                            'Peak': i + 1,
-                            'Function_Type': peak_params['function_type'],
-                            'Amplitude': peak_params['amplitude'],
-                            'Amplitude_err': peak_params['amplitude_err'],
-                            'Center': peak_params['center'],
-                            'Center_err': peak_params['center_err'],
+                    # === Saving Fit Parameters ===
+                    if 'coefficients' in fit_info:
+                        # Polynomial Fitting Parameters
+                        coeffs = fit_info['coefficients']
+                        params_data = {
+                            'Degree': len(coeffs) - 1,
+                            'Coefficients': coeffs.tolist(),
+                            'R_squared': fit_info['r_squared'],
+                            'Reduced_Chi_squared': fit_info['reduced_chi_squared']
                         }
-                        function_type = peak_params['function_type']
-                        if function_type in ['Gaussian', 'Lorentzian']:
-                            param_dict.update({
-                                'Width': peak_params['width'],
-                                'Width_err': peak_params['width_err'],
-                            })
-                        elif function_type == 'Voigt':
-                            param_dict.update({
-                                'Sigma': peak_params['sigma'],
-                                'Sigma_err': peak_params['sigma_err'],
-                                'Gamma': peak_params['gamma'],
-                                'Gamma_err': peak_params['gamma_err'],
-                            })
-                        elif function_type == 'Pseudo-Voigt':
-                            param_dict.update({
-                                'Sigma': peak_params['sigma'],
-                                'Sigma_err': peak_params['sigma_err'],
-                                'Fraction': peak_params['fraction'],
-                                'Fraction_err': peak_params['fraction_err'],
-                            })
-                        elif function_type == 'Exponential Gaussian':
-                            param_dict.update({
-                                'Sigma': peak_params['sigma'],
-                                'Sigma_err': peak_params['sigma_err'],
-                                'Gamma': peak_params['gamma'],
-                                'Gamma_err': peak_params['gamma_err'],
-                            })
-                        elif function_type == 'Split Gaussian':
-                            param_dict.update({
-                                'Sigma_Left': peak_params['sigma_left'],
-                                'Sigma_Left_err': peak_params['sigma_left_err'],
-                                'Sigma_Right': peak_params['sigma_right'],
-                                'Sigma_Right_err': peak_params['sigma_right_err'],
-                            })
-                        elif function_type == 'Split Lorentzian':
-                            param_dict.update({
-                                'Gamma_Left': peak_params['gamma_left'],
-                                'Gamma_Left_err': peak_params['gamma_left_err'],
-                                'Gamma_Right': peak_params['gamma_right'],
-                                'Gamma_Right_err': peak_params['gamma_right_err'],
-                            })
-                        else:
-                            print(f"Unknown function type: {function_type}")
-                        params_data.append(param_dict)
-
-                    # Ensure all possible keys are included and sorted
-                    all_keys = sorted(set().union(*(d.keys() for d in params_data)))
-
-                    # Create DataFrame with all keys
-                    params_df = pd.DataFrame(params_data, columns=all_keys)
-
-                    # Add R-squared and Reduced Chi-Squared at the end
-                    overall_stats = {key: np.nan for key in all_keys}
-                    overall_stats.update({
-                        'Peak': 'Overall',
-                        'Function_Type': 'Statistics',
-                        'R_squared': fit_info['r_squared'],
-                        'Reduced_Chi_squared': fit_info['reduced_chi_squared']
-                    })
-                    params_df = params_df.append(overall_stats, ignore_index=True)
-
-                    # Save fit parameters CSV
-                    params_file_name = f"{base_name}_fit_parameters.csv"
-                    params_file_path = os.path.join(directory, params_file_name)
-                    params_df.to_csv(params_file_path, index=False)
-                    print(f"Fit parameters saved to {params_file_path}")
-                except Exception as e:
-                    QMessageBox.warning(self, "Error Saving Fit Parameters CSV", f"Error saving fit parameters CSV for {base_name}:\n{e}")
-                    print(f"Error saving fit parameters CSV for {base_name}: {e}")
-
-                try:
-                    # === Saving Fit Information to a Text File ===
-                    fit_info_text_file = f"{base_name}_fit_info.txt"
-                    fit_info_text_path = os.path.join(directory, fit_info_text_file)
-
-                    with open(fit_info_text_path, 'w') as f:
-                        f.write(f"Fitted Data for file: {os.path.basename(file_path)}\n\n")
-                        f.write(f"R-squared: {fit_info['r_squared']:.6f}\n")
-                        f.write(f"Reduced Chi-squared: {fit_info['reduced_chi_squared']:.6f}\n\n")
-
-                        for i, peak_params in enumerate(fit_info['fit_params'], start=1):
-                            f.write(f"Peak {i}: {peak_params['function_type']}\n")
-                            f.write(f"    Amplitude: {peak_params['amplitude']:.4f} ± {peak_params['amplitude_err']:.4f}\n")
-                            f.write(f"    Center: {peak_params['center']:.4f} ± {peak_params['center_err']:.4f}\n")
-
-                            if peak_params['function_type'] in ['Gaussian', 'Lorentzian']:
-                                f.write(f"    Width: {peak_params['width']:.4f} ± {peak_params['width_err']:.4f}\n")
-                            elif peak_params['function_type'] == 'Voigt':
-                                f.write(f"    Sigma: {peak_params['sigma']:.4f} ± {peak_params['sigma_err']:.4f}\n")
-                                f.write(f"    Gamma: {peak_params['gamma']:.4f} ± {peak_params['gamma_err']:.4f}\n")
-                            elif peak_params['function_type'] == 'Pseudo-Voigt':
-                                f.write(f"    Sigma: {peak_params['sigma']:.4f} ± {peak_params['sigma_err']:.4f}\n")
-                                f.write(f"    Fraction: {peak_params['fraction']:.4f} ± {peak_params['fraction_err']:.4f}\n")
-                            elif peak_params['function_type'] == 'Exponential Gaussian':
-                                f.write(f"    Sigma: {peak_params['sigma']:.4f} ± {peak_params['sigma_err']:.4f}\n")
-                                f.write(f"    Gamma: {peak_params['gamma']:.4f} ± {peak_params['gamma_err']:.4f}\n")
-                            elif peak_params['function_type'] == 'Split Gaussian':
-                                f.write(f"    Sigma_Left: {peak_params['sigma_left']:.4f} ± {peak_params['sigma_left_err']:.4f}\n")
-                                f.write(f"    Sigma_Right: {peak_params['sigma_right']:.4f} ± {peak_params['sigma_right_err']:.4f}\n")
-                            elif peak_params['function_type'] == 'Split Lorentzian':
-                                f.write(f"    Gamma_Left: {peak_params['gamma_left']:.4f} ± {peak_params['gamma_left_err']:.4f}\n")
-                                f.write(f"    Gamma_Right: {peak_params['gamma_right']:.4f} ± {peak_params['gamma_right_err']:.4f}\n")
+                        params_file_name = f"{base_name}_fit_parameters.json"
+                        params_file_path = os.path.join(directory, params_file_name)
+                        with open(params_file_path, 'w') as f:
+                            json.dump(params_data, f, indent=4)
+                        print(f"Fit parameters saved to {params_file_path}")
+                    else:
+                        # Peak Fitting Parameters
+                        fit_params = fit_info['fit_params']
+                        params_data = []
+                        for i, peak_params in enumerate(fit_params):
+                            param_dict = {
+                                'Peak': i + 1,
+                                'Function_Type': peak_params['function_type'],
+                                'Amplitude': peak_params['amplitude'],
+                                'Amplitude_err': peak_params.get('amplitude_err', np.nan),
+                                'Center': peak_params['center'],
+                                'Center_err': peak_params.get('center_err', np.nan),
+                            }
+                            function_type = peak_params['function_type']
+                            if function_type in ['Gaussian', 'Lorentzian']:
+                                param_dict.update({
+                                    'Width': peak_params.get('width', np.nan),
+                                    'Width_err': peak_params.get('width_err', np.nan),
+                                })
+                            elif function_type == 'Voigt':
+                                param_dict.update({
+                                    'Sigma': peak_params.get('sigma', np.nan),
+                                    'Sigma_err': peak_params.get('sigma_err', np.nan),
+                                    'Gamma': peak_params.get('gamma', np.nan),
+                                    'Gamma_err': peak_params.get('gamma_err', np.nan),
+                                })
+                            elif function_type == 'Pseudo-Voigt':
+                                param_dict.update({
+                                    'Sigma': peak_params.get('sigma', np.nan),
+                                    'Sigma_err': peak_params.get('sigma_err', np.nan),
+                                    'Fraction': peak_params.get('fraction', np.nan),
+                                    'Fraction_err': peak_params.get('fraction_err', np.nan),
+                                })
+                            elif function_type == 'Exponential Gaussian':
+                                param_dict.update({
+                                    'Sigma': peak_params.get('sigma', np.nan),
+                                    'Sigma_err': peak_params.get('sigma_err', np.nan),
+                                    'Gamma': peak_params.get('gamma', np.nan),
+                                    'Gamma_err': peak_params.get('gamma_err', np.nan),
+                                })
+                            elif function_type == 'Split Gaussian':
+                                param_dict.update({
+                                    'Sigma_Left': peak_params.get('sigma_left', np.nan),
+                                    'Sigma_Left_err': peak_params.get('sigma_left_err', np.nan),
+                                    'Sigma_Right': peak_params.get('sigma_right', np.nan),
+                                    'Sigma_Right_err': peak_params.get('sigma_right_err', np.nan),
+                                })
+                            elif function_type == 'Split Lorentzian':
+                                param_dict.update({
+                                    'Gamma_Left': peak_params.get('gamma_left', np.nan),
+                                    'Gamma_Left_err': peak_params.get('gamma_left_err', np.nan),
+                                    'Gamma_Right': peak_params.get('gamma_right', np.nan),
+                                    'Gamma_Right_err': peak_params.get('gamma_right_err', np.nan),
+                                })
                             else:
-                                f.write("    Unknown Function Type Parameters.\n")
+                                print(f"Unknown function type: {function_type}")
+                            params_data.append(param_dict)
 
-                            f.write("\n")  # Add an empty line between peaks
+                        # Ensure all possible keys are included and sorted
+                        all_keys = sorted(set().union(*(d.keys() for d in params_data)))
 
-                    print(f"Fit information saved to {fit_info_text_path}")
+                        # Create DataFrame with all keys
+                        params_df = pd.DataFrame(params_data, columns=all_keys)
+
+                        # Add R-squared and Reduced Chi-Squared at the end
+                        overall_stats = {key: np.nan for key in all_keys}
+                        overall_stats.update({
+                            'Peak': 'Overall',
+                            'Function_Type': 'Statistics',
+                            'R_squared': fit_info['r_squared'],
+                            'Reduced_Chi_squared': fit_info['reduced_chi_squared']
+                        })
+                        params_df = params_df.append(overall_stats, ignore_index=True)
+
+                        # Save fit parameters CSV
+                        params_file_name = f"{base_name}_fit_parameters.csv"
+                        params_file_path = os.path.join(directory, params_file_name)
+                        params_df.to_csv(params_file_path, index=False)
+                        print(f"Fit parameters saved to {params_file_path}")
                 except Exception as e:
-                    QMessageBox.warning(self, "Error Saving Fit Info Text File", f"Error saving fit info text file for {base_name}:\n{e}")
-                    print(f"Error saving fit info text file for {base_name}: {e}")
+                    QMessageBox.warning(self, "Error Saving Fit Parameters", f"Error saving fit parameters for {base_name}:\n{e}")
+                    print(f"Error saving fit parameters for {base_name}: {e}")
 
         QMessageBox.information(self, "Save Successful", f"Fitted data saved to {directory}")
         print("All fitted files saved successfully.")
-
 
     def update_plot(self):
         # Gather all parameters from panels
@@ -1268,6 +1290,7 @@ class DataFittingTab(QWidget):
         if self.expanded_window is not None:
             print("Expanded window already exists, bringing it to front.")
             self.expanded_window.raise_()
+            self.expanded_window.activateWindow()
             return
 
         # Create a new expanded window
@@ -1342,7 +1365,10 @@ class DataFittingTab(QWidget):
         default_width = 1.0  # Some default value, or estimate
 
         # Call a method in the fitting panel to add a new peak
-        self.current_fitting_panel.add_peak_row(default_amplitude, x, default_width)
+        if self.current_fitting_panel:
+            self.current_fitting_panel.add_peak_row(default_amplitude, x, default_width)
+        else:
+            QMessageBox.warning(self, "No Fitting Panel", "No fitting panel is currently active.")
 
     def on_mouse_move(self, event):
         if self.plot_type != "2D" or not self.annotation_mode:
@@ -1447,7 +1473,6 @@ class DataFittingTab(QWidget):
     def read_numeric_data(self, file_path):
         return read_numeric_data(file_path, parent=self)
 
-
     def save_plot_with_options(self):
         print("Save Plot button clicked.")
         dialog = SavePlotDialog(self)
@@ -1457,52 +1482,73 @@ class DataFittingTab(QWidget):
             self.save_plot(width_pixels, height_pixels, quality)
 
     def save_plot(self, width_pixels, height_pixels, quality):
-        # Map quality to dpi
-        quality_dpi_mapping = {
-            "Low": 72,
-            "Medium": 150,
-            "High": 300,
-            "Very High": 600
-        }
-        dpi = quality_dpi_mapping.get(quality, 150)  # Default to 150 DPI if not found
+        try:
+            # Map quality to DPI
+            quality_dpi_mapping = {
+                "Low": 72,
+                "Medium": 150,
+                "High": 300,
+                "Very High": 600
+            }
+            dpi = quality_dpi_mapping.get(quality, 150)  # Default to 150 DPI if not found
+            print(f"Selected quality '{quality}' mapped to DPI: {dpi}")
 
-        # Keep the figure size in inches based on width and height
-        width_in = width_pixels / 100  # Convert pixels to "figure inches" (for matplotlib size control)
-        height_in = height_pixels / 100  # Same conversion
+            # Validate width_pixels and height_pixels
+            if not isinstance(width_pixels, (int, float)) or not isinstance(height_pixels, (int, float)):
+                raise ValueError("Width and Height must be numeric values.")
 
-        # Store original figure size and DPI
-        original_size = self.figure.get_size_inches()
-        original_dpi = self.figure.get_dpi()
+            if width_pixels <= 0 or height_pixels <= 0:
+                raise ValueError("Width and Height must be positive values.")
 
-        # Set the figure size to the new dimensions in inches
-        self.figure.set_size_inches(width_in, height_in)
+            # Convert pixels to inches (assuming 100 pixels per inch for this context)
+            width_in = width_pixels / 100
+            height_in = height_pixels / 100
+            print(f"Converted dimensions to inches: {width_in}in x {height_in}in")
 
-        # Define the file path
-        options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save Plot",
-            "",
-            "PNG Files (*.png);;JPEG Files (*.jpg);;All Files (*)",
-            options=options
-        )
-        if file_path:
-            try:
-                # Save the figure with the specified DPI, affecting only the quality (sharpness) not the size
-                self.figure.savefig(file_path, dpi=dpi)
-                QMessageBox.information(self, "Save Successful", f"Plot saved successfully at:\n{file_path}")
-                print(f"Plot saved successfully at: {file_path}")
-            except Exception as e:
-                QMessageBox.warning(self, "Save Failed", f"Failed to save plot:\n{e}")
-                print(f"Failed to save plot: {e}")
+            # Store original figure size and DPI
+            original_size = self.figure.get_size_inches()
+            original_dpi = self.figure.get_dpi()
+            print(f"Original figure size: {original_size}, DPI: {original_dpi}")
 
-        # Restore original figure size and DPI after saving to avoid affecting the interactive plot
-        self.figure.set_size_inches(original_size)
-        self.figure.set_dpi(original_dpi)
+            # Set the new figure size
+            self.figure.set_size_inches(width_in, height_in)
+            print(f"Figure size set to: {width_in}in x {height_in}in")
 
-        # Redraw the canvas to make sure the interactive plot looks normal after saving
-        self.canvas.draw_idle()
-        print("Figure size and DPI restored to original after saving.")
+            # Set the figure DPI
+            self.figure.set_dpi(dpi)
+            print(f"Figure DPI set to: {dpi}")
+
+            # Open file dialog to select save location
+            options = QFileDialog.Options()
+            file_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save Plot",
+                "",
+                "PNG Files (*.png);;JPEG Files (*.jpg);;All Files (*)",
+                options=options
+            )
+            if file_path:
+                try:
+                    # Save the figure
+                    self.figure.savefig(file_path, dpi=dpi)
+                    QMessageBox.information(self, "Save Successful", f"Plot saved successfully at:\n{file_path}")
+                    print(f"Plot saved successfully at: {file_path}")
+                except Exception as e:
+                    QMessageBox.warning(self, "Save Failed", f"Failed to save plot:\n{e}")
+                    print(f"Failed to save plot: {e}")
+
+            # Restore original figure size and DPI
+            self.figure.set_size_inches(original_size)
+            self.figure.set_dpi(original_dpi)
+            print(f"Figure size and DPI restored to original: {original_size}in x {original_size}in, DPI: {original_dpi}")
+
+            # Redraw the canvas to reflect restored properties
+            self.canvas.draw_idle()
+            print("Canvas redrawn after restoring figure properties.")
+
+        except Exception as e:
+            QMessageBox.warning(self, "Save Plot Failed", f"An error occurred while saving the plot:\n{e}")
+            print(f"An error occurred while saving the plot: {e}")
 
 class FittingMethodWindow(QDialog):
     """A separate window to host a fitting panel."""
@@ -1527,12 +1573,14 @@ class FittingMethodWindow(QDialog):
         """Connect signals from the fitting panel to the parent DataFittingTab."""
         parent = self.parent()
         if parent:
-            # Example: Connect 'apply_button' from panel to 'apply_fitting' in parent
+            # Connect 'apply_button' from panel to 'apply_fitting' in parent
             self.panel.apply_button.clicked.connect(partial(parent.apply_fitting, self.panel))
             self.panel.save_button.clicked.connect(partial(parent.save_fitted_data, self.panel))
             self.panel.send_to_data_panel_button.clicked.connect(partial(parent.send_fitted_data_to_data_panel, self.panel))
-            self.panel.run_peak_finder_signal.connect(partial(parent.run_peak_finder, self.panel))
-            self.panel.manual_peak_picker_signal.connect(partial(parent.toggle_manual_peak_picking_mode, self.panel))
+            if hasattr(self.panel, 'run_peak_finder_signal'):
+                self.panel.run_peak_finder_signal.connect(partial(parent.run_peak_finder, self.panel))
+            if hasattr(self.panel, 'manual_peak_picker_signal'):
+                self.panel.manual_peak_picker_signal.connect(partial(parent.toggle_manual_peak_picking_mode, self.panel))
 
     def closeEvent(self, event):
         """Handle the window close event."""
