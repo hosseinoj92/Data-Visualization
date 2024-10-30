@@ -987,8 +987,7 @@ class DataFittingTab(QWidget):
         self.canvas.draw_idle()
         print("Plot updated with fitted data.")  # Debugging statement
 
-
-
+        
     def save_fitted_data(self, panel):
         if not self.fitted_data:
             QMessageBox.warning(self, "No Fitted Data", "Please apply fitting first.")
@@ -1008,14 +1007,11 @@ class DataFittingTab(QWidget):
         for file_path in data_files:
             if file_path in self.fitted_data:
                 x, y, fitted_y, fit_info = self.fitted_data[file_path]
+                base_name = os.path.splitext(os.path.basename(file_path))[0]
+                x_col_name, y_col_name = self.column_names.get(file_path, ('X', 'Y'))
+                
+                # === Saving CSV Files ===
                 try:
-                    base_name = os.path.splitext(os.path.basename(file_path))[0]
-                    new_file_name = f"{base_name}_fitted.csv"
-                    new_file_path = os.path.join(directory, new_file_name)
-
-                    # Get original column names
-                    x_col_name, y_col_name = self.column_names.get(file_path, ('X', 'Y'))
-
                     # Save x, original y, fitted y, residuals to CSV
                     df = pd.DataFrame({
                         x_col_name: x,
@@ -1023,14 +1019,16 @@ class DataFittingTab(QWidget):
                         'Fitted_' + y_col_name: fitted_y,
                         'Residuals': fit_info['residuals']
                     })
-
+                    new_file_name = f"{base_name}_fitted.csv"
+                    new_file_path = os.path.join(directory, new_file_name)
                     df.to_csv(new_file_path, index=False)
+                    print(f"Fitted data saved to {new_file_path}")
+                except Exception as e:
+                    QMessageBox.warning(self, "Error Saving CSV", f"Error saving CSV for {base_name}:\n{e}")
+                    print(f"Error saving CSV for {base_name}: {e}")
 
-                    # Save fitting parameters to a separate file
-                    params_file_name = f"{base_name}_fit_parameters.csv"
-                    params_file_path = os.path.join(directory, params_file_name)
-
-                    # Prepare parameters DataFrame
+                try:
+                    # === Saving Fit Parameters CSV ===
                     fit_params = fit_info['fit_params']
                     params_data = []
                     for i, peak_params in enumerate(fit_params):
@@ -1057,20 +1055,11 @@ class DataFittingTab(QWidget):
                             })
                         elif function_type == 'Pseudo-Voigt':
                             param_dict.update({
-                                'Peak': i + 1,
-                                'Function_Type': function_type,
-                                'Amplitude': peak_params['amplitude'],
-                                'Amplitude_err': peak_params['amplitude_err'],
-                                'Center': peak_params['center'],
-                                'Center_err': peak_params['center_err'],
                                 'Sigma': peak_params['sigma'],
                                 'Sigma_err': peak_params['sigma_err'],
                                 'Fraction': peak_params['fraction'],
                                 'Fraction_err': peak_params['fraction_err'],
                             })
-
-
-
                         elif function_type == 'Exponential Gaussian':
                             param_dict.update({
                                 'Sigma': peak_params['sigma'],
@@ -1092,11 +1081,12 @@ class DataFittingTab(QWidget):
                                 'Gamma_Right': peak_params['gamma_right'],
                                 'Gamma_Right_err': peak_params['gamma_right_err'],
                             })
-                            
+                        else:
+                            print(f"Unknown function type: {function_type}")
                         params_data.append(param_dict)
 
-                    # Ensure all possible keys are included
-                    all_keys = set().union(*(d.keys() for d in params_data))
+                    # Ensure all possible keys are included and sorted
+                    all_keys = sorted(set().union(*(d.keys() for d in params_data)))
 
                     # Create DataFrame with all keys
                     params_df = pd.DataFrame(params_data, columns=all_keys)
@@ -1105,19 +1095,65 @@ class DataFittingTab(QWidget):
                     overall_stats = {key: np.nan for key in all_keys}
                     overall_stats.update({
                         'Peak': 'Overall',
+                        'Function_Type': 'Statistics',
                         'R_squared': fit_info['r_squared'],
                         'Reduced_Chi_squared': fit_info['reduced_chi_squared']
                     })
                     params_df = params_df.append(overall_stats, ignore_index=True)
 
+                    # Save fit parameters CSV
+                    params_file_name = f"{base_name}_fit_parameters.csv"
+                    params_file_path = os.path.join(directory, params_file_name)
                     params_df.to_csv(params_file_path, index=False)
-
+                    print(f"Fit parameters saved to {params_file_path}")
                 except Exception as e:
-                    QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
+                    QMessageBox.warning(self, "Error Saving Fit Parameters CSV", f"Error saving fit parameters CSV for {base_name}:\n{e}")
+                    print(f"Error saving fit parameters CSV for {base_name}: {e}")
+
+                try:
+                    # === Saving Fit Information to a Text File ===
+                    fit_info_text_file = f"{base_name}_fit_info.txt"
+                    fit_info_text_path = os.path.join(directory, fit_info_text_file)
+
+                    with open(fit_info_text_path, 'w') as f:
+                        f.write(f"Fitted Data for file: {os.path.basename(file_path)}\n\n")
+                        f.write(f"R-squared: {fit_info['r_squared']:.6f}\n")
+                        f.write(f"Reduced Chi-squared: {fit_info['reduced_chi_squared']:.6f}\n\n")
+
+                        for i, peak_params in enumerate(fit_info['fit_params'], start=1):
+                            f.write(f"Peak {i}: {peak_params['function_type']}\n")
+                            f.write(f"    Amplitude: {peak_params['amplitude']:.4f} ± {peak_params['amplitude_err']:.4f}\n")
+                            f.write(f"    Center: {peak_params['center']:.4f} ± {peak_params['center_err']:.4f}\n")
+
+                            if peak_params['function_type'] in ['Gaussian', 'Lorentzian']:
+                                f.write(f"    Width: {peak_params['width']:.4f} ± {peak_params['width_err']:.4f}\n")
+                            elif peak_params['function_type'] == 'Voigt':
+                                f.write(f"    Sigma: {peak_params['sigma']:.4f} ± {peak_params['sigma_err']:.4f}\n")
+                                f.write(f"    Gamma: {peak_params['gamma']:.4f} ± {peak_params['gamma_err']:.4f}\n")
+                            elif peak_params['function_type'] == 'Pseudo-Voigt':
+                                f.write(f"    Sigma: {peak_params['sigma']:.4f} ± {peak_params['sigma_err']:.4f}\n")
+                                f.write(f"    Fraction: {peak_params['fraction']:.4f} ± {peak_params['fraction_err']:.4f}\n")
+                            elif peak_params['function_type'] == 'Exponential Gaussian':
+                                f.write(f"    Sigma: {peak_params['sigma']:.4f} ± {peak_params['sigma_err']:.4f}\n")
+                                f.write(f"    Gamma: {peak_params['gamma']:.4f} ± {peak_params['gamma_err']:.4f}\n")
+                            elif peak_params['function_type'] == 'Split Gaussian':
+                                f.write(f"    Sigma_Left: {peak_params['sigma_left']:.4f} ± {peak_params['sigma_left_err']:.4f}\n")
+                                f.write(f"    Sigma_Right: {peak_params['sigma_right']:.4f} ± {peak_params['sigma_right_err']:.4f}\n")
+                            elif peak_params['function_type'] == 'Split Lorentzian':
+                                f.write(f"    Gamma_Left: {peak_params['gamma_left']:.4f} ± {peak_params['gamma_left_err']:.4f}\n")
+                                f.write(f"    Gamma_Right: {peak_params['gamma_right']:.4f} ± {peak_params['gamma_right_err']:.4f}\n")
+                            else:
+                                f.write("    Unknown Function Type Parameters.\n")
+
+                            f.write("\n")  # Add an empty line between peaks
+
+                    print(f"Fit information saved to {fit_info_text_path}")
+                except Exception as e:
+                    QMessageBox.warning(self, "Error Saving Fit Info Text File", f"Error saving fit info text file for {base_name}:\n{e}")
+                    print(f"Error saving fit info text file for {base_name}: {e}")
 
         QMessageBox.information(self, "Save Successful", f"Fitted data saved to {directory}")
         print("All fitted files saved successfully.")
-
 
 
     def update_plot(self):
