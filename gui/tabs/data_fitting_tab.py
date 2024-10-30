@@ -549,112 +549,73 @@ class DataFittingTab(QWidget):
             QMessageBox.warning(self, "Fitting Error", f"Fitting failed: {e}")
             print(f"Fitting failed: {e}")
             return None, None
-
         
     def plot_fitting_results(self, data_files):
         import matplotlib.pyplot as plt
+
+        def format_error(err):
+            return f"{err:.2e}" if err is not None else "N/A"
 
         # Clear the existing figure
         self.figure.clear()
         # Prepare the axis
         ax = self.figure.add_subplot(111)
 
+        # Initialize lists to keep track of plot handles for legend
+        data_handles = []
+        fit_handles = []
+
+        # Dictionary to store fit statistics
+        fit_statistics = {}
+
         # For each file, plot the data and the fit
         for file_path in data_files:
             if file_path in self.fitted_data:
                 x, y, fitted_y, fit_info = self.fitted_data[file_path]
-                label = os.path.basename(file_path)
-                # Prepare label with additional parameters
-                r_squared = fit_info.get('r_squared', np.nan)
-                reduced_chi_squared = fit_info.get('reduced_chi_squared', np.nan)
 
-                label_fit = f"{label} Fit\n$R^2$={r_squared:.4f}, $\\chi^2$={reduced_chi_squared:.4f}"
+                # Plot original data with label "Data"
+                data_plot, = ax.plot(x, y, 'b.', label="Data")  # Uniform label
+                data_handles.append(data_plot)
 
-                # Check if this is polynomial fitting
-                if 'coefficients' in fit_info:
-                    coeffs = fit_info['coefficients']
-                    # Create a string representation of the polynomial
-                    coeffs_text = " + ".join([f"{c:.2e}x^{i}" for i, c in enumerate(coeffs[::-1])])
-                    label_fit += f"\nPolynomial Coefficients:\n{coeffs_text}"
+                # Plot fitted curve with label "Fit"
+                fit_plot, = ax.plot(x, fitted_y, 'r-', label="Fit")  # Uniform label
+                fit_handles.append(fit_plot)
 
-                    # Plot original data and fitted curve
-                    ax.plot(x, y, 'b.', label=f"{label} Data")
-                    ax.plot(x, fitted_y, 'r-', label=label_fit)
+                # Store fit statistics
+                fit_statistics[file_path] = {
+                    'R_squared': fit_info['r_squared'],
+                    'Chi_squared': fit_info['reduced_chi_squared']
+                }
 
-                    # Add text annotation for polynomial coefficients
-                    ax.text(0.05, 0.95, label_fit, transform=ax.transAxes, fontsize=8,
-                            verticalalignment='top', bbox=dict(boxstyle="round", facecolor='wheat', alpha=0.5))
-                else:
-                    # Handle peak fitting
-                    # Collect errors and function types for each peak
-                    fit_params = fit_info['fit_params']
-                    param_info = []
-                    for i, params in enumerate(fit_params):
-                        function_type = params['function_type']
-                        amplitude_err = params.get('amplitude_err', np.nan)
-                        center_err = params.get('center_err', np.nan)
+        # Create a single legend with "Data" and "Fit"
+        # Use a dictionary to ensure unique labels
+        handles = []
+        labels = []
+        for handle, label in zip(data_handles + fit_handles, ["Data"] * len(data_handles) + ["Fit"] * len(fit_handles)):
+            if label not in labels:
+                handles.append(handle)
+                labels.append(label)
 
-                        if function_type in ['Gaussian', 'Lorentzian']:
-                            width_err = params.get('width_err', np.nan)
-                            param_info.append(
-                                f"Peak {i+1} ({function_type}): "
-                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, Width_err={width_err:.2e}"
-                            )
-                        elif function_type == 'Voigt':
-                            sigma_err = params.get('sigma_err', np.nan)
-                            gamma_err = params.get('gamma_err', np.nan)
-                            param_info.append(
-                                f"Peak {i+1} ({function_type}): "
-                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
-                                f"Sigma_err={sigma_err:.2e}, Gamma_err={gamma_err:.2e}"
-                            )
-                        elif function_type == 'Pseudo-Voigt':
-                            sigma_err = params.get('sigma_err', np.nan)
-                            fraction_err = params.get('fraction_err', np.nan)
-                            param_info.append(
-                                f"Peak {i+1} ({function_type}): "
-                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
-                                f"Sigma_err={sigma_err:.2e}, Fraction_err={fraction_err:.2e}"
-                            )
-                        elif function_type == 'Exponential Gaussian':
-                            sigma_err = params.get('sigma_err', np.nan)
-                            gamma_err = params.get('gamma_err', np.nan)
-                            param_info.append(
-                                f"Peak {i+1} ({function_type}): "
-                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
-                                f"Sigma_err={sigma_err:.2e}, Gamma_err={gamma_err:.2e}"
-                            )
-                        elif function_type == 'Split Gaussian':
-                            sigma_left_err = params.get('sigma_left_err', np.nan)
-                            sigma_right_err = params.get('sigma_right_err', np.nan)
-                            param_info.append(
-                                f"Peak {i+1} ({function_type}): "
-                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
-                                f"Sigma_Left_err={sigma_left_err:.2e}, Sigma_Right_err={sigma_right_err:.2e}"
-                            )
-                        elif function_type == 'Split Lorentzian':
-                            gamma_left_err = params.get('gamma_left_err', np.nan)
-                            gamma_right_err = params.get('gamma_right_err', np.nan)
-                            param_info.append(
-                                f"Peak {i+1} ({function_type}): "
-                                f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
-                                f"Gamma_Left_err={gamma_left_err:.2e}, Gamma_Right_err={gamma_right_err:.2e}"
-                            )
-                        else:
-                            param_info.append(f"Unknown function type: {function_type}")
+        ax.legend(handles, labels, loc='upper right', fontsize='small', ncol=1)
 
-                    params_text = '\n'.join(param_info)
-                    label_fit += f"\n{params_text}"
+        # Consolidate fit statistics into a single text box
+        # Only include R^2 and Chi^2 without file labels
+        if fit_statistics:
+            # If multiple files, you can aggregate or list them without labels
+            # Here, we'll list them without file names
+            stats_text = ""
+            for stats in fit_statistics.values():
+                stats_text += f"$R^2$ = {stats['R_squared']:.4f}\n$\\chi^2$ = {stats['Chi_squared']:.4f}\n"
 
-                    # Plot original data and fitted curve
-                    ax.plot(x, y, 'b.', label=f"{label} Data")
-                    ax.plot(x, fitted_y, 'r-', label=label_fit)
+            # Remove the trailing newline characters
+            stats_text = stats_text.strip()
 
-                    # Add text annotation for peak parameters
-                    ax.text(0.05, 0.95, params_text, transform=ax.transAxes, fontsize=8,
-                            verticalalignment='top', bbox=dict(boxstyle="round", facecolor='wheat', alpha=0.5))
-            else:
-                print(f"No fitted data for file {file_path}")
+            # Add a single text box for fit statistics
+            # Position it directly beneath the primary legend
+            # Assuming the legend is at (0.95, 0.95), place the stats box at (0.95, 0.90)
+            props = dict(boxstyle="round", facecolor='wheat', alpha=0.5)
+            ax.text(0.95, 0.90, stats_text, transform=ax.transAxes, fontsize=8,
+                    verticalalignment='top', horizontalalignment='right', bbox=props)
 
         # Set labels
         if self.fitted_data:
@@ -666,9 +627,10 @@ class DataFittingTab(QWidget):
             ax.set_xlabel('X')
             ax.set_ylabel('Y')
 
-        ax.legend(loc='best', fontsize='small')
         plt.title('Fitting Results')
         self.canvas.draw_idle()
+
+
 
     def perform_mixed_fitting(self, x, y, peaks):
         from lmfit import Parameters, Model
@@ -1077,21 +1039,35 @@ class DataFittingTab(QWidget):
                     print(f"Error saving CSV for {base_name}: {e}")
 
                 try:
-                    # === Saving Fit Parameters ===
+                    # === Saving Fit Parameters as Text Files ===
+
                     if 'coefficients' in fit_info:
                         # Polynomial Fitting Parameters
                         coeffs = fit_info['coefficients']
-                        params_data = {
-                            'Degree': len(coeffs) - 1,
-                            'Coefficients': coeffs.tolist(),
-                            'R_squared': fit_info['r_squared'],
-                            'Reduced_Chi_squared': fit_info['reduced_chi_squared']
-                        }
-                        params_file_name = f"{base_name}_fit_parameters.json"
+                        degree = len(coeffs) - 1
+                        r_squared = fit_info['r_squared']
+                        reduced_chi_squared = fit_info['reduced_chi_squared']
+                        
+                        # Create a formatted string for the fit parameters
+                        params_text = f"Polynomial Fitting Parameters\n"
+                        params_text += f"Degree: {degree}\n"
+                        params_text += f"Coefficients:\n"
+                        for i, c in enumerate(coeffs[::-1]):
+                            params_text += f"  c{i} x^{i}: {c:.4e}\n"
+                        params_text += f"R-squared: {r_squared:.4f}\n"
+                        params_text += f"Reduced Chi-Squared: {reduced_chi_squared:.4f}\n"
+                        
+                        # Define the text file name and path
+                        params_file_name = f"{base_name}_fit_parameters.txt"
                         params_file_path = os.path.join(directory, params_file_name)
+                        
+                        # Write the parameters to the text file
                         with open(params_file_path, 'w') as f:
-                            json.dump(params_data, f, indent=4)
+                            f.write(params_text)
+                        
                         print(f"Fit parameters saved to {params_file_path}")
+
+                    
                     else:
                         # Peak Fitting Parameters
                         fit_params = fit_info['fit_params']
@@ -1150,33 +1126,71 @@ class DataFittingTab(QWidget):
                                 print(f"Unknown function type: {function_type}")
                             params_data.append(param_dict)
 
-                        # Ensure all possible keys are included and sorted
-                        all_keys = sorted(set().union(*(d.keys() for d in params_data)))
+                        # Create DataFrame
+                        params_df = pd.DataFrame(params_data)
 
-                        # Create DataFrame with all keys
-                        params_df = pd.DataFrame(params_data, columns=all_keys)
-
-                        # Add R-squared and Reduced Chi-Squared at the end
-                        overall_stats = {key: np.nan for key in all_keys}
-                        overall_stats.update({
+                        # Add R-squared and Reduced Chi-Squared as overall statistics
+                        overall_stats = {
                             'Peak': 'Overall',
                             'Function_Type': 'Statistics',
-                            'R_squared': fit_info['r_squared'],
-                            'Reduced_Chi_squared': fit_info['reduced_chi_squared']
-                        })
-                        params_df = params_df.append(overall_stats, ignore_index=True)
+                            'Amplitude': '',
+                            'Amplitude_err': '',
+                            'Center': '',
+                            'Center_err': '',
+                            'Width': '',
+                            'Width_err': '',
+                            'Sigma': '',
+                            'Sigma_err': '',
+                            'Gamma': '',
+                            'Gamma_err': '',
+                            'Fraction': '',
+                            'Fraction_err': '',
+                            'Sigma_Left': '',
+                            'Sigma_Left_err': '',
+                            'Sigma_Right': '',
+                            'Sigma_Right_err': '',
+                            'Gamma_Left': '',
+                            'Gamma_Left_err': '',
+                            'Gamma_Right': '',
+                            'Gamma_Right_err': '',
+                            'R_squared': f"{fit_info['r_squared']:.4f}",
+                            'Reduced_Chi_squared': f"{fit_info['reduced_chi_squared']:.4f}"
+                        }
 
-                        # Save fit parameters CSV
-                        params_file_name = f"{base_name}_fit_parameters.csv"
+                        # Append the overall statistics row
+                        params_df = pd.concat([params_df, pd.DataFrame([overall_stats])], ignore_index=True)
+                        
+                        # Define the text file name and path
+                        params_file_name = f"{base_name}_fit_parameters.txt"
                         params_file_path = os.path.join(directory, params_file_name)
-                        params_df.to_csv(params_file_path, index=False)
+
+                        # Create a formatted string for peak fitting parameters
+                        params_text = f"Peak Fitting Parameters\n\n"
+                        for index, row in params_df.iterrows():
+                            if row['Peak'] == 'Overall':
+                                params_text += f"Overall Statistics:\n"
+                                params_text += f"  R-squared: {row['R_squared']}\n"
+                                params_text += f"  Reduced Chi-Squared: {row['Reduced_Chi_squared']}\n"
+                            else:
+                                params_text += f"Peak {row['Peak']} ({row['Function_Type']}):\n"
+                                for key, value in row.items():
+                                    if key not in ['Peak', 'Function_Type'] and pd.notna(value):
+                                        params_text += f"  {key}: {value}\n"
+                                params_text += "\n"
+
+                        # Write the parameters to the text file
+                        with open(params_file_path, 'w') as f:
+                            f.write(params_text)
+
                         print(f"Fit parameters saved to {params_file_path}")
+                            
                 except Exception as e:
                     QMessageBox.warning(self, "Error Saving Fit Parameters", f"Error saving fit parameters for {base_name}:\n{e}")
                     print(f"Error saving fit parameters for {base_name}: {e}")
 
         QMessageBox.information(self, "Save Successful", f"Fitted data saved to {directory}")
         print("All fitted files saved successfully.")
+
 
     def update_plot(self):
         # Gather all parameters from panels

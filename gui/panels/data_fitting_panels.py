@@ -129,6 +129,7 @@ class GaussianFittingPanel(QWidget):
         else:
             QMessageBox.warning(self, "Remove Peak", "Please select a peak to remove.")
 
+
     def add_peak_row(self, amplitude, center, width, function_type='Gaussian'):
         try:
             self.peak_table.blockSignals(True)  # Block signals to prevent premature fitting
@@ -180,7 +181,7 @@ class GaussianFittingPanel(QWidget):
             empty_item.setFlags(Qt.ItemIsEnabled)
             self.peak_table.setItem(row_position + 1, 0, empty_item)
 
-            # Create parameter widgets in the second row
+            # Create parameter widgets in the second row without labels
             self.create_parameter_widgets(row_position + 1, function_type, amplitude, center, width)
 
             # Adjust the row heights if needed
@@ -200,38 +201,38 @@ class GaussianFittingPanel(QWidget):
                 old_widget.deleteLater()
                 self.peak_table.setCellWidget(row, col, None)
 
-        # Initialize parameter widgets with empty labels
+        # Initialize parameter widgets without labels
         param_widgets = []
         if function_type in ['Gaussian', 'Lorentzian']:
-            param_widgets.append(ParameterWidget('Amplitude', param1))
-            param_widgets.append(ParameterWidget('Center', param2))
-            param_widgets.append(ParameterWidget('Width', param3))
+            param_widgets.append(ParameterWidget(param1))
+            param_widgets.append(ParameterWidget(param2))
+            param_widgets.append(ParameterWidget(param3))
             param_widgets.append(QWidget())  # Empty widget for param4
         elif function_type == 'Voigt':
-            param_widgets.append(ParameterWidget('Amplitude', param1))
-            param_widgets.append(ParameterWidget('Center', param2))
-            param_widgets.append(ParameterWidget('Sigma', param3))
-            param_widgets.append(ParameterWidget('Gamma', param4))
+            param_widgets.append(ParameterWidget(param1))
+            param_widgets.append(ParameterWidget(param2))
+            param_widgets.append(ParameterWidget(param3))
+            param_widgets.append(ParameterWidget(param4))
         elif function_type == 'Pseudo-Voigt':
-            param_widgets.append(ParameterWidget('Amplitude', param1))
-            param_widgets.append(ParameterWidget('Center', param2))
-            param_widgets.append(ParameterWidget('Width', param3))
-            param_widgets.append(ParameterWidget('Fraction', param4))
+            param_widgets.append(ParameterWidget(param1))
+            param_widgets.append(ParameterWidget(param2))
+            param_widgets.append(ParameterWidget(param3))
+            param_widgets.append(ParameterWidget(param4))
         elif function_type == 'Exponential Gaussian':
-            param_widgets.append(ParameterWidget('Amplitude', param1))
-            param_widgets.append(ParameterWidget('Center', param2))
-            param_widgets.append(ParameterWidget('Sigma', param3))
-            param_widgets.append(ParameterWidget('Gamma', param4))
+            param_widgets.append(ParameterWidget(param1))
+            param_widgets.append(ParameterWidget(param2))
+            param_widgets.append(ParameterWidget(param3))
+            param_widgets.append(ParameterWidget(param4))
         elif function_type == 'Split Gaussian':
-            param_widgets.append(ParameterWidget('Amplitude', param1))
-            param_widgets.append(ParameterWidget('Center', param2))
-            param_widgets.append(ParameterWidget('Sigma_Left', param3))
-            param_widgets.append(ParameterWidget('Sigma_Right', param4))
+            param_widgets.append(ParameterWidget(param1))
+            param_widgets.append(ParameterWidget(param2))
+            param_widgets.append(ParameterWidget(param3))
+            param_widgets.append(ParameterWidget(param4))
         elif function_type == 'Split Lorentzian':
-            param_widgets.append(ParameterWidget('Amplitude', param1))
-            param_widgets.append(ParameterWidget('Center', param2))
-            param_widgets.append(ParameterWidget('Gamma_Left', param3))
-            param_widgets.append(ParameterWidget('Gamma_Right', param4))
+            param_widgets.append(ParameterWidget(param1))
+            param_widgets.append(ParameterWidget(param2))
+            param_widgets.append(ParameterWidget(param3))
+            param_widgets.append(ParameterWidget(param4))
         else:
             param_widgets.extend([QWidget(), QWidget(), QWidget(), QWidget()])
 
@@ -381,16 +382,10 @@ class GaussianFittingPanel(QWidget):
         return {'peaks': peaks}
 
 class ParameterWidget(QWidget):
-    def __init__(self, param_name, param_value):
+    def __init__(self, param_value):
         super().__init__()
-        self.param_name = param_name
         self.layout = QHBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
-        
-        # If param_name is empty, don't show the label
-        if self.param_name:
-            self.label = QLabel(param_name)
-            self.layout.addWidget(self.label)
         
         self.line_edit = QLineEdit()
         self.line_edit.setText(f"{param_value:.2f}")  # Initialize with two decimal digits
@@ -414,15 +409,9 @@ class ParameterWidget(QWidget):
     def get_value(self):
         return self.line_edit.text()
     
-    def get_param_name(self):
-        return self.param_name
-    
-    def set_param_name(self, name):
-        self.param_name = name
-        self.label.setText(name)
-    
     def set_value(self, value):
         self.line_edit.setText(f"{value:.2f}")
+
 
 class PolynomialFittingPanel(QWidget):
     parameters_changed = pyqtSignal()
