@@ -521,8 +521,10 @@ class DataFittingTab(QWidget):
     def plot_fitting_results(self, data_files):
         import matplotlib.pyplot as plt
 
-        # Create a new figure
-        fig, ax = plt.subplots()
+        # Clear the existing figure
+        self.figure.clear()
+        # Prepare the axis
+        ax = self.figure.add_subplot(111)
 
         # For each file, plot the data and the fit
         for file_path in data_files:
@@ -610,8 +612,8 @@ class DataFittingTab(QWidget):
 
         ax.legend(loc='best', fontsize='small')
         plt.title('Fitting Results')
-        plt.show()
-        
+        self.canvas.draw_idle()  
+
     def perform_mixed_fitting(self, x, y, peaks):
         from lmfit import Parameters, Model
         from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
