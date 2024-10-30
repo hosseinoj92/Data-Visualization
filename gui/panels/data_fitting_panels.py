@@ -326,7 +326,6 @@ class GaussianFittingPanel(QWidget):
                             'sigma': sigma,
                             'gamma': gamma
                         })
-                        
                     elif function_type == 'Pseudo-Voigt':
                         sigma = param_values[2] if param_values[2] is not None else 1.0
                         fraction = param_values[3] if param_values[3] is not None else 0.5

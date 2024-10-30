@@ -35,7 +35,7 @@ from scipy.signal import find_peaks, peak_widths  # Ensure peak_widths is import
 
 from lmfit import Model, Parameters
 from scipy.special import wofz  # For Voigt function
-from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel,ExponentialGaussianModel
+from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
 
 
 
@@ -556,14 +556,13 @@ class DataFittingTab(QWidget):
                             f"Sigma_err={sigma_err:.2e}, Gamma_err={gamma_err:.2e}"
                         )
                     elif function_type == 'Pseudo-Voigt':
-                        width_err = params['width_err'] if params['width_err'] is not None else np.nan
+                        sigma_err = params['sigma_err'] if params['sigma_err'] is not None else np.nan
                         fraction_err = params['fraction_err'] if params['fraction_err'] is not None else np.nan
                         param_info.append(
                             f"Peak {i+1} ({function_type}): "
                             f"Amp_err={amplitude_err:.2e}, Center_err={center_err:.2e}, "
-                            f"Width_err={width_err:.2e}, Fraction_err={fraction_err:.2e}"
-                        )
-                        
+                            f"Sigma_err={sigma_err:.2e}, Fraction_err={fraction_err:.2e}"
+    )
                     elif function_type == 'Exponential Gaussian':
                         sigma_err = params['sigma_err'] if params['sigma_err'] is not None else np.nan
                         gamma_err = params['gamma_err'] if params['gamma_err'] is not None else np.nan
@@ -1056,11 +1055,19 @@ class DataFittingTab(QWidget):
                             })
                         elif function_type == 'Pseudo-Voigt':
                             param_dict.update({
-                                'Width': peak_params['width'],
-                                'Width_err': peak_params['width_err'],
+                                'Peak': i + 1,
+                                'Function_Type': function_type,
+                                'Amplitude': peak_params['amplitude'],
+                                'Amplitude_err': peak_params['amplitude_err'],
+                                'Center': peak_params['center'],
+                                'Center_err': peak_params['center_err'],
+                                'Sigma': peak_params['sigma'],
+                                'Sigma_err': peak_params['sigma_err'],
                                 'Fraction': peak_params['fraction'],
                                 'Fraction_err': peak_params['fraction_err'],
                             })
+
+
 
                         elif function_type == 'Exponential Gaussian':
                             param_dict.update({
