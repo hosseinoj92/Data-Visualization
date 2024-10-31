@@ -29,7 +29,7 @@ from gui.dialogs.save_plot_dialog import SavePlotDialog
 import sys
 from utils import read_numeric_data
 from functools import partial
-from gui.panels.data_fitting_panels import GaussianFittingPanel, PolynomialFittingPanel
+from gui.panels.data_fitting_panels import GaussianFittingPanel, PolynomialFittingPanel, CustomFittingPanel
 from scipy.signal import find_peaks, peak_widths  # Ensure peak_widths is imported
 
 from lmfit import Model, Parameters
@@ -180,6 +180,9 @@ class DataFittingTab(QWidget):
         self.fitting_methods = [
             ("Peak Fitting", GaussianFittingPanel, 'gui/resources/gaussian_fitting_icon.png'),
             ("Polynomial Fitting", PolynomialFittingPanel, 'gui/resources/polynomial_fitting_icon.png'),
+            ("Custom Fitting", CustomFittingPanel, 'gui/resources/custom_fitting_icon.png'),  
+
+
         ]
         # Create and add buttons for each fitting method
         self.fitting_method_windows = {}  # To keep references to the opened windows
@@ -441,7 +444,7 @@ class DataFittingTab(QWidget):
         QApplication.restoreOverrideCursor()
         # Ensure the button is unchecked
         panel.manual_peak_picker_button.setChecked(False)
-
+        
     def apply_fitting(self, panel, update_plot=True):
         # Ensure that any pending edits are committed
         if hasattr(panel, 'peak_table'):
@@ -484,6 +487,9 @@ class DataFittingTab(QWidget):
                 if isinstance(panel, PolynomialFittingPanel):
                     # Perform polynomial fitting
                     fitted_y, fit_info = self.perform_polynomial_fitting(x, y, params)
+                elif isinstance(panel, CustomFittingPanel):
+                    # Perform custom fitting
+                    fitted_y, fit_info = self.perform_custom_fitting(x, y, params)
                 else:
                     # Perform peak fitting with mixed function types
                     fitted_y, fit_info = self.perform_mixed_fitting(x, y, params['peaks'])
@@ -510,6 +516,63 @@ class DataFittingTab(QWidget):
 
         panel.save_button.setEnabled(True)
         panel.send_to_data_panel_button.setEnabled(True)
+
+    def perform_custom_fitting(self, x, y, params):
+        from lmfit import Model, Parameters
+        import numpy as np
+        import math  # If you want to allow math functions
+
+        function_str = params['function_str']
+        initial_params = params['params']
+        optimization_method = params.get('optimization_method', 'leastsq')
+        max_iterations = params.get('max_iterations', 1000)
+
+        # Prepare the custom function
+        try:
+            # Compile the function string into code object
+            code = compile(function_str, '<string>', 'eval')
+
+            # Define the custom function
+            def custom_func(x, **kwargs):
+                # Available namespaces
+                allowed_names = {'x': x, 'np': np, 'math': math}
+                allowed_names.update(kwargs)
+                return eval(code, {"__builtins__": None}, allowed_names)
+        except Exception as e:
+            QMessageBox.warning(self, "Function Error", f"Error in custom function definition:\n{e}")
+            return None, None
+
+        # Create the model
+        model = Model(custom_func)
+
+        # Set initial parameters with bounds
+        lm_params = Parameters()
+        for name, param_info in initial_params.items():
+            lm_params.add(name, value=param_info['value'], min=param_info['min'], max=param_info['max'])
+
+        try:
+            result = model.fit(y, lm_params, x=x, method=optimization_method, max_nfev=max_iterations)
+        except Exception as e:
+            QMessageBox.warning(self, "Fitting Error", f"Fitting failed:\n{e}")
+            return None, None
+
+        fitted_y = result.best_fit
+
+        # Prepare fit_info
+        residuals = y - fitted_y
+        ss_res = np.sum(residuals ** 2)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+        r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else np.nan
+        reduced_chi_squared = result.redchi if result.nfree > 0 else np.nan
+
+        fit_info = {
+            'result': result,
+            'residuals': residuals,
+            'r_squared': r_squared,
+            'reduced_chi_squared': reduced_chi_squared,
+        }
+
+        return fitted_y, fit_info
 
     def perform_polynomial_fitting(self, x, y, params):
         import numpy as np
@@ -1068,7 +1131,7 @@ class DataFittingTab(QWidget):
                         print(f"Fit parameters saved to {params_file_path}")
 
                     
-                    else:
+                    elif 'fit_params' in fit_info:
                         # Peak Fitting Parameters
                         fit_params = fit_info['fit_params']
                         params_data = []
@@ -1183,7 +1246,48 @@ class DataFittingTab(QWidget):
                             f.write(params_text)
 
                         print(f"Fit parameters saved to {params_file_path}")
-                            
+                                
+                    elif 'result' in fit_info:
+                        # Custom Fitting Parameters
+                        result = fit_info['result']
+                        params = result.params
+                        # Prepare the parameters to save
+                        params_text = f"Custom Fitting Parameters\n\n"
+                        for name, param in params.items():
+                            stderr = param.stderr if param.stderr is not None else 'N/A'
+                            params_text += f"{name} = {param.value} ± {stderr}\n"
+
+                        # Handle fit statistics safely
+                        r_squared = fit_info['r_squared']
+                        reduced_chi_squared = fit_info['reduced_chi_squared']
+
+                        if r_squared is not None and not np.isnan(r_squared):
+                            r_squared_str = f"{r_squared:.4f}"
+                        else:
+                            r_squared_str = "N/A"
+
+                        if reduced_chi_squared is not None and not np.isnan(reduced_chi_squared):
+                            reduced_chi_squared_str = f"{reduced_chi_squared:.4f}"
+                        else:
+                            reduced_chi_squared_str = "N/A"
+
+                        params_text += f"\nFit Statistics:\n"
+                        params_text += f"  R-squared: {r_squared_str}\n"
+                        params_text += f"  Reduced Chi-Squared: {reduced_chi_squared_str}\n"
+
+                        # Save the custom function definition
+                        function_str = params['function_str'] if 'function_str' in params else 'N/A'
+                        params_text += f"\nCustom Function:\n{function_str}\n"
+
+                        # Define the text file name and path
+                        params_file_name = f"{base_name}_fit_parameters.txt"
+                        params_file_path = os.path.join(directory, params_file_name)
+
+                        # Write the parameters to the text file
+                        with open(params_file_path, 'w') as f:
+                            f.write(params_text)
+
+                        print(f"Fit parameters saved to {params_file_path}")
                 except Exception as e:
                     QMessageBox.warning(self, "Error Saving Fit Parameters", f"Error saving fit parameters for {base_name}:\n{e}")
                     print(f"Error saving fit parameters for {base_name}: {e}")
@@ -1595,6 +1699,13 @@ class FittingMethodWindow(QDialog):
                 self.panel.run_peak_finder_signal.connect(partial(parent.run_peak_finder, self.panel))
             if hasattr(self.panel, 'manual_peak_picker_signal'):
                 self.panel.manual_peak_picker_signal.connect(partial(parent.toggle_manual_peak_picking_mode, self.panel))
+
+            # For CustomFittingPanel, connect save and load functions if they exist
+            if hasattr(self.panel, 'save_function_button'):
+                self.panel.save_function_button.clicked.connect(self.panel.save_function)
+            if hasattr(self.panel, 'load_function_button'):
+                self.panel.load_function_button.clicked.connect(self.panel.load_function)
+                
 
     def closeEvent(self, event):
         """Handle the window close event."""

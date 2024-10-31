@@ -3,16 +3,19 @@
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
-    QComboBox, QSizePolicy, QRadioButton, QButtonGroup, QSpinBox
+    QComboBox, QSizePolicy, QRadioButton, QButtonGroup, QSpinBox,QTextEdit,QFileDialog
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QDoubleValidator
 from functools import partial
+import json
+import numpy as np
+
 
 class GaussianFittingPanel(QWidget):
     parameters_changed = pyqtSignal()
     run_peak_finder_signal = pyqtSignal()
-    manual_peak_picker_signal = pyqtSignal(bool)  # Add this signal
+    manual_peak_picker_signal = pyqtSignal(bool)  
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -493,4 +496,242 @@ class PolynomialFittingPanel(QWidget):
             self, "Polynomial Fitting Help",
             "Select 'Linear Fitting' for a straight line fit.\n"
             "Select 'Polynomial Fitting' and specify the degree for higher-order fitting."
+        )
+
+
+
+class CustomFittingPanel(QWidget):
+    parameters_changed = pyqtSignal()
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.method_name = "Custom Fitting"
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+
+        # Instruction Label
+        layout.addWidget(QLabel("Define your custom fitting function:"))
+
+        # Text Edit for function definition
+        self.function_text_edit = QTextEdit()
+        self.function_text_edit.setPlaceholderText("Enter your function here, e.g., a * np.sin(b * x) + c")
+        layout.addWidget(self.function_text_edit)
+
+        # Parameters Table
+        self.parameters_table = QTableWidget(0, 4)  # Now 4 columns
+        self.parameters_table.setHorizontalHeaderLabels(['Parameter', 'Initial Guess', 'Min', 'Max'])
+        self.parameters_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        layout.addWidget(QLabel("Parameters"))
+        layout.addWidget(self.parameters_table)
+
+        # Buttons to manage parameters
+        param_buttons_layout = QHBoxLayout()
+        self.add_param_button = QPushButton("Add Parameter")
+        self.remove_param_button = QPushButton("Remove Parameter")
+        param_buttons_layout.addWidget(self.add_param_button)
+        param_buttons_layout.addWidget(self.remove_param_button)
+        layout.addLayout(param_buttons_layout)
+
+        # Optimization method and max iterations
+        opt_layout = QHBoxLayout()
+        self.optimization_method_label = QLabel("Optimization Method:")
+        self.optimization_method_combo = QComboBox()
+        self.optimization_method_combo.addItems(['leastsq', 'least_squares', 'differential_evolution', 'brute', 'basinhopping'])
+        opt_layout.addWidget(self.optimization_method_label)
+        opt_layout.addWidget(self.optimization_method_combo)
+
+        self.max_iter_label = QLabel("Max Iterations:")
+        self.max_iter_spinbox = QSpinBox()
+        self.max_iter_spinbox.setRange(1, 10000)
+        self.max_iter_spinbox.setValue(1000)
+        opt_layout.addWidget(self.max_iter_label)
+        opt_layout.addWidget(self.max_iter_spinbox)
+        layout.addLayout(opt_layout)
+
+        # Save and Load Function Buttons
+        save_load_layout = QHBoxLayout()
+        self.save_function_button = QPushButton("Save Function")
+        self.load_function_button = QPushButton("Load Function")
+        save_load_layout.addWidget(self.save_function_button)
+        save_load_layout.addWidget(self.load_function_button)
+        layout.addLayout(save_load_layout)
+
+        # Apply, Save, Send to Data Panel, Help Buttons
+        buttons_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        self.help_button = QPushButton("Help")
+        buttons_layout.addWidget(self.apply_button)
+        buttons_layout.addWidget(self.save_button)
+        buttons_layout.addWidget(self.send_to_data_panel_button)
+        buttons_layout.addWidget(self.help_button)
+        layout.addLayout(buttons_layout)
+
+        # Disable Save and Send buttons initially
+        self.save_button.setEnabled(False)
+        self.send_to_data_panel_button.setEnabled(False)
+
+        self.setLayout(layout)
+
+        # Connect Signals
+        self.add_param_button.clicked.connect(self.add_parameter)
+        self.remove_param_button.clicked.connect(self.remove_parameter)
+        self.function_text_edit.textChanged.connect(self.parameters_changed.emit)
+        self.apply_button.clicked.connect(self.parameters_changed.emit)
+        self.help_button.clicked.connect(self.show_help)
+        self.save_function_button.clicked.connect(self.save_function)
+        self.load_function_button.clicked.connect(self.load_function)
+
+        # Initialize parameters
+        self.parameters = {}
+
+    def add_parameter(self):
+        row_position = self.parameters_table.rowCount()
+        self.parameters_table.insertRow(row_position)
+        # Parameter name
+        param_name_item = QTableWidgetItem(f"param{row_position+1}")
+        self.parameters_table.setItem(row_position, 0, param_name_item)
+        # Initial guess
+        initial_guess_item = QTableWidgetItem("1.0")
+        self.parameters_table.setItem(row_position, 1, initial_guess_item)
+        # Min and Max items
+        min_item = QTableWidgetItem("-inf")
+        self.parameters_table.setItem(row_position, 2, min_item)
+        max_item = QTableWidgetItem("inf")
+        self.parameters_table.setItem(row_position, 3, max_item)
+        self.parameters_changed.emit()
+
+    def remove_parameter(self):
+        current_row = self.parameters_table.currentRow()
+        if current_row >= 0:
+            self.parameters_table.removeRow(current_row)
+            self.parameters_changed.emit()
+        else:
+            QMessageBox.warning(self, "Remove Parameter", "Please select a parameter to remove.")
+
+    def get_parameters(self):
+        # Retrieve the function string
+        function_str = self.function_text_edit.toPlainText()
+        if not function_str.strip():
+            QMessageBox.warning(self, "No Function", "Please enter a custom function.")
+            return None
+
+        # Retrieve parameters and initial guesses
+        params = {}
+        for row in range(self.parameters_table.rowCount()):
+            param_name_item = self.parameters_table.item(row, 0)
+            initial_guess_item = self.parameters_table.item(row, 1)
+            min_item = self.parameters_table.item(row, 2)
+            max_item = self.parameters_table.item(row, 3)
+            if param_name_item and initial_guess_item and min_item and max_item:
+                param_name = param_name_item.text().strip()
+                if not param_name.isidentifier():
+                    QMessageBox.warning(self, "Invalid Parameter Name", f"'{param_name}' is not a valid parameter name.")
+                    return None
+                try:
+                    initial_guess = float(initial_guess_item.text())
+                    min_val = float(min_item.text()) if min_item.text().strip() not in ['', '-inf'] else -np.inf
+                    max_val = float(max_item.text()) if max_item.text().strip() not in ['', 'inf'] else np.inf
+                except ValueError:
+                    QMessageBox.warning(self, "Invalid Parameter Value", f"Invalid value for parameter '{param_name}'.")
+                    return None
+                params[param_name] = {'value': initial_guess, 'min': min_val, 'max': max_val}
+            else:
+                QMessageBox.warning(self, "Incomplete Parameters", "Please complete all parameter fields.")
+                return None
+
+        # Retrieve optimization method and max iterations
+        optimization_method = self.optimization_method_combo.currentText()
+        max_iterations = self.max_iter_spinbox.value()
+
+        return {
+            'function_str': function_str,
+            'params': params,
+            'optimization_method': optimization_method,
+            'max_iterations': max_iterations
+        }
+
+    def save_function(self):
+        function_data = self.get_parameters()
+        if function_data is None:
+            return  # Error message already shown
+
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Custom Function",
+            "",
+            "JSON Files (*.json);;All Files (*)",
+            options=options
+        )
+        if file_path:
+            try:
+                with open(file_path, 'w') as f:
+                    json.dump(function_data, f, indent=4)
+                QMessageBox.information(self, "Save Successful", f"Custom function saved to:\n{file_path}")
+            except Exception as e:
+                QMessageBox.warning(self, "Save Failed", f"Failed to save custom function:\n{e}")
+
+    def load_function(self):
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load Custom Function",
+            "",
+            "JSON Files (*.json);;All Files (*)",
+            options=options
+        )
+        if file_path:
+            try:
+                with open(file_path, 'r') as f:
+                    function_data = json.load(f)
+                self.set_parameters(function_data)
+                QMessageBox.information(self, "Load Successful", f"Custom function loaded from:\n{file_path}")
+            except Exception as e:
+                QMessageBox.warning(self, "Load Failed", f"Failed to load custom function:\n{e}")
+
+    def set_parameters(self, function_data):
+        # Set function string
+        self.function_text_edit.setText(function_data.get('function_str', ''))
+
+        # Clear existing parameters
+        self.parameters_table.setRowCount(0)
+
+        # Set parameters
+        params = function_data.get('params', {})
+        for param_name, param_info in params.items():
+            row_position = self.parameters_table.rowCount()
+            self.parameters_table.insertRow(row_position)
+            # Parameter name
+            param_name_item = QTableWidgetItem(param_name)
+            self.parameters_table.setItem(row_position, 0, param_name_item)
+            # Initial guess
+            initial_guess_item = QTableWidgetItem(str(param_info.get('value', 1.0)))
+            self.parameters_table.setItem(row_position, 1, initial_guess_item)
+            # Min and Max items
+            min_val = param_info.get('min', -np.inf)
+            max_val = param_info.get('max', np.inf)
+            min_item = QTableWidgetItem(str(min_val) if min_val != -np.inf else "-inf")
+            max_item = QTableWidgetItem(str(max_val) if max_val != np.inf else "inf")
+            self.parameters_table.setItem(row_position, 2, min_item)
+            self.parameters_table.setItem(row_position, 3, max_item)
+
+        # Set optimization method and max iterations
+        optimization_method = function_data.get('optimization_method', 'leastsq')
+        max_iterations = function_data.get('max_iterations', 1000)
+        self.optimization_method_combo.setCurrentText(optimization_method)
+        self.max_iter_spinbox.setValue(max_iterations)
+
+        self.parameters_changed.emit()
+
+    def show_help(self):
+        QMessageBox.information(
+            self, "Custom Fitting Help",
+            "Enter your custom function using 'x' as the independent variable.\n"
+            "Define parameters and provide initial guesses, bounds, and optimization settings.\n"
+            "Example:\nFunction: a * np.sin(b * x) + c\nParameters: a, b, c\n\n"
+            "You can save your custom function and parameters for future use."
         )
