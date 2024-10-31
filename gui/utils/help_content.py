@@ -1167,3 +1167,792 @@ DATA_CUTTING_HELP = """
 </body>
 </html>
 """
+
+
+
+PEAK_FITTING_HELP = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Fitting Functions Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }}
+        h1, h2 {{
+            color: #2E8B57;
+        }}
+        p, ul {{
+            font-size: 16px;
+        }}
+        ul {{
+            margin-left: 20px;
+        }}
+        img {{
+            display: block;
+            margin: 20px auto;
+            max-width: 100%;
+            height: auto;
+        }}
+        hr {{
+            border: none;
+            height: 4px;
+            background-color: #2E8B57;
+            margin: 40px 0;
+        }}
+    </style>
+</head>
+<body>
+    <h1>Gaussian Function</h1>
+    <p>
+        The Gaussian Function, also known as the normal distribution, is fundamental in various branches of science. It describes a bell-shaped curve characterized by its mean and standard deviation, playing a crucial role in modeling natural processes, experimental errors, and distributions in both classical and quantum systems.
+    </p>
+    <h2>Mathematical Representation:</h2>
+    <p>
+        The Gaussian Function is defined as:
+        <br>
+        \\[
+        f(x) = A \\exp \\left( -\\frac{{(x - \\mu)^2}}{{2\\sigma^2}} \\right)
+        \\]
+        where:
+        <ul>
+            <li><strong>A</strong>: Amplitude, representing the peak height.</li>
+            <li><strong>\\( \\mu \\)</strong>: Mean, the center position of the peak, associated with the expectation value.</li>
+            <li><strong>\\( \\sigma \\)</strong>: Standard deviation, indicating the spread of the distribution. The Full Width at Half Maximum (FWHM) is related to \\( \\sigma \\) by \\( \\text{{FWHM}} = 2\\sqrt{{2\\ln 2}} \\sigma \\).</li>
+        </ul>
+    </p>
+
+    <h2>Scientific Significance and Applications:</h2>
+    <ul>
+        <li><strong>Statistical Mechanics:</strong> Central to the Central Limit Theorem, modeling distributions of measurement errors and thermodynamic fluctuations.</li>
+        <li><strong>Quantum Mechanics:</strong> Describes wavefunctions of particles in minimum uncertainty states and is integral in Fourier analysis.</li>
+        <li><strong>Optics:</strong> Gaussian beams are fundamental in laser physics, describing light propagation and diffraction.</li>
+        <li><strong>Spectroscopy:</strong> Models peak shapes in spectroscopic and chromatographic data, especially for instrumentally broadened lines.</li>
+    </ul>
+
+    <h2>Use Cases and Practical Considerations:</h2>
+    <h3>Key Considerations:</h3>
+    <ul>
+        <li><strong>Symmetry Assumption:</strong> The Gaussian function assumes symmetry. Use alternative models for skewed data, such as the Lorentzian or asymmetric profiles.</li>
+        <li><strong>Instrumental Effects:</strong> Recognize that observed Gaussian shapes may result from the convolution of intrinsic line shapes with the instrumental response.</li>
+        <li><strong>Initial Parameter Guesses:</strong> Proper initial values for \\( \\mu \\) and \\( \\sigma \\) are crucial for convergence in fitting algorithms.</li>
+    </ul>
+
+    <h2>Mathematical Properties:</h2>
+    <ul>
+        <li><strong>Normalization:</strong> The Gaussian function integrates to a finite value:
+            \\[
+            \\int_{{-\\infty}}^{{\\infty}} \\exp \\left( -\\frac{{(x - \\mu)^2}}{{2\\sigma^2}} \\right) \\mathrm{{d}}x = \\sqrt{{2\\pi \\sigma^2}}
+            \\]
+            making it a valid probability distribution when normalized.
+        </li>
+        <li><strong>Fourier Transform:</strong> The Gaussian function's Fourier transform is also a Gaussian, which is fundamental in signal processing and quantum mechanics.</li>
+    </ul>
+
+    <h2>Advantages and Limitations:</h2>
+    <h3>Advantages:</h3>
+    <ul>
+        <li><strong>Analytical Simplicity:</strong> The Gaussian function is straightforward to differentiate and integrate, making it analytically tractable.</li>
+        <li><strong>Wide Applicability:</strong> Due to the Central Limit Theorem, Gaussian models are ubiquitous, representing various natural and experimental distributions.</li>
+    </ul>
+    <h3>Limitations:</h3>
+    <ul>
+        <li><strong>Symmetry Limitation:</strong> The Gaussian model is not suitable for asymmetric or heavy-tailed distributions. Consider models like the Voigt profile for such cases.</li>
+        <li><strong>Sensitivity to Outliers:</strong> Outliers can heavily influence the fit. Consider robust fitting methods if outliers are a concern.</li>
+    </ul>
+
+    <hr>
+
+    <h1>Lorentzian Function</h1>
+    <p>
+        The Lorentzian Function, also known as the Cauchy distribution in probability theory, is another fundamental function used to describe resonance phenomena and spectral line shapes. Unlike the Gaussian function, the Lorentzian has heavier tails, making it more suitable for modeling systems with more pronounced outliers or long-range interactions.
+    </p>
+    <h2>Mathematical Representation:</h2>
+    <p>
+        The Lorentzian Function is defined as:
+        <br>
+        \\[
+        f(x) = \\frac{{A}}{{\\pi}} \\cdot \\frac{{\\Gamma / 2}}{{(x - x_0)^2 + (\\Gamma / 2)^2}}
+        \\]
+        where:
+        <ul>
+            <li><strong>A</strong>: Area under the peak.</li>
+            <li><strong>\\( x_0 \\)</strong>: Position of the peak center.</li>
+            <li><strong>\\( \\Gamma \\)</strong>: Full Width at Half Maximum (FWHM), representing the width of the peak.</li>
+        </ul>
+    </p>
+
+    <h2>Scientific Significance and Applications:</h2>
+    <ul>
+        <li><strong>Resonance Phenomena:</strong> Describes the response of systems at resonance frequencies in physics and engineering.</li>
+        <li><strong>Spectroscopy:</strong> Models natural linewidths in atomic and molecular spectra, especially where lifetime broadening is significant.</li>
+        <li><strong>Optics:</strong> Utilized in describing the shape of spectral lines in various optical processes.</li>
+        <li><strong>Quantum Mechanics:</strong> Appears in the description of certain quantum states and interactions.</li>
+    </ul>
+
+    <h2>Use Cases and Practical Considerations:</h2>
+    <h3>Key Considerations:</h3>
+    <ul>
+        <li><strong>Heavy Tails:</strong> The Lorentzian function has heavier tails compared to the Gaussian, making it suitable for data with outliers or long-range dependencies.</li>
+        <li><strong>Peak Overlap:</strong> In cases where multiple resonances are close together, Lorentzian profiles can overlap, requiring careful fitting strategies.</li>
+        <li><strong>Parameter Interpretation:</strong> Understanding the physical meaning of parameters \\( x_0 \\) and \\( \\Gamma \\) is crucial for accurate modeling.</li>
+    </ul>
+
+    <h2>Mathematical Properties:</h2>
+    <ul>
+        <li><strong>Normalization:</strong> The Lorentzian function is properly normalized over its entire range:
+            \\[
+            \\int_{{-\\infty}}^{{\\infty}} \\frac{{1}}{{\\pi}} \\cdot \\frac{{\\Gamma / 2}}{{(x - x_0)^2 + (\\Gamma / 2)^2}} \\, \\mathrm{{d}}x = 1
+            \\]
+        </li>
+        <li><strong>Fourier Transform:</strong> The Fourier transform of a Lorentzian function is an exponential decay, which is significant in signal processing and optics.</li>
+    </ul>
+
+    <h2>Advantages and Limitations:</h2>
+    <h3>Advantages:</h3>
+    <ul>
+        <li><strong>Heavy Tails:</strong> Better models phenomena with significant outliers or long-range interactions compared to Gaussian functions.</li>
+        <li><strong>Simplicity:</strong> The Lorentzian function is mathematically simple and easy to work with in analytical and numerical calculations.</li>
+    </ul>
+    <h3>Limitations:</h3>
+    <ul>
+        <li><strong>Non-Normalizable in Probability Theory:</strong> Unlike Gaussian distributions, Lorentzian distributions do not have a finite mean or variance, limiting their use in certain statistical applications.</li>
+        <li><strong>Sensitivity to Parameter Estimation:</strong> Accurate fitting requires precise estimation of parameters, especially in the presence of overlapping peaks.</li>
+    </ul>
+
+    <hr>
+
+    <h1>Voigt Function</h1>
+    <p>
+        The Voigt Function is a convolution of a Gaussian and a Lorentzian function. It is widely used to model spectral line shapes in spectroscopy and accounts for both Doppler and pressure broadening effects, making it suitable for more complex line shape modeling.
+    </p>
+    <h2>Mathematical Representation:</h2>
+    <p>
+        The Voigt Function does not have a simple closed-form expression and is defined as the convolution:
+        <br>
+        \\[
+        V(x; \\sigma, \\Gamma) = \\int_{{-\\infty}}^{{\\infty}} G(x'; \\sigma) L(x - x'; \\Gamma) \\, \\mathrm{{d}}x'
+        \\]
+        where:
+        <ul>
+            <li><strong>G</strong>: Gaussian component with standard deviation \\( \\sigma \\).</li>
+            <li><strong>L</strong>: Lorentzian component with width parameter \\( \\Gamma \\).</li>
+        </ul>
+    </p>
+
+    <h2>Scientific Significance and Applications:</h2>
+    <ul>
+        <li><strong>Spectroscopy:</strong> The Voigt profile is crucial for accurately modeling spectral lines, especially in the presence of both Doppler and pressure broadening.</li>
+        <li><strong>Astrophysics:</strong> Used to model absorption and emission lines in stellar and interstellar spectra.</li>
+        <li><strong>Analytical Chemistry:</strong> Essential for interpreting spectroscopic data from complex samples.</li>
+    </ul>
+
+    <h2>Use Cases and Practical Considerations:</h2>
+    <h3>Key Considerations:</h3>
+    <ul>
+        <li><strong>Computational Complexity:</strong> Calculating the Voigt profile requires numerical methods, making it more computationally intensive than Gaussian or Lorentzian profiles.</li>
+        <li><strong>Parameter Interplay:</strong> The parameters \\( \\sigma \\) and \\( \\Gamma \\) both influence the line shape, requiring careful fitting to accurately represent physical phenomena.</li>
+    </ul>
+
+    <h2>Mathematical Properties:</h2>
+    <ul>
+        <li><strong>Normalization:</strong> The Voigt function is normalized, but the convolution complicates the expression, requiring numerical methods for accurate calculations.</li>
+        <li><strong>Asymptotic Behavior:</strong> The Voigt profile behaves like a Lorentzian far from the center and like a Gaussian near the peak.</li>
+    </ul>
+
+    <h2>Advantages and Limitations:</h2>
+    <h3>Advantages:</h3>
+    <ul>
+        <li><strong>Comprehensive Modeling:</strong> Captures both Gaussian and Lorentzian broadening effects, making it ideal for complex line shapes.</li>
+        <li><strong>Versatility:</strong> Widely used in spectroscopy and astrophysics for accurate data interpretation.</li>
+    </ul>
+    <h3>Limitations:</h3>
+    <ul>
+        <li><strong>Computational Demand:</strong> Requires numerical integration, making it less efficient than simpler models.</li>
+        <li><strong>Parameter Sensitivity:</strong> Accurate parameter estimation can be challenging due to the interplay between \\( \\sigma \\) and \\( \\Gamma \\).</li>
+    </ul>
+
+    <hr>
+
+    <h1>Pseudo-Voigt Function</h1>
+    <p>
+        The Pseudo-Voigt Function is an approximation of the Voigt profile, expressed as a linear combination of a Gaussian and a Lorentzian function. It provides a simpler and computationally less demanding alternative for modeling spectral line shapes while still capturing the essential features of both broadening mechanisms.
+    </p>
+    <h2>Mathematical Representation:</h2>
+    <p>
+        The Pseudo-Voigt Function is given by:
+        <br>
+        \\[
+        PV(x; \\sigma, \\Gamma) = \\eta L(x; \\Gamma) + (1 - \\eta) G(x; \\sigma)
+        \\]
+        where:
+        <ul>
+            <li><strong>\\( \\eta \\)</strong>: Mixing parameter (ranging from 0 to 1) that determines the relative contribution of the Lorentzian and Gaussian components.</li>
+            <li><strong>L</strong>: Lorentzian component with width \\( \\Gamma \\).</li>
+            <li><strong>G</strong>: Gaussian component with standard deviation \\( \\sigma \\).</li>
+        </ul>
+    </p>
+
+    <h2>Scientific Significance and Applications:</h2>
+    <ul>
+        <li><strong>Spectroscopy:</strong> The Pseudo-Voigt profile is commonly used for fitting experimental spectra where computational efficiency is essential.</li>
+        <li><strong>Material Science:</strong> Useful for analyzing diffraction patterns, particularly in X-ray and neutron diffraction.</li>
+        <li><strong>Astrophysics:</strong> Applied to approximate spectral line shapes in stellar and interstellar studies.</li>
+    </ul>
+
+    <h2>Use Cases and Practical Considerations:</h2>
+    <h3>Key Considerations:</h3>
+    <ul>
+        <li><strong>Approximation Accuracy:</strong> The Pseudo-Voigt function is an approximation, and its accuracy depends on the chosen value of \\( \\eta \\). While simpler than the Voigt profile, it may not perfectly match all line shapes.</li>
+        <li><strong>Parameter Estimation:</strong> Careful estimation of \\( \\sigma \\), \\( \\Gamma \\), and \\( \\eta \\) is necessary to achieve a good fit, especially when distinguishing between Gaussian and Lorentzian contributions.</li>
+    </ul>
+
+    <h2>Mathematical Properties:</h2>
+    <ul>
+        <li><strong>Normalization:</strong> The Pseudo-Voigt function is normalized, but the linear combination introduces slight deviations from the true Voigt profile, depending on \\( \\eta \\).</li>
+        <li><strong>Behavior:</strong> The Pseudo-Voigt profile transitions smoothly between a Gaussian and Lorentzian shape as \\( \\eta \\) varies from 0 to 1.</li>
+    </ul>
+
+    <h2>Advantages and Limitations:</h2>
+    <h3>Advantages:</h3>
+    <ul>
+        <li><strong>Computational Efficiency:</strong> Easier to compute than the true Voigt profile, making it suitable for real-time data fitting.</li>
+        <li><strong>Flexible Approximation:</strong> Provides a reasonable fit for a wide range of spectral lines with fewer computational resources.</li>
+    </ul>
+    <h3>Limitations:</h3>
+    <ul>
+        <li><strong>Approximation Limitations:</strong> The Pseudo-Voigt function may not perfectly replicate the Voigt profile, particularly for complex or asymmetric lines.</li>
+        <li><strong>Mixing Parameter Dependence:</strong> The accuracy of the approximation depends heavily on the correct choice of \\( \\eta \\), which may require fine-tuning.</li>
+    </ul>
+
+    <hr>
+
+    <h1>Exponential Gaussian Function</h1>
+    <p>
+        The Exponential Gaussian Function is a modification of the Gaussian function that introduces an exponential decay component. It is particularly useful for modeling asymmetric peak shapes that are commonly observed in various types of spectroscopy and chromatography.
+    </p>
+    <h2>Mathematical Representation:</h2>
+    <p>
+        The Exponential Gaussian Function is expressed as:
+        <br>
+        \\[
+        f(x) = A \\exp \\left( -\\frac{{(x - \\mu)^2}}{{2\\sigma^2}} \\right) \\times \\exp \\left( -\\lambda (x - \\mu) \\right)
+        \\]
+        for \\( x \\geq \\mu \\), where:
+        <ul>
+            <li><strong>A</strong>: Amplitude, representing the peak height.</li>
+            <li><strong>\\( \\mu \\)</strong>: Mean or center of the Gaussian component.</li>
+            <li><strong>\\( \\sigma \\)</strong>: Standard deviation of the Gaussian component, controlling the peak width.</li>
+            <li><strong>\\( \\lambda \\)</strong>: Exponential decay factor, introducing asymmetry into the peak shape.</li>
+        </ul>
+    </p>
+
+    <h2>Scientific Significance and Applications:</h2>
+    <ul>
+        <li><strong>Chromatography:</strong> Used to model the tailing of peaks due to interactions between analytes and the stationary phase.</li>
+        <li><strong>Fluorescence Spectroscopy:</strong> Applied to describe the emission spectra of fluorescent molecules with asymmetric decay.</li>
+        <li><strong>Environmental Analysis:</strong> Useful for fitting data where asymmetric distributions arise from non-uniform physical or chemical processes.</li>
+    </ul>
+
+    <h2>Use Cases and Practical Considerations:</h2>
+    <h3>Key Considerations:</h3>
+    <ul>
+        <li><strong>Asymmetry Modeling:</strong> The parameter \\( \\lambda \\) introduces asymmetry to the otherwise symmetric Gaussian profile, making it suitable for skewed peak shapes.</li>
+        <li><strong>Parameter Estimation:</strong> Accurate estimation of \\( \\lambda \\), \\( \\mu \\), and \\( \\sigma \\) is crucial to appropriately capture the peak's asymmetry and width.</li>
+    </ul>
+
+    <h2>Mathematical Properties:</h2>
+    <ul>
+        <li><strong>Asymmetry:</strong> The exponential component causes a tailing effect, resulting in a peak that is not symmetric around \\( \\mu \\).</li>
+        <li><strong>Combination of Exponential and Gaussian:</strong> The function smoothly transitions from a Gaussian profile near the peak center to an exponentially decaying tail.</li>
+    </ul>
+
+    <h2>Advantages and Limitations:</h2>
+    <h3>Advantages:</h3>
+    <ul>
+        <li><strong>Asymmetric Peak Modeling:</strong> Ideal for fitting peaks that exhibit tailing or skewness, commonly seen in experimental data.</li>
+        <li><strong>Flexible Parameterization:</strong> Provides more flexibility compared to a standard Gaussian function, allowing for better fits to real-world data.</li>
+    </ul>
+    <h3>Limitations:</h3>
+    <ul>
+        <li><strong>Increased Complexity:</strong> The addition of the exponential component introduces more parameters, which may complicate the fitting process.</li>
+        <li><strong>Sensitivity to Initial Guesses:</strong> Fitting algorithms may require good initial parameter estimates for convergence, especially for complex data sets.</li>
+    </ul>
+
+<hr>
+
+<h1>Split Gaussian Function</h1>
+<p>
+    The Split Gaussian Function is a variation of the standard Gaussian function, where the standard deviation is different on either side of the peak, allowing for an asymmetric peak shape. This function is particularly useful in modeling skewed distributions where the spread differs on the left and right sides of the mean.
+</p>
+<h2>Mathematical Representation:</h2>
+<p>
+    The Split Gaussian Function is defined as:
+    <br>
+    \\[
+    f(x) = \\begin{{cases}} 
+    A \\exp \\left( -\\frac{{(x - \\mu)^2}}{{2\\sigma_1^2}} \\right) & \\text{{for }} x < \\mu \\\\
+    A \\exp \\left( -\\frac{{(x - \\mu)^2}}{{2\\sigma_2^2}} \\right) & \\text{{for }} x \\geq \\mu
+    \\end{{cases}}
+    \\]
+    where:
+    <ul>
+        <li><strong>A</strong>: Amplitude, representing the peak height.</li>
+        <li><strong>\\( \\mu \\)</strong>: Mean or center of the distribution.</li>
+        <li><strong>\\( \\sigma_1 \\)</strong>: Standard deviation for \\( x < \\mu \\), controlling the spread on the left side of the peak.</li>
+        <li><strong>\\( \\sigma_2 \\)</strong>: Standard deviation for \\( x \\geq \\mu \\), controlling the spread on the right side of the peak.</li>
+    </ul>
+</p>
+
+<h2>Scientific Significance and Applications:</h2>
+<ul>
+    <li><strong>Spectroscopy:</strong> Useful for modeling asymmetric spectral lines that cannot be described by a standard Gaussian profile.</li>
+    <li><strong>Geophysical Data:</strong> Applied in analyzing asymmetric geological distributions, such as earthquake magnitudes or sedimentary layers.</li>
+    <li><strong>Biostatistics:</strong> Used for data analysis where asymmetric biological distributions are observed.</li>
+</ul>
+
+<h2>Use Cases and Practical Considerations:</h2>
+<h3>Key Considerations:</h3>
+<ul>
+    <li><strong>Asymmetry Control:</strong> The parameters \\( \\sigma_1 \\) and \\( \\sigma_2 \\) allow for precise control over the asymmetry of the peak, making it adaptable to various data shapes.</li>
+    <li><strong>Parameter Initialization:</strong> Good initial guesses for \\( \\sigma_1 \\) and \\( \\sigma_2 \\) are important to achieve successful and efficient fitting.</li>
+</ul>
+
+<h2>Mathematical Properties:</h2>
+<ul>
+    <li><strong>Piecewise Definition:</strong> The function is defined in two parts, each with a different standard deviation, leading to a smooth but asymmetric peak.</li>
+    <li><strong>Continuity:</strong> The Split Gaussian is continuous at \\( \\mu \\), ensuring there are no jumps or discontinuities in the peak.</li>
+</ul>
+
+<h2>Advantages and Limitations:</h2>
+<h3>Advantages:</h3>
+<ul>
+    <li><strong>Asymmetric Peak Fitting:</strong> Ideal for data with asymmetry, providing a better fit than a symmetric Gaussian function.</li>
+    <li><strong>Flexible Shape Adjustment:</strong> Allows independent control over the spread on both sides of the peak, making it versatile for different applications.</li>
+</ul>
+<h3>Limitations:</h3>
+<ul>
+    <li><strong>Increased Parameter Count:</strong> The need for two standard deviations adds complexity, making the fitting process more involved.</li>
+    <li><strong>Potential Overfitting:</strong> The flexibility of the model can lead to overfitting if not used with caution, especially on noisy data.</li>
+</ul>
+
+      <hr>
+
+<h1>Split Lorentzian Function</h1>
+<p>
+    The Split Lorentzian Function is a modified version of the standard Lorentzian function, with different width parameters on either side of the peak. This variation allows for the modeling of asymmetric peak shapes where the line width differs on the left and right sides of the peak center.
+</p>
+<h2>Mathematical Representation:</h2>
+<p>
+    The Split Lorentzian Function is defined as:
+    <br>
+    \\[
+    f(x) = \\begin{{cases}} 
+    \\frac{{A}}{{\\pi}} \\cdot \\frac{{\\Gamma_1 / 2}}{{(x - x_0)^2 + (\\Gamma_1 / 2)^2}} & \\text{{for }} x < x_0 \\\\
+    \\frac{{A}}{{\\pi}} \\cdot \\frac{{\\Gamma_2 / 2}}{{(x - x_0)^2 + (\\Gamma_2 / 2)^2}} & \\text{{for }} x \\geq x_0
+    \\end{{cases}}
+    \\]
+    where:
+    <ul>
+        <li><strong>A</strong>: Amplitude, representing the peak height.</li>
+        <li><strong>\\( x_0 \\)</strong>: Center of the peak.</li>
+        <li><strong>\\( \\Gamma_1 \\)</strong>: Width parameter for \\( x < x_0 \\), controlling the spread on the left side of the peak.</li>
+        <li><strong>\\( \\Gamma_2 \\)</strong>: Width parameter for \\( x \\geq x_0 \\), controlling the spread on the right side of the peak.</li>
+    </ul>
+</p>
+
+<h2>Scientific Significance and Applications:</h2>
+<ul>
+    <li><strong>Spectroscopy:</strong> Useful for modeling asymmetric spectral features, such as line shapes influenced by inhomogeneous broadening or environmental factors.</li>
+    <li><strong>Seismology:</strong> Applied in modeling asymmetric waveforms generated by geological phenomena.</li>
+    <li><strong>Material Science:</strong> Useful for characterizing resonance phenomena in materials with non-uniform properties.</li>
+</ul>
+
+<h2>Use Cases and Practical Considerations:</h2>
+<h3>Key Considerations:</h3>
+<ul>
+    <li><strong>Asymmetry Control:</strong> The parameters \\( \\Gamma_1 \\) and \\( \\Gamma_2 \\) provide flexibility in modeling asymmetric line shapes, making the function adaptable to various data sets.</li>
+    <li><strong>Initial Parameter Estimation:</strong> Accurate initial values for \\( \\Gamma_1 \\) and \\( \\Gamma_2 \\) can significantly improve the efficiency of fitting algorithms.</li>
+</ul>
+
+<h2>Mathematical Properties:</h2>
+<ul>
+    <li><strong>Piecewise Definition:</strong> The function is defined differently on either side of the peak, allowing for an asymmetric shape while remaining continuous at \\( x_0 \\).</li>
+    <li><strong>Continuity:</strong> The Split Lorentzian Function is continuous at \\( x_0 \\), ensuring there are no abrupt changes in the peak.</li>
+</ul>
+
+<h2>Advantages and Limitations:</h2>
+<h3>Advantages:</h3>
+<ul>
+    <li><strong>Asymmetric Line Shape Modeling:</strong> Ideal for data sets where the peak shape is asymmetric due to different broadening mechanisms on either side of the peak.</li>
+    <li><strong>Versatile Application:</strong> Suitable for various scientific fields, including spectroscopy, seismology, and material characterization.</li>
+</ul>
+<h3>Limitations:</h3>
+<ul>
+    <li><strong>Increased Complexity:</strong> The addition of separate width parameters increases the complexity of the fitting process.</li>
+    <li><strong>Risk of Overfitting:</strong> The flexibility of the model may lead to overfitting, especially when applied to noisy or insufficiently sampled data.</li>
+</ul>
+  
+</body>
+</html>
+"""
+
+POLYNOMIAL_FITTING_HELP = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Polynomial Fitting Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }}
+        h1, h2 {{
+            color: #2E8B57;
+        }}
+        p, ul {{
+            font-size: 16px;
+        }}
+        ul {{
+            margin-left: 20px;
+        }}
+        hr {{
+            border: none;
+            height: 4px;
+            background-color: #2E8B57;
+            margin: 40px 0;
+        }}
+    </style>
+</head>
+<body>
+    <h1>Linear Fitting</h1>
+    <p>
+        Linear fitting, also known as linear regression, is a fundamental statistical method used to model the relationship between two variables by fitting a linear equation to the observed data. It is widely used in various scientific fields to identify trends and make predictions.
+    </p>
+    <h2>Mathematical Representation:</h2>
+    <p>
+        The equation of a straight line is given by:
+        <br>
+        \\[
+        y = mx + b
+        \\]
+        where:
+        <ul>
+            <li><strong>y</strong>: Dependent variable.</li>
+            <li><strong>x</strong>: Independent variable.</li>
+            <li><strong>m</strong>: Slope of the line, representing the rate of change of y with respect to x.</li>
+            <li><strong>b</strong>: Intercept, the value of y when x = 0.</li>
+        </ul>
+        The goal of linear fitting is to determine the optimal values of \\( m \\) and \\( b \\) that minimize the difference between the observed data points and the predicted values given by the line. This is typically achieved using the method of least squares.
+    </p>
+
+    <h2>Least Squares Method:</h2>
+    <p>
+        The least squares method minimizes the sum of the squared differences between the observed values \\( y_i \\) and the predicted values \\( \\hat{{y}}_i \\):
+        <br>
+        \\[
+        S = \\sum_{{i=1}}^n (y_i - (mx_i + b))^2
+        \\]
+        where:
+        <ul>
+            <li><strong>S</strong>: Sum of squared residuals.</li>
+            <li><strong>n</strong>: Number of data points.</li>
+            <li><strong>y_i</strong>: Observed value at point i.</li>
+            <li><strong>x_i</strong>: Independent variable value at point i.</li>
+            <li><strong>\\( \\hat{{y}}_i \\)</strong>: Predicted value at point i using the fitted line.</li>
+        </ul>
+        By minimizing \\( S \\), we obtain the best-fit parameters \\( m \\) and \\( b \\). The least squares solution can be derived analytically, yielding:
+        <br>
+        \\[
+        m = \\frac{{n \\sum x_i y_i - \\sum x_i \\sum y_i}}{{n \\sum x_i^2 - (\\sum x_i)^2}}
+        \\]
+        \\[
+        b = \\frac{{\\sum y_i - m \\sum x_i}}{{n}}
+        \\]
+    </p>
+
+    <h2>Scientific Significance and Applications:</h2>
+    <ul>
+        <li><strong>Physics:</strong> Used to describe relationships between variables, such as velocity and time or force and displacement.</li>
+        <li><strong>Economics:</strong> Applied in modeling economic trends, like the relationship between price and demand.</li>
+        <li><strong>Biology:</strong> Used to model growth rates and analyze the correlation between biological factors.</li>
+    </ul>
+
+    <h2>Advantages and Limitations:</h2>
+    <h3>Advantages:</h3>
+    <ul>
+        <li><strong>Simplicity:</strong> Linear fitting is easy to implement and interpret, making it suitable for initial data analysis.</li>
+        <li><strong>Predictive Power:</strong> Useful for making predictions when the relationship between variables is approximately linear.</li>
+    </ul>
+    <h3>Limitations:</h3>
+    <ul>
+        <li><strong>Linearity Assumption:</strong> Not suitable for data with nonlinear relationships.</li>
+        <li><strong>Sensitivity to Outliers:</strong> Outliers can significantly affect the fitted line, leading to incorrect conclusions.</li>
+    </ul>
+
+    <hr>
+
+    <h1>Polynomial Fitting</h1>
+    <p>
+        Polynomial fitting extends linear fitting by using a polynomial equation to model the relationship between variables. This method is used when data shows a nonlinear trend, and a straight line cannot adequately capture the pattern.
+    </p>
+    <h2>Mathematical Representation:</h2>
+    <p>
+        A polynomial of degree \\( n \\) is given by:
+        <br>
+        \\[
+        y = a_0 + a_1x + a_2x^2 + \\dots + a_nx^n
+        \\]
+        where:
+        <ul>
+            <li><strong>y</strong>: Dependent variable.</li>
+            <li><strong>x</strong>: Independent variable.</li>
+            <li><strong>a_0, a_1, \\dots, a_n</strong>: Coefficients of the polynomial, which are determined through fitting.</li>
+            <li><strong>n</strong>: Degree of the polynomial, representing the highest power of x.</li>
+        </ul>
+        The goal is to find the coefficients \\( a_0, a_1, \\dots, a_n \\) that best fit the data using the least squares method, similar to linear fitting but generalized for higher-degree polynomials.
+    </p>
+
+    <h2>Least Squares Method for Polynomials:</h2>
+    <p>
+        The objective is to minimize the sum of squared residuals:
+        <br>
+        \\[
+        S = \\sum_{{i=1}}^n (y_i - (a_0 + a_1x_i + a_2x_i^2 + \\dots + a_nx_i^n))^2
+        \\]
+        The system of equations obtained from this minimization problem can be solved using numerical techniques, such as matrix algebra or specialized algorithms, to determine the coefficients \\( a_0, a_1, \\dots, a_n \\).
+    </p>
+
+    <h2>Scientific Significance and Applications:</h2>
+    <ul>
+        <li><strong>Physics:</strong> Polynomial fitting is used to model complex phenomena, such as the motion of projectiles or the behavior of materials under stress.</li>
+        <li><strong>Astronomy:</strong> Applied in fitting orbits and trajectories of celestial objects.</li>
+        <li><strong>Engineering:</strong> Used to approximate curves in structural analysis and control systems.</li>
+    </ul>
+
+    <h2>Advantages and Limitations:</h2>
+    <h3>Advantages:</h3>
+    <ul>
+        <li><strong>Flexible Modeling:</strong> Can capture complex, nonlinear relationships in data by adjusting the polynomial degree.</li>
+        <li><strong>Improved Fit:</strong> Higher-degree polynomials can provide a better fit for data with curvature or oscillatory behavior.</li>
+    </ul>
+    <h3>Limitations:</h3>
+    <ul>
+        <li><strong>Overfitting:</strong> Using a polynomial degree that is too high can lead to overfitting, where the model captures noise rather than the underlying trend.</li>
+        <li><strong>Instability:</strong> High-degree polynomials can exhibit large oscillations between data points, making the model sensitive to small changes in data.</li>
+        <li><strong>Computational Complexity:</strong> Polynomial fitting can be computationally intensive, especially for large data sets and high-degree polynomials.</li>
+    </ul>
+</body>
+</html>
+"""
+
+CUSTOM_FITTING_HELP = f"""
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Custom Fitting Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }}
+        h1, h2 {{
+            color: #2E8B57;
+        }}
+        p, ul {{
+            font-size: 16px;
+        }}
+        ul {{
+            margin-left: 20px;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }}
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }}
+        th {{
+            background-color: #f2f2f2;
+        }}
+        hr {{
+            border: none;
+            height: 4px;
+            background-color: #2E8B57;
+            margin: 40px 0;
+        }}
+    </style>
+</head>
+<body>
+    <h1>Custom Fitting</h1>
+    <p>
+        Custom fitting allows for flexible modeling of data using user-defined functions and parameters. By specifying an appropriate mathematical model and choosing initial parameter values, users can perform highly customized fits to their data using a variety of optimization techniques.
+    </p>
+    <h2>Mathematical Model:</h2>
+    <p>
+        A custom fitting model can be expressed as:
+        <br>
+        \\[
+        y = f(x; a_1, a_2, \dots, a_n)
+        \\]
+        where:
+        <ul>
+            <li><strong>y</strong>: Dependent variable.</li>
+            <li><strong>x</strong>: Independent variable.</li>
+            <li><strong>f</strong>: User-defined function that describes the relationship between x and y.</li>
+            <li><strong>a_1, a_2, \dots, a_n</strong>: Model parameters to be optimized.</li>
+        </ul>
+    </p>
+
+    <h2>Parameter Settings:</h2>
+    <p>
+        For each parameter, users can specify:
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Parameter</th>
+                <th>Initial Guess</th>
+                <th>Min</th>
+                <th>Max</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>a_1</strong></td>
+                <td>Initial value for a_1</td>
+                <td>Minimum allowable value</td>
+                <td>Maximum allowable value</td>
+            </tr>
+            <tr>
+                <td><strong>a_2</strong></td>
+                <td>Initial value for a_2</td>
+                <td>Minimum allowable value</td>
+                <td>Maximum allowable value</td>
+            </tr>
+            <!-- Add more rows as needed -->
+        </tbody>
+    </table>
+
+    <h2>Optimization Methods:</h2>
+    <h3>1. Leastsq</h3>
+    <p>
+        <strong>Leastsq</strong> is based on the Levenberg-Marquardt algorithm, which is an efficient method for minimizing the sum of the squares of nonlinear functions.
+    </p>
+    <h4>Mathematical Description:</h4>
+    <p>
+        The objective is to minimize:
+        <br>
+        \\[
+        S = \sum_{{i=1}}^n (y_i - f(x_i; a_1, a_2, \dots, a_n))^2
+        \\]
+        <ul>
+            <li><strong>When to Use:</strong> Leastsq is ideal for problems with smooth, continuous functions and well-behaved derivatives.</li>
+            <li><strong>Advantages:</strong> Fast convergence and well-suited for least-squares problems.</li>
+            <li><strong>Disadvantages:</strong> Sensitive to initial guesses; may converge to local minima if the initial parameters are not chosen carefully.</li>
+        </ul>
+    </p>
+
+    <h3>2. Least_squares</h3>
+    <p>
+        <strong>Least_squares</strong> is a more flexible optimization method that supports bounds on parameters and can handle sparse matrices.
+    </p>
+    <h4>Mathematical Description:</h4>
+    <p>
+        Minimizes the same objective function:
+        <br>
+        \\[
+        S = \sum_{{i=1}}^n (y_i - f(x_i; a_1, a_2, \dots, a_n))^2
+        \\]
+        <ul>
+            <li><strong>When to Use:</strong> Useful when parameter bounds are needed or for problems with additional constraints.</li>
+            <li><strong>Advantages:</strong> Robust, with support for bounds and various loss functions.</li>
+            <li><strong>Disadvantages:</strong> Slightly slower than leastsq for simple problems; may require more computational resources.</li>
+        </ul>
+    </p>
+
+    <h3>3. Differential Evolution</h3>
+    <p>
+        <strong>Differential Evolution</strong> is a stochastic, population-based optimization algorithm. It is useful for global optimization in nonlinear and non-differentiable continuous spaces.
+    </p>
+    <h4>Mathematical Description:</h4>
+    <p>
+        Differential Evolution optimizes a population of candidate solutions using operations like mutation, crossover, and selection.
+        <ul>
+            <li><strong>When to Use:</strong> Suitable for problems with many local minima or unknown derivative properties.</li>
+            <li><strong>Advantages:</strong> Effective for global optimization; does not require derivatives.</li>
+            <li><strong>Disadvantages:</strong> Computationally expensive; slower convergence compared to gradient-based methods.</li>
+        </ul>
+    </p>
+
+    <h3>4. Brute Force</h3>
+    <p>
+        <strong>Brute Force</strong> performs a grid search over a specified parameter space, evaluating the objective function at each grid point.
+    </p>
+    <h4>Mathematical Description:</h4>
+    <p>
+        This method exhaustively searches for the global minimum:
+        <br>
+        \\[
+        S = \sum_{{i=1}}^n (y_i - f(x_i; a_1, a_2, \dots, a_n))^2
+        \\]
+        <ul>
+            <li><strong>When to Use:</strong> Useful when the parameter space is small or when a global search is necessary.</li>
+            <li><strong>Advantages:</strong> Simple and easy to implement; guarantees finding the global minimum within the search space.</li>
+            <li><strong>Disadvantages:</strong> Highly inefficient for large parameter spaces; computationally expensive.</li>
+        </ul>
+    </p>
+
+    <h3>5. Basin Hopping</h3>
+    <p>
+        <strong>Basin Hopping</strong> is a global optimization technique that combines random perturbation with local minimization. It is useful for rugged landscapes with many local minima.
+    </p>
+    <h4>Mathematical Description:</h4>
+    <p>
+        Basin Hopping performs a series of local optimizations, using random jumps to escape local minima:
+        <br>
+        \\[
+        S = \sum_{{i=1}}^n (y_i - f(x_i; a_1, a_2, \dots, a_n))^2
+        \\]
+        <ul>
+            <li><strong>When to Use:</strong> Ideal for problems with multiple local minima and a rugged objective function landscape.</li>
+            <li><strong>Advantages:</strong> Effective for finding global minima; can escape local traps.</li>
+            <li><strong>Disadvantages:</strong> May require careful tuning of parameters; computationally intensive.</li>
+        </ul>
+    </p>
+
+    <h2>Max Iterations:</h2>
+    <p>
+        The <strong>Max Iterations</strong> setting specifies the maximum number of iterations an optimization algorithm will perform. This acts as a stopping criterion to prevent the algorithm from running indefinitely.
+        <ul>
+            <li><strong>Purpose:</strong> To control the computational time and resources used by the fitting process.</li>
+            <li><strong>Considerations:</strong> Choosing too low a value may result in an incomplete optimization, while too high a value can lead to unnecessary computation.</li>
+        </ul>
+    </p>
+</body>
+</html>
+
+"""

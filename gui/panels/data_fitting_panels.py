@@ -10,8 +10,9 @@ from PyQt5.QtGui import QDoubleValidator
 from functools import partial
 import json
 import numpy as np
-
-
+from gui.dialogs.help_dialog import HelpDialog
+from gui.utils.help_content import (PEAK_FITTING_HELP, POLYNOMIAL_FITTING_HELP, CUSTOM_FITTING_HELP
+)
 class GaussianFittingPanel(QWidget):
     parameters_changed = pyqtSignal()
     run_peak_finder_signal = pyqtSignal()
@@ -290,8 +291,10 @@ class GaussianFittingPanel(QWidget):
         self.run_peak_finder_signal.emit()
 
     def show_help(self):
-        QMessageBox.information(self, "Gaussian Fitting Help", "This is where you can provide help information about Gaussian fitting.")
-    
+            help_content = PEAK_FITTING_HELP
+            dialog = HelpDialog("Peak Fitting Help", help_content, self)
+            dialog.exec_()
+
     def get_parameters(self):
         peaks = []
         row = 0
@@ -492,11 +495,10 @@ class PolynomialFittingPanel(QWidget):
         return {'fitting_type': fitting_type, 'degree': degree}
 
     def show_help(self):
-        QMessageBox.information(
-            self, "Polynomial Fitting Help",
-            "Select 'Linear Fitting' for a straight line fit.\n"
-            "Select 'Polynomial Fitting' and specify the degree for higher-order fitting."
-        )
+            help_content = POLYNOMIAL_FITTING_HELP
+            dialog = HelpDialog("Polynomial Fitting Help", help_content, self)
+            dialog.exec_()
+
 
 
 
@@ -728,10 +730,7 @@ class CustomFittingPanel(QWidget):
         self.parameters_changed.emit()
 
     def show_help(self):
-        QMessageBox.information(
-            self, "Custom Fitting Help",
-            "Enter your custom function using 'x' as the independent variable.\n"
-            "Define parameters and provide initial guesses, bounds, and optimization settings.\n"
-            "Example:\nFunction: a * np.sin(b * x) + c\nParameters: a, b, c\n\n"
-            "You can save your custom function and parameters for future use."
-        )
+            help_content = CUSTOM_FITTING_HELP
+            dialog = HelpDialog("Custom Fitting Help", help_content, self)
+            dialog.exec_()
+
