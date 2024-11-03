@@ -1816,14 +1816,14 @@ CUSTOM_FITTING_HELP = f"""
         A custom fitting model can be expressed as:
         <br>
         \\[
-        y = f(x; a_1, a_2, \dots, a_n)
+        y = f(x; a_1, a_2, \\dots, a_n)
         \\]
         where:
         <ul>
             <li><strong>y</strong>: Dependent variable.</li>
             <li><strong>x</strong>: Independent variable.</li>
             <li><strong>f</strong>: User-defined function that describes the relationship between x and y.</li>
-            <li><strong>a_1, a_2, \dots, a_n</strong>: Model parameters to be optimized.</li>
+            <li><strong>a_1, a_2, \\dots, a_n</strong>: Model parameters to be optimized.</li>
         </ul>
     </p>
 
@@ -1864,13 +1864,26 @@ CUSTOM_FITTING_HELP = f"""
     </p>
     <h4>Mathematical Description:</h4>
     <p>
-        The objective is to minimize:
+        The algorithm iteratively updates the parameters to minimize the sum of squared residuals:
         <br>
         \\[
-        S = \sum_{{i=1}}^n (y_i - f(x_i; a_1, a_2, \dots, a_n))^2
+        S(\\mathbf{{a}}) = \\sum_{{i=1}}^n \\left( y_i - f(x_i; \\mathbf{{a}}) \\right)^2
         \\]
+        The parameter update at each iteration is given by:
+        <br>
+        \\[
+        \\mathbf{{a}}_{{k+1}} = \\mathbf{{a}}_k - (\\mathbf{{J}}^\\mathrm{{T}} \\mathbf{{J}} + \\lambda \\mathbf{{I}})^{{-1}} \\mathbf{{J}}^\\mathrm{{T}} \\mathbf{{r}}
+        \\]
+        where:
         <ul>
-            <li><strong>When to Use:</strong> Leastsq is ideal for problems with smooth, continuous functions and well-behaved derivatives.</li>
+            <li>\\(\\mathbf{{a}}_k\\): Parameter vector at iteration \\(k\\).</li>
+            <li>\\(\\mathbf{{J}}\\): Jacobian matrix of partial derivatives \\(J_{{ij}} = \\frac{{\\partial r_i}}{{\\partial a_j}}\\).</li>
+            <li>\\(\\mathbf{{r}}\\): Residual vector \\(r_i = y_i - f(x_i; \\mathbf{{a}}_k)\\).</li>
+            <li>\\(\\lambda\\): Damping parameter that controls the step size.</li>
+            <li>\\(\\mathbf{{I}}\\): Identity matrix.</li>
+        </ul>
+        <ul>
+            <li><strong>When to Use:</strong> Ideal for problems with smooth, continuous functions and well-behaved derivatives.</li>
             <li><strong>Advantages:</strong> Fast convergence and well-suited for least-squares problems.</li>
             <li><strong>Disadvantages:</strong> Sensitive to initial guesses; may converge to local minima if the initial parameters are not chosen carefully.</li>
         </ul>
@@ -1878,15 +1891,31 @@ CUSTOM_FITTING_HELP = f"""
 
     <h3>2. Least_squares</h3>
     <p>
-        <strong>Least_squares</strong> is a more flexible optimization method that supports bounds on parameters and can handle sparse matrices.
+        <strong>Least_squares</strong> is a more flexible optimization method that supports bounds on parameters and can handle sparse matrices. It can use different algorithms like Trust Region Reflective or Dogleg methods.
     </p>
     <h4>Mathematical Description:</h4>
     <p>
-        Minimizes the same objective function:
+        The objective is to minimize the sum of squared residuals subject to parameter bounds:
         <br>
         \\[
-        S = \sum_{{i=1}}^n (y_i - f(x_i; a_1, a_2, \dots, a_n))^2
+        \\min_{{\\mathbf{{a}}}} \\frac{{1}}{{2}} \\| \\mathbf{{r}}(\\mathbf{{a}}) \\|^2 \\quad \\text{{subject to}} \\quad \\mathbf{{a}}_{{\\text{{min}}}} \\leq \\mathbf{{a}} \\leq \\mathbf{{a}}_{{\\text{{max}}}}
         \\]
+        where:
+        <ul>
+            <li>\\(\\mathbf{{r}}(\\mathbf{{a}}) = [ y_1 - f(x_1; \\mathbf{{a}}), \\dots, y_n - f(x_n; \\mathbf{{a}}) ]^\\mathrm{{T}}\\): Residual vector.</li>
+            <li>\\(\\mathbf{{a}}_{{\\text{{min}}}}, \\mathbf{{a}}_{{\\text{{max}}}}\\): Lower and upper bounds on parameters.</li>
+        </ul>
+        The Trust Region Reflective algorithm solves a subproblem at each iteration:
+        <br>
+        \\[
+        \\min_{{\\mathbf{{p}}}} \\frac{{1}}{{2}} \\| \\mathbf{{J}} \\mathbf{{p}} + \\mathbf{{r}} \\|^2 \\quad \\text{{subject to}} \\quad \\| \\mathbf{{D}} \\mathbf{{p}} \\| \\leq \\Delta
+        \\]
+        where:
+        <ul>
+            <li>\\(\\mathbf{{p}}\\): Parameter update vector.</li>
+            <li>\\(\\mathbf{{D}}\\): Diagonal scaling matrix.</li>
+            <li>\\(\\Delta\\): Trust-region radius.</li>
+        </ul>
         <ul>
             <li><strong>When to Use:</strong> Useful when parameter bounds are needed or for problems with additional constraints.</li>
             <li><strong>Advantages:</strong> Robust, with support for bounds and various loss functions.</li>
@@ -1900,7 +1929,30 @@ CUSTOM_FITTING_HELP = f"""
     </p>
     <h4>Mathematical Description:</h4>
     <p>
-        Differential Evolution optimizes a population of candidate solutions using operations like mutation, crossover, and selection.
+        Differential Evolution optimizes a population of candidate solutions using operations of mutation, crossover, and selection:
+        <ul>
+            <li><strong>Mutation:</strong> For each individual \\(\\mathbf{{x}}_i\\), a mutant vector is generated:
+                \\[
+                \\mathbf{{v}}_i = \\mathbf{{x}}_{{r1}} + F \\cdot (\\mathbf{{x}}_{{r2}} - \\mathbf{{x}}_{{r3}})
+                \\]
+                where \\(r1, r2, r3\\) are distinct random indices and \\(F\\) is the mutation factor.</li>
+            <li><strong>Crossover:</strong> The trial vector \\(\\mathbf{{u}}_i\\) is formed by mixing the mutant vector and the target vector:
+                \\[
+                u_{{ij}} = \\begin{{cases}}
+                    v_{{ij}} & \\text{{if }} rand_j(0,1) \\leq CR \\text{{ or }} j = j_{{\\text{{rand}}}} \\\\
+                    x_{{ij}} & \\text{{otherwise}}
+                \\end{{cases}}
+                \\]
+                where \\(CR\\) is the crossover probability and \\(j_{{\\text{{rand}}}}\\) ensures at least one parameter is taken from the mutant vector.</li>
+            <li><strong>Selection:</strong> The trial vector replaces the target vector if it yields a better objective function value:
+                \\[
+                \\mathbf{{x}}_i^{{(t+1)}} = \\begin{{cases}}
+                    \\mathbf{{u}}_i & \\text{{if }} S(\\mathbf{{u}}_i) \\leq S(\\mathbf{{x}}_i) \\\\
+                    \\mathbf{{x}}_i & \\text{{otherwise}}
+                \\end{{cases}}
+                \\]
+            </li>
+        </ul>
         <ul>
             <li><strong>When to Use:</strong> Suitable for problems with many local minima or unknown derivative properties.</li>
             <li><strong>Advantages:</strong> Effective for global optimization; does not require derivatives.</li>
@@ -1914,11 +1966,16 @@ CUSTOM_FITTING_HELP = f"""
     </p>
     <h4>Mathematical Description:</h4>
     <p>
-        This method exhaustively searches for the global minimum:
+        The method exhaustively searches over a grid of parameter values:
         <br>
         \\[
-        S = \sum_{{i=1}}^n (y_i - f(x_i; a_1, a_2, \dots, a_n))^2
+        \\mathbf{{a}}_{{\\text{{opt}}}} = \\arg \\min_{{\\mathbf{{a}} \\in \\mathcal{{A}}}} S(\\mathbf{{a}})
         \\]
+        where:
+        <ul>
+            <li>\\(\\mathcal{{A}}\\): Set of all parameter combinations defined by the grid.</li>
+            <li>\\(S(\\mathbf{{a}})\\): Objective function, usually the sum of squared residuals.</li>
+        </ul>
         <ul>
             <li><strong>When to Use:</strong> Useful when the parameter space is small or when a global search is necessary.</li>
             <li><strong>Advantages:</strong> Simple and easy to implement; guarantees finding the global minimum within the search space.</li>
@@ -1932,11 +1989,23 @@ CUSTOM_FITTING_HELP = f"""
     </p>
     <h4>Mathematical Description:</h4>
     <p>
-        Basin Hopping performs a series of local optimizations, using random jumps to escape local minima:
-        <br>
-        \\[
-        S = \sum_{{i=1}}^n (y_i - f(x_i; a_1, a_2, \dots, a_n))^2
-        \\]
+        Basin Hopping performs the following steps iteratively:
+        <ul>
+            <li><strong>Perturbation:</strong> Randomly perturb the current parameters:
+                \\[
+                \\mathbf{{a}}' = \\mathbf{{a}} + \\delta
+                \\]
+                where \\(\\delta\\) is a random displacement.</li>
+            <li><strong>Local Minimization:</strong> Perform a local optimization starting from \\(\\mathbf{{a}}'\\) to find a nearby local minimum \\(\\mathbf{{a}}''\\).</li>
+            <li><strong>Acceptance Criterion:</strong> Accept or reject the new point based on the Metropolis criterion:
+                \\[
+                P = \\begin{{cases}}
+                    1 & \\text{{if }} \\Delta S \\leq 0 \\\\
+                    \\exp\\left( -\\frac{{\\Delta S}}{{k_B T}} \\right) & \\text{{if }} \\Delta S > 0
+                \\end{{cases}}
+                \\]
+                where \\(\\Delta S = S(\\mathbf{{a}}'') - S(\\mathbf{{a}})\\), \\(k_B\\) is Boltzmann's constant, and \\(T\\) is a temperature parameter.</li>
+        </ul>
         <ul>
             <li><strong>When to Use:</strong> Ideal for problems with multiple local minima and a rugged objective function landscape.</li>
             <li><strong>Advantages:</strong> Effective for finding global minima; can escape local traps.</li>
@@ -1954,5 +2023,4 @@ CUSTOM_FITTING_HELP = f"""
     </p>
 </body>
 </html>
-
 """
