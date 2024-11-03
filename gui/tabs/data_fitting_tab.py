@@ -36,6 +36,9 @@ from lmfit import Model, Parameters
 from scipy.special import wofz  # For Voigt function
 from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigtModel
 
+import matplotlib
+matplotlib.rcParams['text.usetex'] = False  # Use Matplotlib's built-in math rendering
+
 def resource_path(relative_path):
     """ Get absolute path to resource, works for development and PyInstaller."""
     try:
@@ -1705,7 +1708,10 @@ class FittingMethodWindow(QDialog):
                 self.panel.save_function_button.clicked.connect(self.panel.save_function)
             if hasattr(self.panel, 'load_function_button'):
                 self.panel.load_function_button.clicked.connect(self.panel.load_function)
-                
+
+                # Connect the 'Show Equation' button if it exists
+            if hasattr(self.panel, 'show_equation_button'):
+                self.panel.show_equation_button.clicked.connect(self.panel.show_equation)
 
     def closeEvent(self, event):
         """Handle the window close event."""

@@ -3,7 +3,7 @@
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
-    QComboBox, QSizePolicy, QRadioButton, QButtonGroup, QSpinBox,QTextEdit,QFileDialog
+    QComboBox, QSizePolicy, QRadioButton, QButtonGroup, QSpinBox,QTextEdit,QFileDialog, QDialog
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QDoubleValidator
@@ -13,6 +13,14 @@ import numpy as np
 from gui.dialogs.help_dialog import HelpDialog
 from gui.utils.help_content import (PEAK_FITTING_HELP, POLYNOMIAL_FITTING_HELP, CUSTOM_FITTING_HELP
 )
+
+import sympy as sp
+from sympy import symbols, sympify, latex
+from matplotlib import pyplot as plt
+import tempfile
+from PyQt5.QtGui import QPixmap
+import os
+
 class GaussianFittingPanel(QWidget):
     parameters_changed = pyqtSignal()
     run_peak_finder_signal = pyqtSignal()
@@ -521,6 +529,10 @@ class CustomFittingPanel(QWidget):
         self.function_text_edit.setPlaceholderText("Enter your function here, e.g., a * np.sin(b * x) + c")
         layout.addWidget(self.function_text_edit)
 
+        # **Add "Show Equation" Button**
+        self.show_equation_button = QPushButton("Show Equation")
+        layout.addWidget(self.show_equation_button)
+
         # Parameters Table
         self.parameters_table = QTableWidget(0, 4)  # Now 4 columns
         self.parameters_table.setHorizontalHeaderLabels(['Parameter', 'Initial Guess', 'Min', 'Max'])
@@ -586,6 +598,8 @@ class CustomFittingPanel(QWidget):
         self.help_button.clicked.connect(self.show_help)
         self.save_function_button.clicked.connect(self.save_function)
         self.load_function_button.clicked.connect(self.load_function)
+        self.show_equation_button.clicked.connect(self.show_equation)
+
 
         # Initialize parameters
         self.parameters = {}
@@ -605,6 +619,239 @@ class CustomFittingPanel(QWidget):
         max_item = QTableWidgetItem("inf")
         self.parameters_table.setItem(row_position, 3, max_item)
         self.parameters_changed.emit()
+
+    def show_equation(self):
+        # Get the function string from the input
+        function_str = self.function_text_edit.toPlainText()
+        if not function_str.strip():
+            QMessageBox.warning(self, "No Function", "Please enter a custom function.")
+            return
+
+        # Define the variable symbols
+        x = sp.symbols('x')
+        # Prepare the namespace for sympify
+        namespace = {'x': x}
+        # Add parameters to the namespace
+        for row in range(self.parameters_table.rowCount()):
+            param_name_item = self.parameters_table.item(row, 0)
+            if param_name_item:
+                param_name = param_name_item.text().strip()
+                if param_name.isidentifier():
+                    namespace[param_name] = sp.symbols(param_name)
+
+        # Map numpy functions to SymPy functions
+        numpy_to_sympy = {
+            # Remove prefixes
+            'np.': '',      # Remove 'np.' prefix
+            'numpy.': '',   # Remove 'numpy.' prefix
+            'math.': '',    # Remove 'math.' prefix
+
+            # Trigonometric Functions
+            'sin': 'sin',
+            'cos': 'cos',
+            'tan': 'tan',
+            'arcsin': 'asin',
+            'arccos': 'acos',
+            'arctan': 'atan',
+            'arctan2': 'atan2',  # May require special handling
+            'hypot': 'hypot',    # May require special handling
+
+            # Hyperbolic Functions
+            'sinh': 'sinh',
+            'cosh': 'cosh',
+            'tanh': 'tanh',
+            'arcsinh': 'asinh',
+            'arccosh': 'acosh',
+            'arctanh': 'atanh',
+
+            # Exponential and Logarithmic Functions
+            'exp': 'exp',
+            'expm1': 'expm1',
+            'log': 'log',       # Natural logarithm
+            'log10': 'log10',
+            'log2': 'log',      # SymPy's log can take a base as a second argument
+            'log1p': 'log1p',
+
+            # Power and Root Functions
+            'power': '**',      # Exponentiation operator
+            'sqrt': 'sqrt',
+            'square': '**2',
+            'cbrt': 'cbrt',     # Cube root, may need to define as x**(1/3)
+            'reciprocal': '1/',
+
+            # Rounding Functions
+            'ceil': 'ceiling',
+            'floor': 'floor',
+            'trunc': 'trunc',
+            'rint': 'round',    # Closest integer
+
+            # Special Functions
+            'abs': 'Abs',
+            'fabs': 'Abs',
+            'sign': 'sign',
+            'mod': 'Mod',
+            'remainder': 'Mod',
+            'fmod': 'Mod',
+
+            # Constants
+            'pi': 'pi',
+            'e': 'E',
+            'inf': 'oo',        # Infinity in SymPy
+            'nan': 'nan',       # Not a number
+
+            # Statistical Functions (for scalar inputs)
+            'maximum': 'Max',
+            'minimum': 'Min',
+            'fmax': 'Max',
+            'fmin': 'Min',
+
+            # Angle Conversion
+            'deg2rad': 'deg2rad',  # Multiply by pi/180
+            'rad2deg': 'rad2deg',  # Multiply by 180/pi
+
+            # Other Mathematical Functions
+            'clip': 'clip',     # Requires custom handling
+            'where': 'Piecewise',  # Conditional expressions
+
+            # Error Functions
+            'erf': 'erf',
+            'erfc': 'erfc',
+            'gamma': 'gamma',
+            'lgamma': 'loggamma',
+
+            # Bessel Functions
+            'j0': 'besselj0',
+            'j1': 'besselj1',
+            'jn': 'besselj',    # Bessel function of integer order n
+            'y0': 'bessely0',
+            'y1': 'bessely1',
+            'yn': 'bessely',    # Bessel function of the second kind
+
+            # Miscellaneous Functions
+            'logical_and': 'And',    # Logical operations, may not directly map
+            'logical_or': 'Or',
+            'logical_not': 'Not',
+            'logical_xor': 'Xor',
+            'bitwise_and': 'And',
+            'bitwise_or': 'Or',
+            'bitwise_xor': 'Xor',
+            'invert': 'Not',
+            'left_shift': '<<',
+            'right_shift': '>>',
+            # Note: Logical and bitwise operations may need custom handling
+
+            # Special Mathematical Constants
+            'np.pi': 'pi',
+            'np.e': 'E',
+            'np.euler_gamma': 'EulerGamma',
+            'np.inf': 'oo',
+            'np.nan': 'nan',
+
+            # Additional Functions
+            'heaviside': 'Heaviside',
+            'signbit': 'sign',
+            'sinc': 'sinc',    # Normalized sinc function
+            'deg2rad': '*pi/180',
+            'rad2deg': '*180/pi',
+
+            # Mathematical Operators
+            'add': '+',
+            'subtract': '-',
+            'multiply': '*',
+            'divide': '/',
+            'true_divide': '/',
+            'floor_divide': '//',
+            'negative': '-',
+            'positive': '+',
+
+            # Complex Numbers
+            'real': 're',
+            'imag': 'im',
+            'conj': 'conjugate',
+            'angle': 'arg',
+            'absolute': 'Abs',
+
+            # Polynomial Functions
+            'polyval': 'polyval',  # Requires custom handling
+            'roots': 'roots',      # Requires custom handling
+
+            # Special Cases (may require custom handling)
+            'clip': 'Piecewise',
+            'select': 'Piecewise',
+            'interp': 'interp',    # Interpolation functions
+            'vectorize': '',       # Not applicable in SymPy
+
+            # Random Functions (not applicable)
+            # 'random': '',
+
+            # Fourier Transforms (not applicable)
+            # 'fft': '',
+
+            # Linear Algebra Functions (not applicable)
+            # 'dot': '',
+            # 'inner': '',
+            # 'outer': '',
+
+            # Set Functions (not applicable)
+            # 'union1d': '',
+            # 'intersect1d': '',
+
+            # Date/Time Functions (not applicable)
+            # 'datetime64': '',
+        }
+
+
+        # Replace numpy functions with SymPy equivalents
+        for np_func, sp_func in numpy_to_sympy.items():
+            function_str = function_str.replace(np_func, sp_func)
+
+        try:
+            # Parse the function string into a SymPy expression
+            sympy_expr = sympify(function_str, locals=namespace)
+            # Convert the SymPy expression to LaTeX
+            latex_str = latex(sympy_expr, mode='plain')
+        except Exception as e:
+            QMessageBox.warning(self, "Parsing Error", f"Failed to parse the function:\n{e}")
+            return
+
+        # Render the LaTeX expression using Matplotlib
+        try:
+            # Create a temporary file to save the image
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmpfile:
+                fig = plt.figure(figsize=(0.1, 0.1))
+                fig.text(0, 0, f"${latex_str}$", fontsize=12)
+                plt.axis('off')
+                plt.savefig(tmpfile.name, bbox_inches='tight', pad_inches=0.5)
+                plt.close(fig)
+                image_path = tmpfile.name
+
+            # Create a new dialog to display the equation
+            equation_dialog = QDialog(self)
+            equation_dialog.setWindowTitle("Equation Preview")
+            dialog_layout = QVBoxLayout()
+            equation_dialog.setLayout(dialog_layout)
+
+            # Display the image in a QLabel
+            equation_label = QLabel()
+            pixmap = QPixmap(image_path)
+            equation_label.setPixmap(pixmap)
+            equation_label.setAlignment(Qt.AlignCenter)
+            dialog_layout.addWidget(equation_label)
+
+            # Add Close button
+            close_button = QPushButton("Close")
+            close_button.clicked.connect(equation_dialog.close)
+            dialog_layout.addWidget(close_button)
+
+            # Show the dialog
+            equation_dialog.exec_()
+
+            # Remove the temporary image file
+            os.unlink(image_path)
+
+        except Exception as e:
+            QMessageBox.warning(self, "Rendering Error", f"Failed to render the equation:\n{e}")
+            return
 
     def remove_parameter(self):
         current_row = self.parameters_table.currentRow()
