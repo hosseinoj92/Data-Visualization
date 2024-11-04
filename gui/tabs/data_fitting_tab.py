@@ -1063,7 +1063,9 @@ class DataFittingTab(QWidget):
             # Read the data
             df, x, y = self.read_numeric_data(file_path)
             if df is None:
-                QMessageBox.warning(self, "Data Error", "Failed to read the data file or insufficient data.")
+                QMessageBox.warning(
+                    self, "Data Error", "Failed to read the data file or insufficient data."
+                )
                 return
 
             # Get sensitivity from panel
@@ -1072,7 +1074,10 @@ class DataFittingTab(QWidget):
                 if not (0.0 < sensitivity < 1.0):
                     raise ValueError
             except ValueError:
-                QMessageBox.warning(self, "Invalid Sensitivity", "Please enter a valid sensitivity value between 0 and 1.")
+                QMessageBox.warning(
+                    self, "Invalid Sensitivity",
+                    "Please enter a valid sensitivity value between 0 and 1."
+                )
                 return
 
             # Adjust parameters based on sensitivity
@@ -1083,10 +1088,17 @@ class DataFittingTab(QWidget):
             distance_threshold = max(1, len(x) // 100)  # Adjust based on data density
 
             # Find peaks
-            peaks_indices, properties = find_peaks(y, height=height_threshold, prominence=prominence_threshold, distance=distance_threshold)
+            peaks_indices, properties = find_peaks(
+                y,
+                height=height_threshold,
+                prominence=prominence_threshold,
+                distance=distance_threshold
+            )
 
             if len(peaks_indices) == 0:
-                QMessageBox.information(self, "No Peaks Found", "No peaks were found with the given sensitivity.")
+                QMessageBox.information(
+                    self, "No Peaks Found", "No peaks were found with the given sensitivity."
+                )
                 return
 
             # Calculate peak widths using peak_widths
@@ -1096,13 +1108,38 @@ class DataFittingTab(QWidget):
             # Clear existing peaks in the table
             panel.peak_table.setRowCount(0)
 
+            for ann in getattr(self, 'peak_annotations', []):
+                if isinstance(ann, tuple):
+                    # ann is a tuple of (marker, text)
+                    ann[0].remove()
+                    ann[1].remove()
+                else:
+                    ann.remove()
+            self.peak_annotations = []
+
+            # Add detected peaks to the table and plot markers
+            self.peak_annotations = []
+
             # Add detected peaks to the table with default function type
             for idx, width in zip(peaks_indices, widths):
                 amplitude = y[idx]
                 center = x[idx]
                 panel.add_peak_row(amplitude, center, width, function_type='Gaussian')  # Default function type
 
-            QMessageBox.information(self, "Peak Finder", f"Found {len(peaks_indices)} peak(s).")
+                # Plot red cross at the peak position
+                marker, = self.figure.gca().plot(center, amplitude, 'rx')
+                # Add (x, y) text near the marker
+                text = self.figure.gca().text(
+                    center, amplitude, f'({center:.2f}, {amplitude:.2f})',
+                    fontsize=8, color='black', ha='left', va='bottom'
+                )
+                # Store the marker and text
+                self.peak_annotations.append((marker, text))
+
+            self.canvas.draw_idle()
+            QMessageBox.information(
+                self, "Peak Finder", f"Found {len(peaks_indices)} peak(s)."
+            )
 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error running peak finder: {e}")
@@ -1625,7 +1662,15 @@ class DataFittingTab(QWidget):
 
         # Add a marker to the plot to show where the peak was picked
         marker, = self.figure.gca().plot(x, y, 'rx')  # red x marker
-        self.annotations.append(marker)
+
+        # Add (x, y) text near the marker
+        text = self.figure.gca().text(
+            x, y, f'({x:.2f}, {y:.2f})',
+            fontsize=8, color='red', ha='left', va='bottom'
+        )
+
+        # Store the marker and text together
+        self.annotations.append((marker, text))
         self.canvas.draw_idle()
 
         # Add a new peak to the fitting panel's peak table
@@ -1634,9 +1679,15 @@ class DataFittingTab(QWidget):
 
         # Call a method in the fitting panel to add a new peak
         if self.current_fitting_panel:
-            self.current_fitting_panel.add_peak_row(default_amplitude, x, default_width)
+            self.current_fitting_panel.add_peak_row(
+                default_amplitude, x, default_width
+            )
         else:
-            QMessageBox.warning(self, "No Fitting Panel", "No fitting panel is currently active.")
+            QMessageBox.warning(
+                self, "No Fitting Panel", "No fitting panel is currently active."
+            )
+
+
 
     def on_mouse_move(self, event):
         if self.plot_type != "2D" or not self.annotation_mode:
@@ -1745,9 +1796,28 @@ class DataFittingTab(QWidget):
         print("Save Plot button clicked.")
         dialog = SavePlotDialog(self)
         if dialog.exec_() == QDialog.Accepted:
-            width_pixels, height_pixels, quality = dialog.get_values()
+            values = dialog.get_values()
+
+            if values is None:
+                # The dialog already shows a warning message for invalid input
+                return
+
+            # Unpack all four values; ignore the fourth (latex_options)
+            try:
+                width_pixels, height_pixels, quality, latex_options = values
+            except ValueError:
+                QMessageBox.warning(self, "Error", "Unexpected number of values returned from the dialog.")
+                print("Error: dialog.get_values() did not return exactly four values.")
+                return
+
+            # Optionally, apply LaTeX settings here if needed
+            if latex_options:
+                # Example: Adjust plot settings based on LaTeX options
+                pass  # Implement as needed
+
             print(f"Saving plot with width: {width_pixels}px, height: {height_pixels}px, quality: {quality}")
             self.save_plot(width_pixels, height_pixels, quality)
+
 
     def save_plot(self, width_pixels, height_pixels, quality):
         try:
@@ -1760,32 +1830,25 @@ class DataFittingTab(QWidget):
             }
             dpi = quality_dpi_mapping.get(quality, 150)  # Default to 150 DPI if not found
             print(f"Selected quality '{quality}' mapped to DPI: {dpi}")
-
             # Validate width_pixels and height_pixels
             if not isinstance(width_pixels, (int, float)) or not isinstance(height_pixels, (int, float)):
                 raise ValueError("Width and Height must be numeric values.")
-
             if width_pixels <= 0 or height_pixels <= 0:
                 raise ValueError("Width and Height must be positive values.")
-
             # Convert pixels to inches (assuming 100 pixels per inch for this context)
             width_in = width_pixels / 100
             height_in = height_pixels / 100
             print(f"Converted dimensions to inches: {width_in}in x {height_in}in")
-
             # Store original figure size and DPI
             original_size = self.figure.get_size_inches()
             original_dpi = self.figure.get_dpi()
             print(f"Original figure size: {original_size}, DPI: {original_dpi}")
-
             # Set the new figure size
             self.figure.set_size_inches(width_in, height_in)
             print(f"Figure size set to: {width_in}in x {height_in}in")
-
             # Set the figure DPI
             self.figure.set_dpi(dpi)
             print(f"Figure DPI set to: {dpi}")
-
             # Open file dialog to select save location
             options = QFileDialog.Options()
             file_path, _ = QFileDialog.getSaveFileName(
@@ -1804,20 +1867,17 @@ class DataFittingTab(QWidget):
                 except Exception as e:
                     QMessageBox.warning(self, "Save Failed", f"Failed to save plot:\n{e}")
                     print(f"Failed to save plot: {e}")
-
             # Restore original figure size and DPI
             self.figure.set_size_inches(original_size)
             self.figure.set_dpi(original_dpi)
             print(f"Figure size and DPI restored to original: {original_size}in x {original_size}in, DPI: {original_dpi}")
-
             # Redraw the canvas to reflect restored properties
             self.canvas.draw_idle()
             print("Canvas redrawn after restoring figure properties.")
-
         except Exception as e:
             QMessageBox.warning(self, "Save Plot Failed", f"An error occurred while saving the plot:\n{e}")
             print(f"An error occurred while saving the plot: {e}")
-
+   
 class FittingMethodWindow(QDialog):
     """A separate window to host a fitting panel."""
     closed = pyqtSignal()  # Signal emitted when the window is closed
