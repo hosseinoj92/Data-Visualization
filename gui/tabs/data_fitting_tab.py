@@ -956,7 +956,9 @@ class DataFittingTab(QWidget):
         # Get the selected data files
         data_files = self.selected_data_panel.get_selected_files()
         if not data_files:
-            QMessageBox.warning(self, "No Data Selected", "Please select a data file to run the peak finder.")
+            QMessageBox.warning(
+                self, "No Data Selected", "Please select a data file to run the peak finder."
+            )
             return
 
         # For simplicity, use the first selected data file
@@ -966,7 +968,9 @@ class DataFittingTab(QWidget):
             # Read the data
             df, x, y = self.read_numeric_data(file_path)
             if df is None:
-                QMessageBox.warning(self, "Data Error", "Failed to read the data file or insufficient data.")
+                QMessageBox.warning(
+                    self, "Data Error", "Failed to read the data file or insufficient data."
+                )
                 return
 
             # Get sensitivity from panel
@@ -975,7 +979,10 @@ class DataFittingTab(QWidget):
                 if not (0.0 < sensitivity < 1.0):
                     raise ValueError
             except ValueError:
-                QMessageBox.warning(self, "Invalid Sensitivity", "Please enter a valid sensitivity value between 0 and 1.")
+                QMessageBox.warning(
+                    self, "Invalid Sensitivity",
+                    "Please enter a valid sensitivity value between 0 and 1."
+                )
                 return
 
             # Adjust parameters based on sensitivity
@@ -986,10 +993,17 @@ class DataFittingTab(QWidget):
             distance_threshold = max(1, len(x) // 100)  # Adjust based on data density
 
             # Find peaks
-            peaks_indices, properties = find_peaks(y, height=height_threshold, prominence=prominence_threshold, distance=distance_threshold)
+            peaks_indices, properties = find_peaks(
+                y,
+                height=height_threshold,
+                prominence=prominence_threshold,
+                distance=distance_threshold
+            )
 
             if len(peaks_indices) == 0:
-                QMessageBox.information(self, "No Peaks Found", "No peaks were found with the given sensitivity.")
+                QMessageBox.information(
+                    self, "No Peaks Found", "No peaks were found with the given sensitivity."
+                )
                 return
 
             # Calculate peak widths using peak_widths
@@ -999,13 +1013,37 @@ class DataFittingTab(QWidget):
             # Clear existing peaks in the table
             panel.peak_table.setRowCount(0)
 
-            # Add detected peaks to the table with default function type
+            # Clear previous peak finder annotations
+            for ann in getattr(self, 'peak_annotations', []):
+                if isinstance(ann, tuple):
+                    # ann is a tuple of (marker, text)
+                    ann[0].remove()
+                    ann[1].remove()
+                else:
+                    ann.remove()
+            self.peak_annotations = []
+
+            # Add detected peaks to the table and plot markers
+            self.peak_annotations = []
             for idx, width in zip(peaks_indices, widths):
                 amplitude = y[idx]
                 center = x[idx]
                 panel.add_peak_row(amplitude, center, width, function_type='Gaussian')  # Default function type
 
-            QMessageBox.information(self, "Peak Finder", f"Found {len(peaks_indices)} peak(s).")
+                # Plot red cross at the peak position
+                marker, = self.figure.gca().plot(center, amplitude, 'rx')
+                # Add (x, y) text near the marker
+                text = self.figure.gca().text(
+                    center, amplitude, f'({center:.2f}, {amplitude:.2f})',
+                    fontsize=8, color='black', ha='left', va='bottom'
+                )
+                # Store the marker and text
+                self.peak_annotations.append((marker, text))
+
+            self.canvas.draw_idle()
+            QMessageBox.information(
+                self, "Peak Finder", f"Found {len(peaks_indices)} peak(s)."
+            )
 
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error running peak finder: {e}")
@@ -1478,7 +1516,15 @@ class DataFittingTab(QWidget):
 
         # Add a marker to the plot to show where the peak was picked
         marker, = self.figure.gca().plot(x, y, 'rx')  # red x marker
-        self.annotations.append(marker)
+
+        # Add (x, y) text near the marker
+        text = self.figure.gca().text(
+            x, y, f'({x:.2f}, {y:.2f})',
+            fontsize=8, color='red', ha='left', va='bottom'
+        )
+
+        # Store the marker and text together
+        self.annotations.append((marker, text))
         self.canvas.draw_idle()
 
         # Add a new peak to the fitting panel's peak table
@@ -1487,9 +1533,14 @@ class DataFittingTab(QWidget):
 
         # Call a method in the fitting panel to add a new peak
         if self.current_fitting_panel:
-            self.current_fitting_panel.add_peak_row(default_amplitude, x, default_width)
+            self.current_fitting_panel.add_peak_row(
+                default_amplitude, x, default_width
+            )
         else:
-            QMessageBox.warning(self, "No Fitting Panel", "No fitting panel is currently active.")
+            QMessageBox.warning(
+                self, "No Fitting Panel", "No fitting panel is currently active."
+            )
+
 
     def on_mouse_move(self, event):
         if self.plot_type != "2D" or not self.annotation_mode:
