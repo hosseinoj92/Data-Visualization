@@ -1598,9 +1598,29 @@ class DataFittingTab(QWidget):
         print("Save Plot button clicked.")
         dialog = SavePlotDialog(self)
         if dialog.exec_() == QDialog.Accepted:
-            width_pixels, height_pixels, quality = dialog.get_values()
+            values = dialog.get_values()
+            
+            if values is None:
+                # The dialog already shows a warning message for invalid input
+                return
+
+            # Unpack all four values; ignore the fourth (latex_options)
+            try:
+                width_pixels, height_pixels, quality, latex_options = values
+            except ValueError:
+                QMessageBox.warning(self, "Error", "Unexpected number of values returned from the dialog.")
+                print("Error: dialog.get_values() did not return exactly four values.")
+                return
+
+            # Optionally, apply LaTeX settings here if needed
+            if latex_options:
+                # Example: Adjust plot settings based on LaTeX options
+                pass  # Implement as needed
+
             print(f"Saving plot with width: {width_pixels}px, height: {height_pixels}px, quality: {quality}")
             self.save_plot(width_pixels, height_pixels, quality)
+
+
 
     def save_plot(self, width_pixels, height_pixels, quality):
         try:
