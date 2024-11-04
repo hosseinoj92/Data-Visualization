@@ -2024,3 +2024,122 @@ CUSTOM_FITTING_HELP = f"""
 </body>
 </html>
 """
+
+LOG_EXP_POWER_HELP = f"""
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Logarithmic, Exponential, and Power Law Fitting Help</title>
+    <!-- MathJax Configuration -->
+    <script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }}
+        h1, h2 {{
+            color: #2E8B57;
+        }}
+        p, ul {{
+            font-size: 16px;
+        }}
+        ul {{
+            margin-left: 20px;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }}
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }}
+        th {{
+            background-color: #f2f2f2;
+        }}
+        hr {{
+            border: none;
+            height: 4px;
+            background-color: #2E8B57;
+            margin: 40px 0;
+        }}
+    </style>
+</head>
+<body>
+    <h1>Logarithmic, Exponential, and Power Law Fitting</h1>
+    <p>
+        This section provides an overview of fitting models commonly used in data analysis: logarithmic, exponential, and power law. Each model is suited to different types of data patterns and offers a mathematical framework for understanding the underlying relationships.
+    </p>
+
+    <h2>1. Logarithmic Function</h2>
+    <p>
+        <strong>Equation:</strong> \\[
+        y = a \cdot \ln(x) + b
+        \\]
+    </p>
+    <p>
+        <strong>Parameters:</strong>
+        <ul>
+            <li><strong>a</strong>: Scaling factor.</li>
+            <li><strong>b</strong>: Offset.</li>
+        </ul>
+    </p>
+    <h4>When to Use:</h4>
+    <p>Appropriate for data that increases rapidly at first and then levels off.</p>
+    <h4>Advantages:</h4>
+    <p>Useful for modeling phenomena with diminishing returns.</p>
+    <h4>Disadvantages:</h4>
+    <p>Only applicable for positive x-values and may be sensitive to scaling and offset adjustments.</p>
+
+    <h2>2. Exponential Function</h2>
+    <p>
+        <strong>Equation:</strong> \\[
+        y = a \cdot e^{{b.x}} + c
+        \\]
+    </p>
+    <p>
+        <strong>Parameters:</strong>
+        <ul>
+            <li><strong>a</strong>: Amplitude.</li>
+            <li><strong>b</strong>: Growth/decay rate.</li>
+            <li><strong>c</strong>: Offset.</li>
+        </ul>
+    </p>
+    <h4>When to Use:</h4>
+    <p>Suitable for data exhibiting exponential growth or decay, such as population models or radioactive decay.</p>
+    <h4>Advantages:</h4>
+    <p>Effective for capturing exponential trends in data.</p>
+    <h4>Disadvantages:</h4>
+    <p>Sensitive to outliers and can become unstable if parameters are not initialized appropriately.</p>
+
+    <h2>3. Power Law Function</h2>
+    <p>
+        <strong>Equation:</strong> \\[
+        y = a \cdot x^b + c
+        \\]
+    </p>
+    <p>
+        <strong>Parameters:</strong>
+        <ul>
+            <li><strong>a</strong>: Scaling factor.</li>
+            <li><strong>b</strong>: Exponent.</li>
+            <li><strong>c</strong>: Offset.</li>
+        </ul>
+    </p>
+    <h4>When to Use:</h4>
+    <p>Ideal for relationships where one quantity scales as a power of another, such as in physics and economics.</p>
+    <h4>Advantages:</h4>
+    <p>Useful for modeling non-linear scaling relationships and patterns.</p>
+    <h4>Disadvantages:</h4>
+    <p>Not suitable for data with zero or negative x-values and may require careful handling of scaling and exponent values.</p>
+
+</body>
+</html>
+"""

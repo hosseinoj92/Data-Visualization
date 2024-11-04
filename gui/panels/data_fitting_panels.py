@@ -3,7 +3,8 @@
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
-    QComboBox, QSizePolicy, QRadioButton, QButtonGroup, QSpinBox,QTextEdit,QFileDialog, QDialog
+    QComboBox, QSizePolicy, QRadioButton, QButtonGroup, QSpinBox,QTextEdit,
+    QFileDialog, QDialog,QGroupBox, QDoubleSpinBox, QGridLayout
 )
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QDoubleValidator
@@ -11,7 +12,8 @@ from functools import partial
 import json
 import numpy as np
 from gui.dialogs.help_dialog import HelpDialog
-from gui.utils.help_content import (PEAK_FITTING_HELP, POLYNOMIAL_FITTING_HELP, CUSTOM_FITTING_HELP
+from gui.utils.help_content import (PEAK_FITTING_HELP, POLYNOMIAL_FITTING_HELP, CUSTOM_FITTING_HELP, 
+                                    LOG_EXP_POWER_HELP
 )
 
 import sympy as sp
@@ -981,3 +983,151 @@ class CustomFittingPanel(QWidget):
             dialog = HelpDialog("Custom Fitting Help", help_content, self)
             dialog.exec_()
 
+
+class LogExpPowerFittingPanel(QWidget):
+    """Panel for Logarithmic, Exponential, and Power-law Fitting."""
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+    
+    def init_ui(self):
+        # Create main layout
+        main_layout = QVBoxLayout()
+        self.setLayout(main_layout)
+        
+        # Fitting type selection
+        fitting_type_layout = QHBoxLayout()
+        fitting_type_label = QLabel("Select Fitting Type:")
+        self.fitting_type_combo = QComboBox()
+        self.fitting_type_combo.addItems(["Logarithmic", "Exponential", "Power-law"])
+        self.fitting_type_combo.currentTextChanged.connect(self.update_parameter_fields)
+        fitting_type_layout.addWidget(fitting_type_label)
+        fitting_type_layout.addWidget(self.fitting_type_combo)
+        main_layout.addLayout(fitting_type_layout)
+        
+        # Parameter inputs
+        self.parameter_groupbox = QGroupBox("Parameters")
+        self.parameter_layout = QGridLayout()
+        self.parameter_groupbox.setLayout(self.parameter_layout)
+        main_layout.addWidget(self.parameter_groupbox)
+        
+        # Initialize parameter fields
+        self.parameter_fields = {}
+        self.update_parameter_fields(self.fitting_type_combo.currentText())
+        
+        # Optimization options
+        optimization_groupbox = QGroupBox("Optimization Options")
+        optimization_layout = QGridLayout()
+        optimization_groupbox.setLayout(optimization_layout)
+        
+        # Optimization method selection
+        optimization_method_label = QLabel("Optimization Method:")
+        self.optimization_method_combo = QComboBox()
+        self.optimization_method_combo.addItems([
+            "leastsq", "least_squares", "differential_evolution", "brute",
+            "basinhopping", 
+        ])
+        optimization_layout.addWidget(optimization_method_label, 0, 0)
+        optimization_layout.addWidget(self.optimization_method_combo, 0, 1)
+        
+        # Maximum iterations
+        max_iterations_label = QLabel("Max Iterations:")
+        self.max_iterations_spin = QSpinBox()
+        self.max_iterations_spin.setRange(1, 1000000)
+        self.max_iterations_spin.setValue(1000)
+        optimization_layout.addWidget(max_iterations_label, 1, 0)
+        optimization_layout.addWidget(self.max_iterations_spin, 1, 1)
+        
+        main_layout.addWidget(optimization_groupbox)
+        
+        # Buttons
+        buttons_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        self.help_button = QPushButton("Help")
+        buttons_layout.addWidget(self.apply_button)
+        buttons_layout.addWidget(self.save_button)
+        buttons_layout.addWidget(self.send_to_data_panel_button)
+        buttons_layout.addWidget(self.help_button)
+        main_layout.addLayout(buttons_layout)
+        
+        # Initially disable save and send buttons until fitting is applied
+        self.save_button.setEnabled(False)
+        self.send_to_data_panel_button.setEnabled(False)
+        
+        # Connect help button
+        self.help_button.clicked.connect(self.show_help)
+    
+    def update_parameter_fields(self, fitting_type):
+        # Clear existing parameter fields
+        for i in reversed(range(self.parameter_layout.count())):
+            widget = self.parameter_layout.itemAt(i).widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.parameter_fields.clear()
+        
+        # Define parameters based on fitting type
+        if fitting_type == "Logarithmic":
+            params = ['a', 'b']
+        elif fitting_type == "Exponential":
+            params = ['a', 'b', 'c']
+        elif fitting_type == "Power-law":
+            params = ['a', 'b', 'c']
+        else:
+            params = []
+        
+        # Create input fields for each parameter
+        for row, param in enumerate(params):
+            label = QLabel(f"{param}:")
+            init_spin = QDoubleSpinBox()
+            init_spin.setRange(-1e6, 1e6)
+            init_spin.setDecimals(2)
+            init_spin.setValue(1.0)
+            min_spin = QDoubleSpinBox()
+            min_spin.setRange(-1e6, 1e6)
+            min_spin.setDecimals(2)
+            min_spin.setValue(-1e6)
+            max_spin = QDoubleSpinBox()
+            max_spin.setRange(-1e6, 1e6)
+            max_spin.setDecimals(2)
+            max_spin.setValue(1e6)
+            self.parameter_layout.addWidget(label, row, 0)
+            self.parameter_layout.addWidget(QLabel("Initial:"), row, 1)
+            self.parameter_layout.addWidget(init_spin, row, 2)
+            self.parameter_layout.addWidget(QLabel("Min:"), row, 3)
+            self.parameter_layout.addWidget(min_spin, row, 4)
+            self.parameter_layout.addWidget(QLabel("Max:"), row, 5)
+            self.parameter_layout.addWidget(max_spin, row, 6)
+            self.parameter_fields[param] = {
+                'init': init_spin,
+                'min': min_spin,
+                'max': max_spin
+            }
+    
+    def get_parameters(self):
+        fitting_type = self.fitting_type_combo.currentText()
+        params = {}
+        for param_name, widgets in self.parameter_fields.items():
+            init_value = widgets['init'].value()
+            min_value = widgets['min'].value()
+            max_value = widgets['max'].value()
+            params[param_name] = {
+                'value': init_value,
+                'min': min_value,
+                'max': max_value
+            }
+        optimization_method = self.optimization_method_combo.currentText()
+        max_iterations = self.max_iterations_spin.value()
+        return {
+            'fitting_type': fitting_type,
+            'params': params,
+            'optimization_method': optimization_method,
+            'max_iterations': max_iterations
+        }
+    
+    
+    def show_help(self):
+            help_content = LOG_EXP_POWER_HELP
+            dialog = HelpDialog("Custom Fitting Help", help_content, self)
+            dialog.exec_()

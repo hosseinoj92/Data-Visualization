@@ -29,8 +29,8 @@ from gui.dialogs.save_plot_dialog import SavePlotDialog
 import sys
 from utils import read_numeric_data
 from functools import partial
-from gui.panels.data_fitting_panels import GaussianFittingPanel, PolynomialFittingPanel, CustomFittingPanel
-from scipy.signal import find_peaks, peak_widths  # Ensure peak_widths is imported
+from gui.panels.data_fitting_panels import GaussianFittingPanel, PolynomialFittingPanel, CustomFittingPanel,LogExpPowerFittingPanel
+from scipy.signal import find_peaks, peak_widths  # Ensure peak_widths is imported 
 
 from lmfit import Model, Parameters
 from scipy.special import wofz  # For Voigt function
@@ -184,6 +184,8 @@ class DataFittingTab(QWidget):
             ("Peak Fitting", GaussianFittingPanel, 'gui/resources/gaussian_fitting_icon.png'),
             ("Polynomial Fitting", PolynomialFittingPanel, 'gui/resources/polynomial_fitting_icon.png'),
             ("Custom Fitting", CustomFittingPanel, 'gui/resources/custom_fitting_icon.png'),  
+            ("Log/Exp/Power Fitting", LogExpPowerFittingPanel, 'gui/resources/log_exp_power_fitting_icon.png'),
+
 
 
         ]
@@ -493,6 +495,11 @@ class DataFittingTab(QWidget):
                 elif isinstance(panel, CustomFittingPanel):
                     # Perform custom fitting
                     fitted_y, fit_info = self.perform_custom_fitting(x, y, params)
+
+                elif isinstance(panel, LogExpPowerFittingPanel):
+                    # Perform log/exp/power fitting
+                    fitted_y, fit_info = self.perform_log_exp_power_fitting(x, y, params)
+
                 else:
                     # Perform peak fitting with mixed function types
                     fitted_y, fit_info = self.perform_mixed_fitting(x, y, params['peaks'])
@@ -616,6 +623,96 @@ class DataFittingTab(QWidget):
             print(f"Fitting failed: {e}")
             return None, None
         
+
+    def perform_log_exp_power_fitting(self, x, y, params):
+
+        x = np.array(x)
+        y = np.array(y)
+
+        fitting_type = params['fitting_type']
+        initial_params = params['params']
+        optimization_method = params.get('optimization_method', 'leastsq')
+        max_iterations = params.get('max_iterations', 1000)
+
+        # Define fitting functions
+        if fitting_type == 'Logarithmic':
+            # Ensure x > 0 for logarithm
+            if np.any(x <= 0):
+                QMessageBox.warning(self, "Invalid Data", "Logarithmic fitting requires all x values to be positive.")
+                return None, None
+
+            def func(x, a, b):
+                return a * np.log(x) + b
+
+            model = Model(func)
+            param_names = ['a', 'b']
+
+        elif fitting_type == 'Exponential':
+            def func(x, a, b, c):
+                return a * np.exp(b * x) + c
+
+            model = Model(func)
+            param_names = ['a', 'b', 'c']
+
+        elif fitting_type == 'Power-law':
+            # Ensure x > 0 for power-law
+            if np.any(x <= 0):
+                QMessageBox.warning(self, "Invalid Data", "Power-law fitting requires all x values to be positive.")
+                return None, None
+
+            def func(x, a, b, c):
+                return a * x ** b + c
+
+            model = Model(func)
+            param_names = ['a', 'b', 'c']
+
+        else:
+            QMessageBox.warning(self, "Invalid Fitting Type", f"Unknown fitting type: {fitting_type}")
+            return None, None
+
+        # Set up parameters with initial guesses and bounds
+        lm_params = Parameters()
+        for name in param_names:
+            param_info = initial_params.get(name, {'value': 1.0, 'min': -np.inf, 'max': np.inf})
+            lm_params.add(name, value=param_info['value'], min=param_info['min'], max=param_info['max'])
+
+        try:
+            result = model.fit(y, lm_params, x=x, method=optimization_method, max_nfev=max_iterations)
+            fitted_y = result.best_fit
+            perr = [result.params[name].stderr for name in param_names]
+
+            # Calculate residuals and fit statistics
+            residuals = y - fitted_y
+            ss_res = np.sum(residuals ** 2)
+            ss_tot = np.sum((y - np.mean(y)) ** 2)
+            r_squared = 1 - (ss_res / ss_tot)
+            degrees_of_freedom = len(y) - len(param_names)
+            reduced_chi_squared = result.redchi if degrees_of_freedom > 0 else np.nan
+
+            # Prepare fit_info dictionary
+            fit_info = {
+                'parameters': [result.params[name].value for name in param_names],
+                'parameter_errors': perr,
+                'parameter_names': param_names,
+                'residuals': residuals,
+                'r_squared': r_squared,
+                'reduced_chi_squared': reduced_chi_squared,
+                'fitting_type': fitting_type,
+                'optimization_method': optimization_method,
+                'max_iterations': max_iterations,
+                'fit_report': result.fit_report()
+            }
+
+            print(f"{fitting_type} fitting parameters: {fit_info['parameters']}")
+            print(f"R-squared: {r_squared}, Reduced Chi-Squared: {reduced_chi_squared}")
+
+            return fitted_y, fit_info
+
+        except Exception as e:
+            QMessageBox.warning(self, "Fitting Error", f"Fitting failed: {e}")
+            print(f"Fitting failed: {e}")
+            return None, None
+
     def plot_fitting_results(self, data_files):
         import matplotlib.pyplot as plt
 
@@ -1291,6 +1388,56 @@ class DataFittingTab(QWidget):
                             f.write(params_text)
 
                         print(f"Fit parameters saved to {params_file_path}")
+
+                    elif 'parameters' in fit_info and 'parameter_names' in fit_info:
+                        # Log/Exp/Power-law Fitting Parameters
+                        fitting_type = fit_info['fitting_type']
+                        parameters = fit_info['parameters']
+                        parameter_errors = fit_info['parameter_errors']
+                        parameter_names = fit_info['parameter_names']
+                        optimization_method = fit_info.get('optimization_method', 'N/A')
+                        max_iterations = fit_info.get('max_iterations', 'N/A')
+
+                        # Prepare the parameters to save
+                        params_text = f"{fitting_type} Fitting Parameters\n\n"
+                        params_text += f"Optimization Method: {optimization_method}\n"
+                        params_text += f"Max Iterations: {max_iterations}\n\n"
+                        for name, param, error in zip(parameter_names, parameters, parameter_errors):
+                            stderr_str = f"{error:.2f}" if error is not None else 'N/A'
+                            params_text += f"{name} = {param:.2f} ± {stderr_str}\n"
+
+                        # Handle fit statistics safely
+                        r_squared = fit_info['r_squared']
+                        reduced_chi_squared = fit_info['reduced_chi_squared']
+
+                        if r_squared is not None and not np.isnan(r_squared):
+                            r_squared_str = f"{r_squared:.2f}"
+                        else:
+                            r_squared_str = "N/A"
+
+                        if reduced_chi_squared is not None and not np.isnan(reduced_chi_squared):
+                            reduced_chi_squared_str = f"{reduced_chi_squared:.2f}"
+                        else:
+                            reduced_chi_squared_str = "N/A"
+
+                        params_text += f"\nFit Statistics:\n"
+                        params_text += f"  R-squared: {r_squared_str}\n"
+                        params_text += f"  Reduced Chi-Squared: {reduced_chi_squared_str}\n"
+
+                        # Include the fit report for detailed information
+                        params_text += f"\nFit Report:\n{fit_info.get('fit_report', '')}\n"
+
+                        # Define the text file name and path
+                        params_file_name = f"{base_name}_fit_parameters.txt"
+                        params_file_path = os.path.join(directory, params_file_name)
+
+                        # Write the parameters to the text file
+                        with open(params_file_path, 'w') as f:
+                            f.write(params_text)
+
+                        print(f"Fit parameters saved to {params_file_path}")
+
+
                 except Exception as e:
                     QMessageBox.warning(self, "Error Saving Fit Parameters", f"Error saving fit parameters for {base_name}:\n{e}")
                     print(f"Error saving fit parameters for {base_name}: {e}")
