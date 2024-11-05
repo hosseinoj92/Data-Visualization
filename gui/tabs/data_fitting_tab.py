@@ -38,6 +38,7 @@ from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigt
 
 import matplotlib
 matplotlib.rcParams['text.usetex'] = False  # Use Matplotlib's built-in math rendering
+import matplotlib.colors as mcolors
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for development and PyInstaller."""
@@ -714,7 +715,6 @@ class DataFittingTab(QWidget):
             return None, None
 
     def plot_fitting_results(self, data_files):
-        import matplotlib.pyplot as plt
 
         def format_error(err):
             return f"{err:.2e}" if err is not None else "N/A"
@@ -727,6 +727,7 @@ class DataFittingTab(QWidget):
         # Initialize lists to keep track of plot handles for legend
         data_handles = []
         fit_handles = []
+        peak_handles = []
 
         # Dictionary to store fit statistics
         fit_statistics = {}
@@ -744,6 +745,23 @@ class DataFittingTab(QWidget):
                 fit_plot, = ax.plot(x, fitted_y, 'r-', label="Fit")  # Uniform label
                 fit_handles.append(fit_plot)
 
+                # Plot individual components if available
+                if 'components' in fit_info:
+                    components = fit_info['components']
+                    # Exclude the total model component if present
+                    components = {k: v for k, v in components.items() if k != 'total' and k != ''}
+                    # Generate a list of colors
+                    colors = plt.cm.tab20.colors  # Use a colormap with distinct colors
+                    num_colors = len(colors)
+                    for idx, (comp_name, comp_y) in enumerate(components.items()):
+                        # Use modulo to cycle through colors if more peaks than colors
+                        color = colors[idx % num_colors]
+                        # Plot the component as a filled area
+                        peak_plot = ax.fill_between(x, comp_y, color=color, alpha=0.5)
+                        # Create a proxy artist for the legend
+                        proxy = plt.Rectangle((0, 0), 1, 1, facecolor=color, alpha=0.5)
+                        peak_handles.append(proxy)
+                        
                 # Store fit statistics
                 fit_statistics[file_path] = {
                     'R_squared': fit_info['r_squared'],
@@ -754,10 +772,14 @@ class DataFittingTab(QWidget):
         # Use a dictionary to ensure unique labels
         handles = []
         labels = []
+
         for handle, label in zip(data_handles + fit_handles, ["Data"] * len(data_handles) + ["Fit"] * len(fit_handles)):
             if label not in labels:
                 handles.append(handle)
                 labels.append(label)
+
+            # Add Peak handles and labels
+        handles.extend(peak_handles)
 
         ax.legend(handles, labels, loc='upper right', fontsize='small', ncol=1)
 
@@ -999,6 +1021,10 @@ class DataFittingTab(QWidget):
         print(f"Fitted Parameters: {fit_params}")  # Debugging statement
         print(f"Fitted Y-values Sample: {fitted_y[:5]}")  # Debugging statement
         print(f"R-squared: {r_squared}, Reduced Chi-Squared: {reduced_chi_squared}")
+        
+        # Include individual components in fit_info
+        components = result.eval_components(x=x)
+        fit_info['components'] = components
 
         return fitted_y, fit_info
 
