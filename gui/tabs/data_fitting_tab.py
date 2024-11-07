@@ -456,6 +456,8 @@ class DataFittingTab(QWidget):
         panel.manual_peak_picker_button.setChecked(False)
         
     def apply_fitting(self, panel, update_plot=True):
+        self.current_fitting_panel = panel  # Set the current fitting panel
+
         # Ensure that any pending edits are committed
         if hasattr(panel, 'peak_table'):
             panel.peak_table.clearFocus()
@@ -507,8 +509,15 @@ class DataFittingTab(QWidget):
 
                 elif isinstance(panel, FourierTransformPanel):
                     # Perform Fourier Transform fitting
+                    params = panel.get_parameters()
+                    if params is None:
+                        return  # User didn't select columns, or validation failed
                     x_data = df[params['time_column']].values
                     y_data = df[params['data_column']].values
+                    # **Sort x_data and y_data if not already sorted**
+                    sorted_indices = np.argsort(x_data)
+                    x_data = x_data[sorted_indices]
+                    y_data = y_data[sorted_indices]
                     # Perform Fourier Transform
                     x, y, fitted_y, fit_info = self.perform_fourier_transform(x_data, y_data, params)
                     if x is None:
@@ -583,6 +592,10 @@ class DataFittingTab(QWidget):
             frequencies = frequencies[positive_freqs]
             transformed_data = transformed_data[positive_freqs]
 
+            # **Store the full frequency-domain data for potential inverse FFT**
+            self.frequency_domain_data = transformed_data_full = fft(y)
+            self.sampling_interval = delta_t
+
             # Prepare fit_info
             fit_info = {
                 'transform_type': 'FFT',
@@ -594,7 +607,19 @@ class DataFittingTab(QWidget):
             return frequencies, y, np.abs(transformed_data), fit_info
 
         elif transform_type == "Inverse FFT":
-            transformed_data = ifft(y)
+            # **Check if frequency-domain data is available**
+            if hasattr(self, 'frequency_domain_data'):
+                transformed_data = self.frequency_domain_data
+            else:
+                QMessageBox.warning(self, "Inverse FFT Error", "No frequency-domain data available for inverse FFT. Perform FFT first.")
+                return None, None, None, None
+
+            # Apply inverse FFT
+            time_domain_data = ifft(transformed_data)
+
+            # Generate new x axis
+            delta_t = self.sampling_interval
+            x_new = np.arange(len(time_domain_data)) * delta_t + x[0]
 
             # Prepare fit_info
             fit_info = {
@@ -603,8 +628,8 @@ class DataFittingTab(QWidget):
                 'zero_padding': zero_padding,
             }
 
-            # Return x, y, transformed_data.real as fitted_y
-            return x, y, transformed_data.real, fit_info
+            # Return x_new, original y (if needed), and inverse transformed data
+            return x_new, None, time_domain_data.real, fit_info
 
         else:
             raise ValueError("Unknown transform type.")
@@ -830,8 +855,12 @@ class DataFittingTab(QWidget):
         # Dictionary to store fit statistics
         fit_statistics = {}
 
+        # Set default axis scaling
+        x_scale = 'linear'
+        y_scale = 'linear'
+
         # Check if we're plotting FFT data and get axis scaling preferences
-        if hasattr(self.current_fitting_panel, 'get_axis_scaling'):
+        if self.current_fitting_panel is not None and hasattr(self.current_fitting_panel, 'get_axis_scaling'):
             x_scale, y_scale = self.current_fitting_panel.get_axis_scaling()
 
         # For each file, plot the data and the fit
@@ -842,15 +871,18 @@ class DataFittingTab(QWidget):
                 if 'transform_type' in fit_info and fit_info['transform_type'] == 'FFT':
                     data_plot, = ax.plot(x, fitted_y, label="FFT Magnitude")
                     data_handles.append(data_plot)
-                    ax.set_xlabel('Frequency')
+                    ax.set_xlabel('Frequency[Hz]')
                     ax.set_ylabel('Magnitude')
                     ax.set_xscale(x_scale)
                     ax.set_yscale(y_scale)
+
                 elif 'transform_type' in fit_info and fit_info['transform_type'] == 'Inverse FFT':
                     data_plot, = ax.plot(x, fitted_y, label="Inverse FFT")
                     data_handles.append(data_plot)
                     ax.set_xlabel('Time')
                     ax.set_ylabel('Amplitude')
+                    ax.set_xscale(x_scale)
+                    ax.set_yscale(y_scale)
                     # Apply axis scaling if desired
 
                 else: 
@@ -924,13 +956,26 @@ class DataFittingTab(QWidget):
             ax.text(0.95, 0.90, stats_text, transform=ax.transAxes, fontsize=8,
                     verticalalignment='top', horizontalalignment='right', bbox=props)
 
-        # Set labels
+        # Set labels conditionally based on the fitting method
         if self.fitted_data:
+            # Get the first fitted file's path
             first_file_path = next(iter(self.fitted_data))
-            x_col_name, y_col_name = self.column_names.get(first_file_path, ('X', 'Y'))
-            ax.set_xlabel(x_col_name)
-            ax.set_ylabel(y_col_name)
+            
+            # Extract fit_info from the fitted data
+            _, _, _, fit_info = self.fitted_data[first_file_path]
+            
+            # Check if the transform type is FFT
+            if fit_info.get('transform_type') == 'FFT':
+                # Set axis labels specific to FFT
+                ax.set_xlabel('Frequency [Hz]')
+                ax.set_ylabel('Magnitude')
+            else:
+                # Set axis labels based on the data column names
+                x_col_name, y_col_name = self.column_names.get(first_file_path, ('X', 'Y'))
+                ax.set_xlabel(x_col_name)
+                ax.set_ylabel(y_col_name)
         else:
+            # Default axis labels when no data is fitted
             ax.set_xlabel('X')
             ax.set_ylabel('Y')
 
@@ -1332,15 +1377,16 @@ class DataFittingTab(QWidget):
             # Plot fitted curve
             ax.plot(x, fitted_y, 'r-', label=label_fit)
 
-        # Set labels
-        if self.fitted_data:
-            first_file_path = next(iter(self.fitted_data))
-            x_col_name, y_col_name = self.column_names.get(first_file_path, ('X', 'Y'))
-            ax.set_xlabel(x_col_name)
-            ax.set_ylabel(y_col_name)
-        else:
-            ax.set_xlabel('X')
-            ax.set_ylabel('Y')
+        # Set labels based on column names if they haven't been set yet
+        if not ax.get_xlabel() or ax.get_xlabel() == '':
+            if self.fitted_data:
+                first_file_path = next(iter(self.fitted_data))
+                x_col_name, y_col_name = self.column_names.get(first_file_path, ('X', 'Y'))
+                ax.set_xlabel(x_col_name)
+                ax.set_ylabel(y_col_name)
+            else:
+                ax.set_xlabel('X')
+                ax.set_ylabel('Y')
 
         ax.legend()
 
@@ -2073,7 +2119,7 @@ class FittingMethodWindow(QDialog):
         layout.addWidget(self.panel)
         self.setLayout(layout)
 
-        # If the panel requires data columns, set them
+        # Set Data Columns if the Panel Supports It
         if hasattr(self.panel, 'set_data_columns'):
             # Get data files from parent
             data_files = parent.selected_data_panel.get_selected_files()

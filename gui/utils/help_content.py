@@ -2143,120 +2143,167 @@ LOG_EXP_POWER_HELP = f"""
 </body>
 </html>
 """
-FOURIER_TRANSFORM_HELP = f"""
-
+FOURIER_TRANSFORM_HELP = """
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Logarithmic, Exponential, and Power Law Fitting Help</title>
+    <title>Fourier Transform Help</title>
     <!-- MathJax Configuration -->
     <script type="text/javascript"
         src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-MML-AM_CHTML">
     </script>
     <style>
-        body {{
+        body {
             font-family: Arial, sans-serif;
             padding: 20px;
             line-height: 1.6;
-        }}
-        h1, h2 {{
+        }
+        h1, h2 {
             color: #2E8B57;
-        }}
-        p, ul {{
+        }
+        p, ul {
             font-size: 16px;
-        }}
-        ul {{
+        }
+        ul {
             margin-left: 20px;
-        }}
-        table {{
+        }
+        table {
             width: 100%;
             border-collapse: collapse;
             margin: 20px 0;
-        }}
-        th, td {{
+        }
+        th, td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
-        }}
-        th {{
+        }
+        th {
             background-color: #f2f2f2;
-        }}
-        hr {{
+        }
+        hr {
             border: none;
             height: 4px;
             background-color: #2E8B57;
             margin: 40px 0;
-        }}
+        }
     </style>
 </head>
 <body>
-    <h1>Logarithmic, Exponential, and Power Law Fitting</h1>
+    <h1>Fourier Transform</h1>
     <p>
-        This section provides an overview of fitting models commonly used in data analysis: logarithmic, exponential, and power law. Each model is suited to different types of data patterns and offers a mathematical framework for understanding the underlying relationships.
+        Fourier Transform (FT) transforms a time-domain signal into its frequency-domain representation, which reveals the different frequency components within the signal. The Fast Fourier Transform (FFT) is an efficient algorithm for calculating the discrete Fourier transform (DFT).
     </p>
 
-    <h2>1. Logarithmic Function</h2>
+    <h2>Mathematical Description:</h2>
     <p>
-        <strong>Equation:</strong> \\[
-        y = a \cdot \ln(x) + b
+        The continuous Fourier Transform of a function \\( f(t) \\) is given by:
+        <br>
+        \\[
+        F(\\omega) = \\int_{-\\infty}^{\\infty} f(t) e^{-i \\omega t} \\, dt
         \\]
-    </p>
-    <p>
-        <strong>Parameters:</strong>
+        where:
         <ul>
-            <li><strong>a</strong>: Scaling factor.</li>
-            <li><strong>b</strong>: Offset.</li>
+            <li><strong>\\( F(\\omega) \\)</strong>: Frequency domain representation.</li>
+            <li><strong>\\( \\omega \\)</strong>: Angular frequency.</li>
+            <li><strong>\\( i \\)</strong>: Imaginary unit, where \\( i^2 = -1 \\).</li>
         </ul>
     </p>
-    <h4>When to Use:</h4>
-    <p>Appropriate for data that increases rapidly at first and then levels off.</p>
-    <h4>Advantages:</h4>
-    <p>Useful for modeling phenomena with diminishing returns.</p>
-    <h4>Disadvantages:</h4>
-    <p>Only applicable for positive x-values and may be sensitive to scaling and offset adjustments.</p>
+    <p>
+        For a discrete signal \\( x[n] \\) with \\( N \\) samples, the discrete Fourier transform (DFT) is:
+        <br>
+        \\[
+        X[k] = \\sum_{n=0}^{N-1} x[n] e^{-i 2 \\pi k n / N}
+        \\]
+        where:
+        <ul>
+            <li><strong>\\( X[k] \\)</strong>: DFT result at frequency bin \\( k \\).</li>
+            <li><strong>\\( x[n] \\)</strong>: Signal value at time index \\( n \\).</li>
+            <li><strong>\\( N \\)</strong>: Total number of samples.</li>
+        </ul>
+    </p>
+    
+    <h2>Inverse Discrete Fourier Transform (IDFT):</h2>
+    <p>
+        The inverse DFT, used to reconstruct the original time-domain signal from its frequency domain, is given by:
+        <br>
+        \\[
+        x[n] = \\frac{1}{N} \\sum_{k=0}^{N-1} X[k] e^{i 2 \\pi k n / N}
+        \\]
+    </p>
 
-    <h2>2. Exponential Function</h2>
+    <h2>Fast Fourier Transform (FFT):</h2>
     <p>
-        <strong>Equation:</strong> \\[
-        y = a \cdot e^{{b.x}} + c
-        \\]
+        The FFT is a computational algorithm for efficiently calculating the DFT, reducing computational complexity from \\( O(N^2) \\) to \\( O(N \\log N) \\).
     </p>
-    <p>
-        <strong>Parameters:</strong>
-        <ul>
-            <li><strong>a</strong>: Amplitude.</li>
-            <li><strong>b</strong>: Growth/decay rate.</li>
-            <li><strong>c</strong>: Offset.</li>
-        </ul>
-    </p>
-    <h4>When to Use:</h4>
-    <p>Suitable for data exhibiting exponential growth or decay, such as population models or radioactive decay.</p>
-    <h4>Advantages:</h4>
-    <p>Effective for capturing exponential trends in data.</p>
-    <h4>Disadvantages:</h4>
-    <p>Sensitive to outliers and can become unstable if parameters are not initialized appropriately.</p>
 
-    <h2>3. Power Law Function</h2>
+    <h2>Window Functions:</h2>
     <p>
-        <strong>Equation:</strong> \\[
-        y = a \cdot x^b + c
-        \\]
+        When performing an FFT, applying a window function to the time-domain signal can help reduce spectral leakage by tapering the signal edges. Here are some common window functions:
     </p>
+    <ul>
+        <li><strong>Rectangular (None):</strong> No window is applied, equivalent to a rectangular window with sudden edges.
+            <br>Formula: \\( w[n] = 1 \\)
+            <br>Pros: Maximum frequency resolution.
+            <br>Cons: High spectral leakage due to sharp edges.</li>
+
+        <li><strong>Hamming Window:</strong> Provides moderate reduction in spectral leakage.
+            <br>Formula: \\( w[n] = 0.54 - 0.46 \\cos\\left(\\frac{2 \\pi n}{N-1}\\right) \\)
+            <br>Pros: Balances frequency resolution and spectral leakage.
+            <br>Cons: Slightly lower frequency resolution than rectangular window.</li>
+
+        <li><strong>Hanning (or Hann) Window:</strong> Further reduces leakage at the cost of frequency resolution.
+            <br>Formula: \\( w[n] = 0.5 \\left(1 - \\cos\\left(\\frac{2 \\pi n}{N-1}\\right)\\right) \\)
+            <br>Pros: Lower spectral leakage than Hamming.
+            <br>Cons: Lower frequency resolution due to wider main lobe.</li>
+
+        <li><strong>Blackman Window:</strong> Widely used for strong leakage suppression, especially in spectral analysis.
+            <br>Formula: \\( w[n] = 0.42 - 0.5 \\cos\\left(\\frac{2 \\pi n}{N-1}\\right) + 0.08 \\cos\\left(\\frac{4 \\pi n}{N-1}\\right) \\)
+            <br>Pros: Excellent at minimizing spectral leakage.
+            <br>Cons: Lower frequency resolution.</li>
+
+        <li><strong>Bartlett (or Triangular) Window:</strong> Creates a linear taper to zero at the edges, suitable for applications needing moderate spectral leakage reduction.
+            <br>Formula: \\( w[n] = 1 - \\left| \\frac{2n}{N-1} - 1 \\right| \\)
+            <br>Pros: Good balance between leakage and frequency resolution.
+            <br>Cons: Intermediate performance in both aspects.</li>
+
+        <li><strong>Kaiser Window:</strong> A flexible window with adjustable parameter \\( \\beta \\) to control the trade-off between main lobe width and side lobe level.
+            <br>Formula: \\( w[n] = \\frac{I_0\\left( \\beta \\sqrt{1 - \\left(\\frac{2n}{N-1} - 1\\right)^2}\\right)}{I_0(\\beta)} \\)
+            <br>Pros: Customizable for various needs; effective for both low and high side-lobe suppression.
+            <br>Cons: Requires adjustment of \\( \\beta \\) for optimal performance.</li>
+    </ul>
+
+    <h3>Choosing a Window Function:</h3>
     <p>
-        <strong>Parameters:</strong>
+        The choice of window depends on the application's requirements for spectral leakage and frequency resolution:
         <ul>
-            <li><strong>a</strong>: Scaling factor.</li>
-            <li><strong>b</strong>: Exponent.</li>
-            <li><strong>c</strong>: Offset.</li>
+            <li><strong>High Frequency Resolution, Low Leakage:</strong> Use Rectangular or Hamming windows.</li>
+            <li><strong>Moderate Leakage Control:</strong> Use Hanning or Bartlett windows.</li>
+            <li><strong>Strong Leakage Suppression:</strong> Use Blackman or Kaiser windows (with high \\( \\beta \\)).</li>
         </ul>
     </p>
-    <h4>When to Use:</h4>
-    <p>Ideal for relationships where one quantity scales as a power of another, such as in physics and economics.</p>
-    <h4>Advantages:</h4>
-    <p>Useful for modeling non-linear scaling relationships and patterns.</p>
-    <h4>Disadvantages:</h4>
-    <p>Not suitable for data with zero or negative x-values and may require careful handling of scaling and exponent values.</p>
+
+    <h2>Zero-Padding Length:</h2>
+    <p>
+        Zero-padding is the technique of appending zeros to a signal, increasing its length before computing the FFT. It does not alter the signal's frequency content but provides finer frequency bins, improving visual clarity of the spectrum.
+    </p>
+    <p>
+        For an original signal \\( x[n] \\) with \\( N \\) samples, if we extend it with \\( Z \\) zeros, the new signal has length \\( N + Z \\).
+    </p>
+    <p>
+        Zero-padding allows finer resolution in the FFT, with the frequency resolution given by \\( \\Delta f = \\frac{f_s}{N + Z} \\), where \\( f_s \\) is the sampling rate.
+    </p>
+
+    <h3>Pros and Cons of Zero-Padding:</h3>
+    <ul>
+        <li><strong>Pros:</strong> Increases the number of points in the frequency domain, making it easier to distinguish closely spaced frequency components.</li>
+        <li><strong>Cons:</strong> Does not add new information to the signal; excessive padding can mislead by interpolating artificial peaks.</li>
+    </ul>
+
+    <h2>Nyquist Frequency:</h2>
+    <p>
+        The Nyquist frequency \\( f_{{Nyquist}} = \\frac{{f_s}}{2} \\) is the highest frequency that can be represented in a sampled signal. The FFT output will contain frequency components up to this limit, with frequencies beyond causing aliasing.
+    </p>
 
 </body>
 </html>

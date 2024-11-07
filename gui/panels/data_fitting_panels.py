@@ -1165,6 +1165,13 @@ class FourierTransformPanel(QWidget):
         data_selection_layout.addWidget(self.data_column_combo)
         layout.addLayout(data_selection_layout)
 
+        # **Add Time Column Selection**
+        time_selection_layout = QHBoxLayout()
+        time_selection_layout.addWidget(QLabel("Select Time Column:"))
+        self.time_column_combo = QComboBox()
+        time_selection_layout.addWidget(self.time_column_combo)
+        layout.addLayout(time_selection_layout)
+
         # Transform Type Selection
         transform_type_layout = QHBoxLayout()
         transform_type_layout.addWidget(QLabel("Transform Type:"))
@@ -1222,18 +1229,30 @@ class FourierTransformPanel(QWidget):
         self.help_button.clicked.connect(self.show_help)
 
     def set_data_columns(self, columns):
-        """Populate the data column combo box with available columns."""
+        """Populate the data and time column combo boxes with available columns."""
         self.data_column_combo.clear()
         self.data_column_combo.addItems(columns)
+        self.time_column_combo.clear()
+        self.time_column_combo.addItems(columns)
 
     def get_parameters(self):
+        # Ensure columns are selected
+        if not self.time_column_combo.currentText():
+            QMessageBox.warning(self, "No Time Column Selected", "Please select a time column.")
+            return None
+        if not self.data_column_combo.currentText():
+            QMessageBox.warning(self, "No Data Column Selected", "Please select a data column.")
+            return None
+
         parameters = {
             'data_column': self.data_column_combo.currentText(),
+            'time_column': self.time_column_combo.currentText(),
             'transform_type': self.transform_type_combo.currentText(),
             'window_function': self.window_function_combo.currentText(),
             'zero_padding': self.zero_padding_spinbox.value(),
         }
         return parameters
+
 
     def show_help(self):
         help_content = FOURIER_TRANSFORM_HELP
