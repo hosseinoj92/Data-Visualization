@@ -13,7 +13,7 @@ import json
 import numpy as np
 from gui.dialogs.help_dialog import HelpDialog
 from gui.utils.help_content import (PEAK_FITTING_HELP, POLYNOMIAL_FITTING_HELP, CUSTOM_FITTING_HELP, 
-                                    LOG_EXP_POWER_HELP
+                                    LOG_EXP_POWER_HELP,FOURIER_TRANSFORM_HELP,
 )
 
 import sympy as sp
@@ -1131,3 +1131,116 @@ class LogExpPowerFittingPanel(QWidget):
             help_content = LOG_EXP_POWER_HELP
             dialog = HelpDialog("Custom Fitting Help", help_content, self)
             dialog.exec_()
+
+
+class FourierTransformPanel(QWidget):
+    parameters_changed = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.method_name = "Fourier Transform"
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+
+        self.x_scale_label = QLabel("X-axis Scale:")
+        self.x_scale_combo = QComboBox()
+        self.x_scale_combo.addItems(['linear', 'log'])
+
+        self.y_scale_label = QLabel("Y-axis Scale:")
+        self.y_scale_combo = QComboBox()
+        self.y_scale_combo.addItems(['linear', 'log'])
+
+        # Add these widgets to your panel's layout
+        layout.addWidget(self.x_scale_label)
+        layout.addWidget(self.x_scale_combo)
+        layout.addWidget(self.y_scale_label)
+        layout.addWidget(self.y_scale_combo)
+
+        # Data Selection Section
+        data_selection_layout = QHBoxLayout()
+        data_selection_layout.addWidget(QLabel("Select Data Column:"))
+        self.data_column_combo = QComboBox()
+        data_selection_layout.addWidget(self.data_column_combo)
+        layout.addLayout(data_selection_layout)
+
+        # Transform Type Selection
+        transform_type_layout = QHBoxLayout()
+        transform_type_layout.addWidget(QLabel("Transform Type:"))
+        self.transform_type_combo = QComboBox()
+        self.transform_type_combo.addItems(["FFT", "Inverse FFT"])
+        transform_type_layout.addWidget(self.transform_type_combo)
+        layout.addLayout(transform_type_layout)
+
+        # Advanced Options Section
+        advanced_options_group = QGroupBox("Advanced Options")
+        advanced_options_layout = QVBoxLayout()
+
+        # Window Function Selection
+        window_function_layout = QHBoxLayout()
+        window_function_layout.addWidget(QLabel("Window Function:"))
+        self.window_function_combo = QComboBox()
+        self.window_function_combo.addItems([
+            "None", "Hamming", "Hanning", "Blackman", "Bartlett", "Kaiser"
+        ])
+        window_function_layout.addWidget(self.window_function_combo)
+        advanced_options_layout.addLayout(window_function_layout)
+
+        # Zero-padding Option
+        zero_padding_layout = QHBoxLayout()
+        zero_padding_layout.addWidget(QLabel("Zero-padding Length:"))
+        self.zero_padding_spinbox = QSpinBox()
+        self.zero_padding_spinbox.setRange(0, 1000000)
+        self.zero_padding_spinbox.setValue(0)
+        zero_padding_layout.addWidget(self.zero_padding_spinbox)
+        advanced_options_layout.addLayout(zero_padding_layout)
+
+        advanced_options_group.setLayout(advanced_options_layout)
+        layout.addWidget(advanced_options_group)
+
+        # Buttons: Apply, Save, Send to Data Panel, Help
+        buttons_layout = QHBoxLayout()
+        self.apply_button = QPushButton("Apply")
+        self.save_button = QPushButton("Save")
+        self.send_to_data_panel_button = QPushButton("Send to Data Panel")
+        self.help_button = QPushButton("Help")
+        buttons_layout.addWidget(self.apply_button)
+        buttons_layout.addWidget(self.save_button)
+        buttons_layout.addWidget(self.send_to_data_panel_button)
+        buttons_layout.addWidget(self.help_button)
+        layout.addLayout(buttons_layout)
+
+        # Disable Save and Send buttons initially
+        self.save_button.setEnabled(False)
+        self.send_to_data_panel_button.setEnabled(False)
+
+        self.setLayout(layout)
+
+        # Connect Signals
+        self.apply_button.clicked.connect(self.parameters_changed.emit)
+        self.help_button.clicked.connect(self.show_help)
+
+    def set_data_columns(self, columns):
+        """Populate the data column combo box with available columns."""
+        self.data_column_combo.clear()
+        self.data_column_combo.addItems(columns)
+
+    def get_parameters(self):
+        parameters = {
+            'data_column': self.data_column_combo.currentText(),
+            'transform_type': self.transform_type_combo.currentText(),
+            'window_function': self.window_function_combo.currentText(),
+            'zero_padding': self.zero_padding_spinbox.value(),
+        }
+        return parameters
+
+    def show_help(self):
+        help_content = FOURIER_TRANSFORM_HELP
+        dialog = HelpDialog("Fourier Transform Help", help_content, self)
+        dialog.exec_()
+
+    def get_axis_scaling(self):
+        x_scale = self.x_scale_combo.currentText()
+        y_scale = self.y_scale_combo.currentText()
+        return x_scale, y_scale

@@ -29,7 +29,11 @@ from gui.dialogs.save_plot_dialog import SavePlotDialog
 import sys
 from utils import read_numeric_data
 from functools import partial
-from gui.panels.data_fitting_panels import GaussianFittingPanel, PolynomialFittingPanel, CustomFittingPanel,LogExpPowerFittingPanel
+from gui.panels.data_fitting_panels import (GaussianFittingPanel,
+         PolynomialFittingPanel, CustomFittingPanel,
+         LogExpPowerFittingPanel,FourierTransformPanel  
+
+)
 from scipy.signal import find_peaks, peak_widths  # Ensure peak_widths is imported 
 
 from lmfit import Model, Parameters
@@ -186,7 +190,7 @@ class DataFittingTab(QWidget):
             ("Polynomial Fitting", PolynomialFittingPanel, 'gui/resources/polynomial_fitting_icon.png'),
             ("Custom Fitting", CustomFittingPanel, 'gui/resources/custom_fitting_icon.png'),  
             ("Log/Exp/Power Fitting", LogExpPowerFittingPanel, 'gui/resources/log_exp_power_fitting_icon.png'),
-
+            ("Fourier Transform", FourierTransformPanel, 'gui/resources/fft_fitting_icon.png'), 
 
 
         ]
@@ -501,6 +505,16 @@ class DataFittingTab(QWidget):
                     # Perform log/exp/power fitting
                     fitted_y, fit_info = self.perform_log_exp_power_fitting(x, y, params)
 
+                elif isinstance(panel, FourierTransformPanel):
+                    # Perform Fourier Transform fitting
+                    x_data = df[params['time_column']].values
+                    y_data = df[params['data_column']].values
+                    # Perform Fourier Transform
+                    x, y, fitted_y, fit_info = self.perform_fourier_transform(x_data, y_data, params)
+                    if x is None:
+                        # An error occurred in perform_fourier_transform
+                        continue
+
                 else:
                     # Perform peak fitting with mixed function types
                     fitted_y, fit_info = self.perform_mixed_fitting(x, y, params['peaks'])
@@ -528,6 +542,90 @@ class DataFittingTab(QWidget):
         panel.save_button.setEnabled(True)
         panel.send_to_data_panel_button.setEnabled(True)
 
+    def perform_fourier_transform(self, x, y, params):
+        import numpy as np
+        from scipy.fft import fft, fftfreq, ifft
+        from scipy.interpolate import interp1d
+
+        transform_type = params['transform_type']
+        window_function = params['window_function']
+        zero_padding = params['zero_padding']
+
+        # Ensure x is uniformly sampled
+        delta_ts = np.diff(x)
+        if not np.allclose(delta_ts, delta_ts[0]):
+            # Resample data onto a uniform grid
+            num_samples = len(x)
+            x_uniform = np.linspace(x[0], x[-1], num=num_samples)
+            interpolation_func = interp1d(x, y, kind='linear')
+            y = interpolation_func(x_uniform)
+            x = x_uniform
+        delta_t = x[1] - x[0]
+
+        # Apply window function
+        if window_function != "None":
+            window = self.get_window_function(window_function, len(y))
+            y = y * window
+
+        # Zero-padding
+        if zero_padding > 0:
+            y = np.pad(y, (0, zero_padding), 'constant')
+
+        if transform_type == "FFT":
+            transformed_data = fft(y)
+            frequencies = fftfreq(len(transformed_data), delta_t)
+
+            # Only take the positive half of the frequencies and corresponding transformed data
+            idx = np.argsort(frequencies)
+            frequencies = frequencies[idx]
+            transformed_data = transformed_data[idx]
+            positive_freqs = frequencies > 0
+            frequencies = frequencies[positive_freqs]
+            transformed_data = transformed_data[positive_freqs]
+
+            # Prepare fit_info
+            fit_info = {
+                'transform_type': 'FFT',
+                'window_function': window_function,
+                'zero_padding': zero_padding,
+            }
+
+            # Return frequencies as x, magnitudes as fitted_y, original y
+            return frequencies, y, np.abs(transformed_data), fit_info
+
+        elif transform_type == "Inverse FFT":
+            transformed_data = ifft(y)
+
+            # Prepare fit_info
+            fit_info = {
+                'transform_type': 'Inverse FFT',
+                'window_function': window_function,
+                'zero_padding': zero_padding,
+            }
+
+            # Return x, y, transformed_data.real as fitted_y
+            return x, y, transformed_data.real, fit_info
+
+        else:
+            raise ValueError("Unknown transform type.")
+
+
+    def get_window_function(self, name, N):
+        import numpy as np
+        if name == "Hamming":
+            return np.hamming(N)
+        elif name == "Hanning":
+            return np.hanning(N)
+        elif name == "Blackman":
+            return np.blackman(N)
+        elif name == "Bartlett":
+            return np.bartlett(N)
+        elif name == "Kaiser":
+            beta = 14  # Beta value can be parameterized if needed
+            return np.kaiser(N, beta)
+        else:
+            return np.ones(N)
+        
     def perform_custom_fitting(self, x, y, params):
         from lmfit import Model, Parameters
         import numpy as np
@@ -732,40 +830,61 @@ class DataFittingTab(QWidget):
         # Dictionary to store fit statistics
         fit_statistics = {}
 
+        # Check if we're plotting FFT data and get axis scaling preferences
+        if hasattr(self.current_fitting_panel, 'get_axis_scaling'):
+            x_scale, y_scale = self.current_fitting_panel.get_axis_scaling()
+
         # For each file, plot the data and the fit
         for file_path in data_files:
             if file_path in self.fitted_data:
                 x, y, fitted_y, fit_info = self.fitted_data[file_path]
 
-                # Plot original data with label "Data"
-                data_plot, = ax.plot(x, y, 'b.', label="Data")  # Uniform label
-                data_handles.append(data_plot)
+                if 'transform_type' in fit_info and fit_info['transform_type'] == 'FFT':
+                    data_plot, = ax.plot(x, fitted_y, label="FFT Magnitude")
+                    data_handles.append(data_plot)
+                    ax.set_xlabel('Frequency')
+                    ax.set_ylabel('Magnitude')
+                    ax.set_xscale(x_scale)
+                    ax.set_yscale(y_scale)
+                elif 'transform_type' in fit_info and fit_info['transform_type'] == 'Inverse FFT':
+                    data_plot, = ax.plot(x, fitted_y, label="Inverse FFT")
+                    data_handles.append(data_plot)
+                    ax.set_xlabel('Time')
+                    ax.set_ylabel('Amplitude')
+                    # Apply axis scaling if desired
 
-                # Plot fitted curve with label "Fit"
-                fit_plot, = ax.plot(x, fitted_y, 'r-', label="Fit")  # Uniform label
-                fit_handles.append(fit_plot)
+                else: 
+                    # Plot original data with label "Data"
+                    data_plot, = ax.plot(x, y, 'b.', label="Data")  # Uniform label
+                    data_handles.append(data_plot)
 
-                # Plot individual components if available
-                if 'components' in fit_info:
-                    components = fit_info['components']
-                    # Exclude the total model component if present
-                    components = {k: v for k, v in components.items() if k != 'total' and k != ''}
-                    # Generate a list of colors
-                    colors = plt.cm.tab20.colors  # Use a colormap with distinct colors
-                    num_colors = len(colors)
-                    for idx, (comp_name, comp_y) in enumerate(components.items()):
-                        # Use modulo to cycle through colors if more peaks than colors
-                        color = colors[idx % num_colors]
-                        # Plot the component as a filled area
-                        peak_plot = ax.fill_between(x, comp_y, color=color, alpha=0.5)
-                        # Create a proxy artist for the legend
-                        proxy = plt.Rectangle((0, 0), 1, 1, facecolor=color, alpha=0.5)
-                        peak_handles.append(proxy)
-                        
+                    # Plot fitted curve with label "Fit"
+                    fit_plot, = ax.plot(x, fitted_y, 'r-', label="Fit")  # Uniform label
+                    fit_handles.append(fit_plot)
+
+                    # Plot individual components if available
+                    if 'components' in fit_info:
+                        components = fit_info['components']
+                        # Exclude the total model component if present
+                        components = {k: v for k, v in components.items() if k != 'total' and k != ''}
+                        # Generate a list of colors
+                        colors = plt.cm.tab20.colors  # Use a colormap with distinct colors
+                        num_colors = len(colors)
+                        for idx, (comp_name, comp_y) in enumerate(components.items()):
+                            # Use modulo to cycle through colors if more peaks than colors
+                            color = colors[idx % num_colors]
+                            # Plot the component as a filled area
+                            peak_plot = ax.fill_between(x, comp_y, color=color, alpha=0.5)
+                            # Create a proxy artist for the legend
+                            proxy = plt.Rectangle((0, 0), 1, 1, facecolor=color, alpha=0.5)
+                            peak_handles.append(proxy)
+
                 # Store fit statistics
+                r_squared = fit_info.get('r_squared', np.nan)
+                reduced_chi_squared = fit_info.get('reduced_chi_squared', np.nan)
                 fit_statistics[file_path] = {
-                    'R_squared': fit_info['r_squared'],
-                    'Chi_squared': fit_info['reduced_chi_squared']
+                    'R_squared': r_squared,
+                    'Chi_squared': reduced_chi_squared
                 }
 
         # Create a single legend with "Data" and "Fit"
@@ -786,11 +905,14 @@ class DataFittingTab(QWidget):
         # Consolidate fit statistics into a single text box
         # Only include R^2 and Chi^2 without file labels
         if fit_statistics:
-            # If multiple files, you can aggregate or list them without labels
-            # Here, we'll list them without file names
             stats_text = ""
             for stats in fit_statistics.values():
-                stats_text += f"$R^2$ = {stats['R_squared']:.4f}\n$\\chi^2$ = {stats['Chi_squared']:.4f}\n"
+                r_squared = stats.get('R_squared', np.nan)
+                chi_squared = stats.get('Chi_squared', np.nan)
+                if not np.isnan(r_squared):
+                    stats_text += f"$R^2$ = {r_squared:.4f}\n"
+                if not np.isnan(chi_squared):
+                    stats_text += f"$\\chi^2$ = {chi_squared:.4f}\n"
 
             # Remove the trailing newline characters
             stats_text = stats_text.strip()
@@ -1249,17 +1371,33 @@ class DataFittingTab(QWidget):
 
                 # === Saving CSV Files ===
                 try:
-                    # Save x, original y, fitted y, residuals to CSV
-                    df = pd.DataFrame({
-                        x_col_name: x,
-                        y_col_name: y,
-                        'Fitted_' + y_col_name: fitted_y,
-                        'Residuals': fit_info.get('residuals', np.nan)
-                    })
+
+                    if 'transform_type' in fit_info and fit_info['transform_type'] == 'FFT':
+                        df = pd.DataFrame({
+                            'Frequency': x,
+                            'FFT_Magnitude': fitted_y
+                        })
+
+                    elif 'transform_type' in fit_info and fit_info['transform_type'] == 'Inverse FFT':
+                        df = pd.DataFrame({
+                            x_col_name: x,
+                            'Inverse_FFT': fitted_y
+                        })
+
+                    else:
+                        # Save x, original y, fitted y, residuals to CSV
+                        df = pd.DataFrame({
+                            x_col_name: x,
+                            y_col_name: y,
+                            'Fitted_' + y_col_name: fitted_y,
+                            'Residuals': fit_info.get('residuals', np.nan)
+                        })
+
                     new_file_name = f"{base_name}_fitted.csv"
                     new_file_path = os.path.join(directory, new_file_name)
                     df.to_csv(new_file_path, index=False)
                     print(f"Fitted data saved to {new_file_path}")
+
                 except Exception as e:
                     QMessageBox.warning(self, "Error Saving CSV", f"Error saving CSV for {base_name}:\n{e}")
                     print(f"Error saving CSV for {base_name}: {e}")
@@ -1500,6 +1638,21 @@ class DataFittingTab(QWidget):
 
                         print(f"Fit parameters saved to {params_file_path}")
 
+                    elif 'transform_type' in fit_info and fit_info['transform_type'] in ['FFT', 'Inverse FFT']:
+                        # FFT or Inverse FFT case
+                        transformed_type = fit_info['transform_type']
+                        params_text = f"{transformed_type} Parameters\n\n"
+                        window_function = fit_info.get('window_function', 'None')
+                        zero_padding = fit_info.get('zero_padding', 0)
+                        params_text += f"Window Function: {window_function}\n"
+                        params_text += f"Zero Padding: {zero_padding}\n"
+                        # Define the text file name and path
+                        params_file_name = f"{base_name}_fft_parameters.txt"
+                        params_file_path = os.path.join(directory, params_file_name)
+                        # Write the parameters to the text file
+                        with open(params_file_path, 'w') as f:
+                            f.write(params_text)
+                        print(f"FFT parameters saved to {params_file_path}")
 
                 except Exception as e:
                     QMessageBox.warning(self, "Error Saving Fit Parameters", f"Error saving fit parameters for {base_name}:\n{e}")
@@ -1919,6 +2072,17 @@ class FittingMethodWindow(QDialog):
         layout = QVBoxLayout()
         layout.addWidget(self.panel)
         self.setLayout(layout)
+
+        # If the panel requires data columns, set them
+        if hasattr(self.panel, 'set_data_columns'):
+            # Get data files from parent
+            data_files = parent.selected_data_panel.get_selected_files()
+            if data_files:
+                # Assuming the first file's columns represent all
+                df, x, y = parent.read_numeric_data(data_files[0])
+                if df is not None:
+                    columns = df.columns.tolist()
+                    self.panel.set_data_columns(columns)
 
         # Connect panel signals to parent slots
         self.connect_panel_signals()
