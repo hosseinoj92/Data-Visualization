@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFileDialog,
     QLineEdit, QTableView, QTreeView, QAbstractItemView, QHeaderView,
     QProgressBar, QMessageBox, QCalendarWidget, QDateEdit, QDialog, QFormLayout,
-    QGroupBox, QScrollArea, QDateTimeEdit, QGridLayout, QApplication,QDirModel,QCheckBox
+    QGroupBox, QScrollArea, QDateTimeEdit, QGridLayout, QApplication,QDirModel,QCheckBox,QComboBox
 )
 from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel, QModelIndex, QDir, QDateTime
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
@@ -233,12 +233,44 @@ class RestructuringDialog(QDialog):
 
         # Add first input field
         self.add_input_field()
-
+        self.input_fields_layout.setAlignment(Qt.AlignTop)
+        
         # Add button to add more input fields
         self.add_input_button = QPushButton("Add Criteria")
         self.add_input_button.setIcon(QIcon(resource_path('gui/resources/add.png')))  # Icon added here
         self.add_input_button.clicked.connect(self.add_input_field)
         input_layout.addWidget(self.add_input_button)
+
+        # Extract unique file extensions from the metadata DataFrame
+        self.unique_extensions = sorted(
+            self.metadata_df['File Name']
+            .apply(lambda x: os.path.splitext(x)[1].lower())
+            .dropna()
+            .unique()
+        )
+                # Add data type selection combo box
+        data_type_layout = QHBoxLayout()
+
+        data_type_label = QLabel("Data Type Handling:")
+        self.data_type_combo_box = QComboBox()
+
+        # Populate the combo box
+        self.data_type_combo_box.addItem("All")  # Default option
+
+        for ext in self.unique_extensions:
+            # Ensure extensions start with a dot
+            if not ext.startswith('.'):
+                ext = '.' + ext
+            self.data_type_combo_box.addItem(ext)
+
+        self.data_type_combo_box.addItem("Each Separately")
+
+        # Add widgets to the layout
+        data_type_layout.addWidget(data_type_label)
+        data_type_layout.addWidget(self.data_type_combo_box)
+
+        # Add the data type layout to the input layout
+        input_layout.addLayout(data_type_layout)
 
         # Add partial matching checkbox
         self.partial_matching_checkbox = QCheckBox("Enable Partial Matching in File Name")
@@ -367,6 +399,9 @@ class RestructuringDialog(QDialog):
         # Determine if partial matching is enabled
         partial_matching = self.partial_matching_checkbox.isChecked()
 
+        # Get data type handling selection
+        data_type_selection = self.data_type_combo_box.currentText()
+
         # Get date ranges
         creation_start_datetime = self.creation_start_date_edit.dateTime().toPyDateTime()
         creation_end_datetime = self.creation_end_date_edit.dateTime().toPyDateTime()
@@ -379,7 +414,7 @@ class RestructuringDialog(QDialog):
             QMessageBox.warning(self, "No Destination Folder", "Please select a destination folder.")
             return
 
-        # Build folder name
+        # Build folder name based on criteria and date ranges
         folder_name_parts = []
         if criteria_list:
             folder_name_parts.append("_".join(criteria_list))
@@ -390,13 +425,9 @@ class RestructuringDialog(QDialog):
             if modification_start_datetime and modification_end_datetime:
                 date_parts.append(f"Modified_{modification_start_datetime.strftime('%d%b%Y')}-{modification_end_datetime.strftime('%d%b%Y')}")
             folder_name_parts.append("_".join(date_parts))
-        if not folder_name_parts:
-            QMessageBox.warning(self, "No Criteria", "Please provide criteria for file selection.")
-            return
 
-        folder_name = "_".join(folder_name_parts)
-        dest_folder_path = os.path.join(dest_folder, folder_name)
-        os.makedirs(dest_folder_path, exist_ok=True)
+        # Base folder name without extension
+        base_folder_name = "_".join(folder_name_parts)
 
         # Filter files based on criteria
         selected_files_df = self.metadata_df.copy()
@@ -438,6 +469,62 @@ class RestructuringDialog(QDialog):
         if selected_files_df.empty:
             QMessageBox.information(self, "No Files Found", "No files match the given criteria.")
             return
+
+        # Handle data type selection
+        if data_type_selection == "All":
+            # Handle all data types together (no additional filtering)
+            dest_folder_path = os.path.join(dest_folder, base_folder_name)
+            os.makedirs(dest_folder_path, exist_ok=True)
+        
+        elif data_type_selection == "Each Separately":
+            # Handle each data type separately
+            # Iterate through each unique extension and copy files accordingly
+            for ext in self.unique_extensions:
+                # Filter files with the current extension
+                files_with_ext = selected_files_df[selected_files_df['File Name'].str.lower().str.endswith(ext.lower())]
+                
+                if files_with_ext.empty:
+                    continue  # Skip if no files with this extension
+
+                # Construct folder name with extension
+                # Remove the dot from extension for folder naming
+                ext_without_dot = ext[1:] if ext.startswith('.') else ext
+                folder_name = f"{base_folder_name}_{ext_without_dot}"
+                dest_folder_path_ext = os.path.join(dest_folder, folder_name)
+                os.makedirs(dest_folder_path_ext, exist_ok=True)
+
+                # Copy files
+                for idx, row in files_with_ext.iterrows():
+                    src_file = row['File Path']
+                    dst_file = os.path.join(dest_folder_path_ext, row['File Name'])
+                    try:
+                        shutil.copy2(src_file, dst_file)
+                    except Exception as e:
+                        QMessageBox.warning(self, "Error Copying File", f"Failed to copy {src_file}:\n{e}")
+                        continue
+
+                    # Update progress bar
+                    self.progress_bar.setValue(idx + 1)
+                    QApplication.processEvents()
+
+            QMessageBox.information(self, "Restructuring Complete", "Files have been copied successfully.")
+            self.progress_bar.setValue(0)
+            return  # Exit the method after handling "Each Separately"
+
+        else:
+            # Handle specific data type
+            # Filter files with the selected extension
+            selected_files_df = selected_files_df[selected_files_df['File Name'].str.lower().str.endswith(data_type_selection.lower())]
+
+            if selected_files_df.empty:
+                QMessageBox.information(self, "No Files Found", f"No files with extension {data_type_selection} match the given criteria.")
+                return
+
+            # Append the extension to the folder name
+            ext_without_dot = data_type_selection[1:] if data_type_selection.startswith('.') else data_type_selection
+            folder_name = f"{base_folder_name}_{ext_without_dot}"
+            dest_folder_path = os.path.join(dest_folder, folder_name)
+            os.makedirs(dest_folder_path, exist_ok=True)
 
         # Confirm action
         reply = QMessageBox.question(
