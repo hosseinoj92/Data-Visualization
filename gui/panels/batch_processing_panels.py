@@ -184,6 +184,10 @@ class BatchFileHandlingPanel(QWidget):
         self.model = FileMetadataModel(display_df)
         self.metadata_table.setModel(self.model)
 
+        # Set the resize mode to Interactive to allow manual resizing
+        self.metadata_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+
+
     def open_restructuring_window(self):
         if self.folder_path_line_edit.text() == '':
             QMessageBox.warning(self, "No Root Folder Selected", "Please select a root folder first.")
