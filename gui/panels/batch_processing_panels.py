@@ -1,6 +1,6 @@
 # batch_processing_panels.py
 import os
-import os
+import sys
 import shutil
 import pandas as pd
 import re
@@ -12,6 +12,16 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel, QModelIndex, QDir, QDateTime
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
+from PyQt5.QtGui import QIcon
+
+def resource_path(relative_path):
+    """Get the absolute path to a resource, works for development and PyInstaller."""
+    try:
+        # PyInstaller creates a temporary folder and stores its path in sys._MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 class BatchDataHandlingPanel(QWidget):
     data_processed = pyqtSignal()
@@ -69,7 +79,7 @@ class FileMetadataModel(QAbstractTableModel):
     def sort(self, column, order):
         colname = self._data_frame.columns[column]
         self.layoutAboutToBeChanged.emit()
-        self.__data_frame.sort_values(
+        self._data_frame.sort_values(
             by=colname, ascending=order == Qt.AscendingOrder, inplace=True
         )
         self.layoutChanged.emit()
@@ -95,6 +105,8 @@ class BatchFileHandlingPanel(QWidget):
         self.folder_path_line_edit = QLineEdit()
         self.folder_path_line_edit.setReadOnly(True)
         self.select_folder_button = QPushButton("Select Root Folder")
+        self.select_folder_button.setIcon(QIcon(resource_path('gui/resources/select_folder_icon.png')))  # Icon added here
+
         self.select_folder_button.clicked.connect(self.select_folder)
         folder_layout.addWidget(QLabel("Root Folder:"))
         folder_layout.addWidget(self.folder_path_line_edit)
@@ -110,6 +122,7 @@ class BatchFileHandlingPanel(QWidget):
 
         # Restructuring button
         self.restructure_button = QPushButton("Files and Folders Restructuring")
+        self.restructure_button.setIcon(QIcon(resource_path('gui/resources/restructuring_icon.png')))  # Icon added here
         self.restructure_button.clicked.connect(self.open_restructuring_window)
         left_layout.addWidget(self.restructure_button)
 
@@ -219,6 +232,7 @@ class RestructuringDialog(QDialog):
 
         # Add button to add more input fields
         self.add_input_button = QPushButton("Add Criteria")
+        self.add_input_button.setIcon(QIcon(resource_path('gui/resources/add.png')))  # Icon added here
         self.add_input_button.clicked.connect(self.add_input_field)
         input_layout.addWidget(self.add_input_button)
 
@@ -272,6 +286,7 @@ class RestructuringDialog(QDialog):
         self.dest_folder_line_edit = QLineEdit()
         self.dest_folder_line_edit.setReadOnly(True)
         self.select_dest_folder_button = QPushButton("Select Destination Folder")
+        self.select_dest_folder_button.setIcon(QIcon(resource_path('gui/resources/select_folder_icon.png')))  # Icon added here
         self.select_dest_folder_button.clicked.connect(self.select_destination_folder)
         dest_folder_layout.addWidget(QLabel("Destination Folder:"))
         dest_folder_layout.addWidget(self.dest_folder_line_edit)
@@ -280,6 +295,7 @@ class RestructuringDialog(QDialog):
 
         # Restructure button
         self.execute_button = QPushButton("Execute Restructuring")
+        self.execute_button.setIcon(QIcon(resource_path('gui/resources/execute_icon.png')))  # Icon added here
         self.execute_button.clicked.connect(self.execute_restructuring)
         left_layout.addWidget(self.execute_button)
 
@@ -304,6 +320,8 @@ class RestructuringDialog(QDialog):
         input_field_layout = QHBoxLayout()
         input_line_edit = QLineEdit()
         remove_button = QPushButton("Remove")
+        remove_button.setIcon(QIcon(resource_path('gui/resources/remove.png')))  # Icon added here
+
         remove_button.clicked.connect(lambda: self.remove_input_field(input_field_layout))
         input_field_layout.addWidget(QLabel("Contains:"))
         input_field_layout.addWidget(input_line_edit)
