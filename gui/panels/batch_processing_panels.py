@@ -29,7 +29,9 @@ def resource_path(relative_path):
 def is_subdirectory(child, parent):
     child = os.path.realpath(child)
     parent = os.path.realpath(parent)
-    return os.path.commonpath([parent]) == os.path.commonpath([parent, child])
+    if child == parent:
+        return False
+    return os.path.commonpath([parent, child]) == parent
 
 class BatchDataHandlingPanel(QWidget):
     data_processed = pyqtSignal()
@@ -267,7 +269,7 @@ class FileNameHandlingDialog(QDialog):
                 widget.setParent(None)
         # Remove the layout itself
         self.replacement_fields_layout.removeItem(layout)
-
+        
     def select_destination_folder(self):
         options = QFileDialog.Options()
         folder = QFileDialog.getExistingDirectory(
@@ -277,9 +279,6 @@ class FileNameHandlingDialog(QDialog):
             options=options
         )
         if folder:
-            if is_subdirectory(folder, self.root_folder):
-                QMessageBox.warning(self, "Invalid Destination Folder", "The destination folder cannot be inside the root folder.")
-                return
             self.dest_folder_line_edit.setText(folder)
 
 
