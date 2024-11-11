@@ -14,6 +14,7 @@ from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel, QModelIndex, QDir,
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtGui import QIcon
 import yaml
+import datetime
 
 def resource_path(relative_path):
     """Get the absolute path to a resource, works for development and PyInstaller."""
@@ -23,6 +24,12 @@ def resource_path(relative_path):
     except AttributeError:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
+
+
+def is_subdirectory(child, parent):
+    child = os.path.realpath(child)
+    parent = os.path.realpath(parent)
+    return os.path.commonpath([parent]) == os.path.commonpath([parent, child])
 
 class BatchDataHandlingPanel(QWidget):
     data_processed = pyqtSignal()
@@ -270,7 +277,11 @@ class FileNameHandlingDialog(QDialog):
             options=options
         )
         if folder:
+            if is_subdirectory(folder, self.root_folder):
+                QMessageBox.warning(self, "Invalid Destination Folder", "The destination folder cannot be inside the root folder.")
+                return
             self.dest_folder_line_edit.setText(folder)
+
 
     def execute_renaming(self):
         # Get replacement criteria from input fields
@@ -537,9 +548,9 @@ class BatchFileHandlingPanel(QWidget):
         self.metadata_df['File Name'] = self.metadata_df['File Path'].apply(os.path.basename)
         self.metadata_df['Folder Path'] = self.metadata_df['File Path'].apply(os.path.dirname)
         self.metadata_df['Modification Date'] = self.metadata_df['File Path'].apply(
-            lambda x: pd.to_datetime(os.path.getmtime(x), unit='s'))
+            lambda x: datetime.datetime.fromtimestamp(os.path.getmtime(x)))
         self.metadata_df['Creation Date'] = self.metadata_df['File Path'].apply(
-            lambda x: pd.to_datetime(os.path.getctime(x), unit='s'))
+            lambda x: datetime.datetime.fromtimestamp(os.path.getctime(x)))
         self.metadata_df['File Size'] = self.metadata_df['File Path'].apply(os.path.getsize)
 
         # Display metadata in the table
@@ -567,7 +578,6 @@ class BatchFileHandlingPanel(QWidget):
         self.restructuring_dialog.exec_()
         # After restructuring, update the folder tree
         self.dir_model.refresh()
-
 class RestructuringDialog(QDialog):
     def __init__(self, metadata_df, root_folder, parent=None):
         super().__init__(parent)
@@ -577,7 +587,7 @@ class RestructuringDialog(QDialog):
 
     def init_ui(self):
         self.setWindowTitle("Files and Folders Restructuring")
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(900, 700)  # Increased size for better UI
 
         main_layout = QHBoxLayout()
         self.setLayout(main_layout)
@@ -656,16 +666,21 @@ class RestructuringDialog(QDialog):
         self.creation_end_date_edit.setDisplayFormat("dd/MM/yyyy HH:mm:ss")
         self.creation_end_date_edit.setDateTime(QDateTime.currentDateTime())
 
-        creation_date_layout.addRow("Start Date:", self.creation_start_date_edit)
-        creation_date_layout.addRow("End Date:", self.creation_end_date_edit)
+        creation_date_layout.addRow("Start Date and Time:", self.creation_start_date_edit)
+        creation_date_layout.addRow("End Date and Time:", self.creation_end_date_edit)
 
-        # Add checkbox to include creation date in folder name
-        self.include_creation_date_in_name_checkbox = QCheckBox("Include Creation Date in Folder Name")
+        # Add checkbox to include creation date in folder name and activate filtering
+        self.include_creation_date_in_name_checkbox = QCheckBox("Include Creation Date in Folder Name and Filter")
         self.include_creation_date_in_name_checkbox.setChecked(False)
         creation_date_layout.addRow(self.include_creation_date_in_name_checkbox)
 
+        # Connect checkbox to toggle date filters
+        self.include_creation_date_in_name_checkbox.stateChanged.connect(
+            self.toggle_creation_date_filters
+        )
+
         left_layout.addWidget(creation_date_groupbox)
-        
+
         # Date range selection for Modification Date
         modification_date_groupbox = QGroupBox("Modification Date Range Selection (Optional)")
         modification_date_layout = QFormLayout()
@@ -681,13 +696,18 @@ class RestructuringDialog(QDialog):
         self.modification_end_date_edit.setDisplayFormat("dd/MM/yyyy HH:mm:ss")
         self.modification_end_date_edit.setDateTime(QDateTime.currentDateTime())
 
-        modification_date_layout.addRow("Start Date:", self.modification_start_date_edit)
-        modification_date_layout.addRow("End Date:", self.modification_end_date_edit)
+        modification_date_layout.addRow("Start Date and Time:", self.modification_start_date_edit)
+        modification_date_layout.addRow("End Date and Time:", self.modification_end_date_edit)
 
-        # Add checkbox to include modification date in folder name
-        self.include_modification_date_in_name_checkbox = QCheckBox("Include Modification Date in Folder Name")
+        # Add checkbox to include modification date in folder name and activate filtering
+        self.include_modification_date_in_name_checkbox = QCheckBox("Include Modification Date in Folder Name and Filter")
         self.include_modification_date_in_name_checkbox.setChecked(False)
         modification_date_layout.addRow(self.include_modification_date_in_name_checkbox)
+
+        # Connect checkbox to toggle date filters
+        self.include_modification_date_in_name_checkbox.stateChanged.connect(
+            self.toggle_modification_date_filters
+        )
 
         left_layout.addWidget(modification_date_groupbox)
 
@@ -726,6 +746,22 @@ class RestructuringDialog(QDialog):
         right_layout.addWidget(QLabel("Current Folder Structure:"))
         right_layout.addWidget(self.folder_tree)
 
+        # Initially disable date filters
+        self.toggle_creation_date_filters(self.include_creation_date_in_name_checkbox.isChecked())
+        self.toggle_modification_date_filters(self.include_modification_date_in_name_checkbox.isChecked())
+
+    def toggle_creation_date_filters(self, state):
+        """Enable or disable creation date/time filters based on checkbox state."""
+        is_checked = state == Qt.Checked
+        self.creation_start_date_edit.setEnabled(is_checked)
+        self.creation_end_date_edit.setEnabled(is_checked)
+
+    def toggle_modification_date_filters(self, state):
+        """Enable or disable modification date/time filters based on checkbox state."""
+        is_checked = state == Qt.Checked
+        self.modification_start_date_edit.setEnabled(is_checked)
+        self.modification_end_date_edit.setEnabled(is_checked)
+
     def add_criteria_group(self):
         criteria_group = CriteriaGroup()
         self.criteria_groups_layout.addWidget(criteria_group)
@@ -739,6 +775,9 @@ class RestructuringDialog(QDialog):
             options=options
         )
         if folder:
+            if is_subdirectory(folder, self.root_folder):
+                QMessageBox.warning(self, "Invalid Destination Folder", "The destination folder cannot be inside the root folder.")
+                return
             self.dest_folder_line_edit.setText(folder)
 
     def execute_restructuring(self):
@@ -748,17 +787,12 @@ class RestructuringDialog(QDialog):
         # Get data type handling selection
         data_type_selection = self.data_type_combo_box.currentText()
 
-        # Get date ranges
-        creation_start_datetime = self.creation_start_date_edit.dateTime().toPyDateTime()
-        creation_end_datetime = self.creation_end_date_edit.dateTime().toPyDateTime()
-        modification_start_datetime = self.modification_start_date_edit.dateTime().toPyDateTime()
-        modification_end_datetime = self.modification_end_date_edit.dateTime().toPyDateTime()
-
         # Get destination folder
         dest_folder = self.dest_folder_line_edit.text()
         if not dest_folder:
             QMessageBox.warning(self, "No Destination Folder", "Please select a destination folder.")
             return
+
         # Build folder name based on criteria and date ranges
         folder_name_parts = []
 
@@ -772,26 +806,6 @@ class RestructuringDialog(QDialog):
                     criteria_folder_name_parts.append("_".join(group_criteria))
         if criteria_folder_name_parts:
             folder_name_parts.append("_".join(criteria_folder_name_parts))
-
-        # Add date ranges to folder name if applicable and if user chose to include them
-        date_parts = []
-
-        if self.include_creation_date_in_name_checkbox.isChecked():
-            if self.creation_start_date_edit.dateTime() and self.creation_end_date_edit.dateTime():
-                creation_start_datetime = self.creation_start_date_edit.dateTime().toPyDateTime()
-                creation_end_datetime = self.creation_end_date_edit.dateTime().toPyDateTime()
-                date_parts.append(f"Created_{creation_start_datetime.strftime('%d%b%Y')}-{creation_end_datetime.strftime('%d%b%Y')}")
-        
-        if self.include_modification_date_in_name_checkbox.isChecked():
-            if self.modification_start_date_edit.dateTime() and self.modification_end_date_edit.dateTime():
-                modification_start_datetime = self.modification_start_date_edit.dateTime().toPyDateTime()
-                modification_end_datetime = self.modification_end_date_edit.dateTime().toPyDateTime()
-                date_parts.append(f"Modified_{modification_start_datetime.strftime('%d%b%Y')}-{modification_end_datetime.strftime('%d%b%Y')}")
-        if date_parts:
-            folder_name_parts.append("_".join(date_parts))
-
-        # Base folder name without extension
-        base_folder_name = "_".join(folder_name_parts) if folder_name_parts else "Selected_Files"
 
         # Start with all files
         selected_files_df = self.metadata_df.copy()
@@ -842,19 +856,42 @@ class RestructuringDialog(QDialog):
                 else:
                     continue  # Unknown logic, skip
 
-        # Filter based on creation date range
-        if self.creation_start_date_edit.dateTime() and self.creation_end_date_edit.dateTime():
+        # Add date ranges to folder name if applicable and if user chose to include them
+        date_parts = []
+
+        # Filter and include Creation Date if checkbox is checked
+        if self.include_creation_date_in_name_checkbox.isChecked():
+            creation_start_datetime = self.creation_start_date_edit.dateTime().toPyDateTime()
+            creation_end_datetime = self.creation_end_date_edit.dateTime().toPyDateTime()
+            # Filter based on creation date range
             selected_files_df = selected_files_df[
                 (selected_files_df['Creation Date'] >= creation_start_datetime) &
                 (selected_files_df['Creation Date'] <= creation_end_datetime)
             ]
+            # Include date and time in folder name
+            creation_start_str = creation_start_datetime.strftime('%d%b%Y_%H-%M-%S')
+            creation_end_str = creation_end_datetime.strftime('%d%b%Y_%H-%M-%S')
+            date_parts.append(f"Created_{creation_start_str}-{creation_end_str}")
 
-        # Filter based on modification date range
-        if self.modification_start_date_edit.dateTime() and self.modification_end_date_edit.dateTime():
+        # Filter and include Modification Date if checkbox is checked
+        if self.include_modification_date_in_name_checkbox.isChecked():
+            modification_start_datetime = self.modification_start_date_edit.dateTime().toPyDateTime()
+            modification_end_datetime = self.modification_end_date_edit.dateTime().toPyDateTime()
+            # Filter based on modification date range
             selected_files_df = selected_files_df[
                 (selected_files_df['Modification Date'] >= modification_start_datetime) &
                 (selected_files_df['Modification Date'] <= modification_end_datetime)
             ]
+            # Include date and time in folder name
+            modification_start_str = modification_start_datetime.strftime('%d%b%Y_%H-%M-%S')
+            modification_end_str = modification_end_datetime.strftime('%d%b%Y_%H-%M-%S')
+            date_parts.append(f"Modified_{modification_start_str}-{modification_end_str}")
+
+        if date_parts:
+            folder_name_parts.append("_".join(date_parts))
+
+        # Base folder name without extension
+        base_folder_name = "_".join(folder_name_parts) if folder_name_parts else "Selected_Files"
 
         if selected_files_df.empty:
             QMessageBox.information(self, "No Files Found", "No files match the given criteria.")
@@ -883,12 +920,32 @@ class RestructuringDialog(QDialog):
                 dest_folder_path_ext = os.path.join(dest_folder, folder_name)
                 os.makedirs(dest_folder_path_ext, exist_ok=True)
 
+                # Confirm action for each extension
+                reply = QMessageBox.question(
+                    self,
+                    "Confirm Restructuring",
+                    f"Are you sure you want to copy {len(files_with_ext)} '{ext}' files to '{dest_folder_path_ext}'?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.No
+                )
+                if reply != QMessageBox.Yes:
+                    continue  # Skip this extension if not confirmed
+
+                # Prepare to copy files
+                total_files_ext = len(files_with_ext)
+                self.progress_bar.setMaximum(total_files_ext)
+                self.progress_bar.setValue(0)
+
+                # Prepare a log for the replacements
+                replacement_log = []
+
                 # Copy files
                 for idx, row in files_with_ext.iterrows():
                     src_file = row['File Path']
                     dst_file = os.path.join(dest_folder_path_ext, row['File Name'])
                     try:
                         shutil.copy2(src_file, dst_file)
+                        replacement_log.append(f"Copied: {row['File Name']}")
                     except Exception as e:
                         QMessageBox.warning(self, "Error Copying File", f"Failed to copy {src_file}:\n{e}")
                         continue
@@ -897,7 +954,23 @@ class RestructuringDialog(QDialog):
                     self.progress_bar.setValue(self.progress_bar.value() + 1)
                     QApplication.processEvents()
 
-            QMessageBox.information(self, "Restructuring Complete", "Files have been copied successfully.")
+                # Write the replacement log to .txt and .yaml files
+                log_file_txt = os.path.join(dest_folder_path_ext, "replacement_log.txt")
+                log_file_yaml = os.path.join(dest_folder_path_ext, "replacement_log.yaml")
+                try:
+                    with open(log_file_txt, 'w') as f_txt:
+                        for line in replacement_log:
+                            f_txt.write(line + '\n')
+
+                    with open(log_file_yaml, 'w') as f_yaml:
+                        yaml.dump(replacement_log, f_yaml, default_flow_style=False)
+                except Exception as e:
+                    QMessageBox.warning(self, "Error Writing Logs", f"Failed to write log files:\n{e}")
+
+                QMessageBox.information(self, "Restructuring Complete", f"Copied {total_files_ext} '{ext}' files successfully.")
+                self.progress_bar.setValue(0)
+
+            QMessageBox.information(self, "Restructuring Complete", "All selected files have been copied successfully.")
             self.progress_bar.setValue(0)
             return  # Exit the method after handling "Each Separately"
 
@@ -932,25 +1005,43 @@ class RestructuringDialog(QDialog):
         self.progress_bar.setMaximum(total_files)
         self.progress_bar.setValue(0)
 
+        # Prepare a log for the replacements
+        replacement_log = []
+
         # Copy files
         for idx, row in selected_files_df.iterrows():
             src_file = row['File Path']
             dst_file = os.path.join(dest_folder_path, row['File Name'])
             try:
                 shutil.copy2(src_file, dst_file)
+                replacement_log.append(f"Copied: {row['File Name']}")
             except Exception as e:
                 QMessageBox.warning(self, "Error Copying File", f"Failed to copy {src_file}:\n{e}")
                 continue
 
             # Update progress bar
-            self.progress_bar.setValue(idx + 1)
+            self.progress_bar.setValue(self.progress_bar.value() + 1)
             QApplication.processEvents()
+
+        # Write the replacement log to .txt and .yaml files
+        log_file_txt = os.path.join(dest_folder_path, "replacement_log.txt")
+        log_file_yaml = os.path.join(dest_folder_path, "replacement_log.yaml")
+        try:
+            with open(log_file_txt, 'w') as f_txt:
+                for line in replacement_log:
+                    f_txt.write(line + '\n')
+
+            with open(log_file_yaml, 'w') as f_yaml:
+                yaml.dump(replacement_log, f_yaml, default_flow_style=False)
+        except Exception as e:
+            QMessageBox.warning(self, "Error Writing Logs", f"Failed to write log files:\n{e}")
 
         QMessageBox.information(self, "Restructuring Complete", "Files have been copied successfully.")
         self.progress_bar.setValue(0)
 
         # Refresh folder tree
         self.dir_model.refresh()
+
 
 #################################################################################
 #################################################################################
