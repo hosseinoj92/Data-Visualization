@@ -144,48 +144,59 @@ class FileNameHandlingDialog(QDialog):
 
     def init_ui(self):
         self.setWindowTitle("File Name Handling")
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(1000, 600)  # Adjusted size for better side-by-side display
 
+        # **Main Layout: Horizontal Box Layout for Side-by-Side Arrangement**
         main_layout = QHBoxLayout()
         self.setLayout(main_layout)
 
-        # Left side: Input fields and options
+        # **Left Layout: Control Panels**
         left_layout = QVBoxLayout()
-        main_layout.addLayout(left_layout)
+        main_layout.addLayout(left_layout, stretch=3)  # Allocate more space to controls if needed
 
-        # Input fields group
+        # **Toggle Selection for File or Folder Names**
+        toggle_layout = QHBoxLayout()
+        toggle_label = QLabel("Apply Logic To:")
+        self.apply_to_combo_box = QComboBox()
+        self.apply_to_combo_box.addItems(["File Names", "Folder Names"])
+        toggle_layout.addWidget(toggle_label)
+        toggle_layout.addWidget(self.apply_to_combo_box)
+        toggle_layout.addStretch()  # Push the toggle to the left
+        left_layout.addLayout(toggle_layout)
+
+        # **Replacement Criteria Group**
         input_groupbox = QGroupBox("Replacement Criteria")
-        input_layout = QVBoxLayout()
-        input_groupbox.setLayout(input_layout)
+        input_groupbox_layout = QVBoxLayout()
+        input_groupbox.setLayout(input_groupbox_layout)
         left_layout.addWidget(input_groupbox)
 
-        # Scroll area for replacement fields
+        # **Scroll Area for Replacement Fields**
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_content = QWidget()
         self.replacement_fields_layout = QVBoxLayout(scroll_content)
         scroll_area.setWidget(scroll_content)
-        input_layout.addWidget(scroll_area)
+        input_groupbox_layout.addWidget(scroll_area)
 
-        # Add first replacement field
+        # **Add First Replacement Field**
         self.add_replacement_field()
         self.replacement_fields_layout.setAlignment(Qt.AlignTop)
 
-        # Add button to add more replacement fields
+        # **Add Replacement Button**
         self.add_replacement_button = QPushButton("Add Replacement")
         self.add_replacement_button.setIcon(QIcon(resource_path('gui/resources/add.png')))
         self.add_replacement_button.clicked.connect(self.add_replacement_field)
-        input_layout.addWidget(self.add_replacement_button)
+        input_groupbox_layout.addWidget(self.add_replacement_button)
 
-        # Partial matching checkbox
-        self.partial_matching_checkbox = QCheckBox("Enable Partial Matching in File Name")
+        # **Partial Matching Checkbox**
+        self.partial_matching_checkbox = QCheckBox("Enable Partial Matching in Name")
         self.partial_matching_checkbox.setChecked(True)
         left_layout.addWidget(self.partial_matching_checkbox)
 
-        # Data type selection
+        # **Data Type Selection**
         data_type_layout = QHBoxLayout()
 
-        data_type_label = QLabel("File Type:")
+        data_type_label = QLabel("Type:")
         self.data_type_combo_box = QComboBox()
 
         # Extract unique file extensions from the metadata DataFrame
@@ -207,12 +218,12 @@ class FileNameHandlingDialog(QDialog):
         data_type_layout.addWidget(self.data_type_combo_box)
         left_layout.addLayout(data_type_layout)
 
-        # Include subfolders checkbox
+        # **Include Subfolders Checkbox**
         self.include_subfolders_checkbox = QCheckBox("Include Subfolders")
         self.include_subfolders_checkbox.setChecked(True)
         left_layout.addWidget(self.include_subfolders_checkbox)
 
-        # **New: Custom Folder Name Input**
+        # **Custom Folder Name Input**
         custom_folder_layout = QHBoxLayout()
         self.custom_folder_checkbox = QCheckBox("Use Custom Folder Name")
         self.custom_folder_line_edit = QLineEdit()
@@ -226,7 +237,7 @@ class FileNameHandlingDialog(QDialog):
         custom_folder_layout.addWidget(self.custom_folder_line_edit)
         left_layout.addLayout(custom_folder_layout)
 
-        # Destination folder selection
+        # **Destination Folder Selection**
         dest_folder_layout = QHBoxLayout()
         self.dest_folder_line_edit = QLineEdit()
         self.dest_folder_line_edit.setReadOnly(True)
@@ -238,20 +249,20 @@ class FileNameHandlingDialog(QDialog):
         dest_folder_layout.addWidget(self.select_dest_folder_button)
         left_layout.addLayout(dest_folder_layout)
 
-        # Execute button
+        # **Execute Button**
         self.execute_button = QPushButton("Execute Rename")
         self.execute_button.setIcon(QIcon(resource_path('gui/resources/execute_icon.png')))
         self.execute_button.clicked.connect(self.execute_renaming)
         left_layout.addWidget(self.execute_button)
 
-        # Progress bar
+        # **Progress Bar**
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         left_layout.addWidget(self.progress_bar)
 
-        # Right side: Folder/file tree
+        # **Right Layout: Folder/File Tree**
         right_layout = QVBoxLayout()
-        main_layout.addLayout(right_layout)
+        main_layout.addLayout(right_layout, stretch=3)  # Allocate space for the tree view
 
         self.folder_tree = QTreeView()
         self.dir_model = QDirModel()
@@ -260,6 +271,8 @@ class FileNameHandlingDialog(QDialog):
         self.folder_tree.setSortingEnabled(True)
         right_layout.addWidget(QLabel("Current Folder Structure:"))
         right_layout.addWidget(self.folder_tree)
+
+
 
     def toggle_custom_folder_input(self, state):
         """Enable or disable the custom folder name input based on checkbox state."""
@@ -299,7 +312,7 @@ class FileNameHandlingDialog(QDialog):
         )
         if folder:
             self.dest_folder_line_edit.setText(folder)
-
+                
     def execute_renaming(self):
         # Get replacement criteria from input fields
         replacement_list = []
@@ -360,109 +373,225 @@ class FileNameHandlingDialog(QDialog):
         dest_folder_path = os.path.join(dest_folder, base_folder_name)
         os.makedirs(dest_folder_path, exist_ok=True)
 
-        # Extract "from" substrings for filtering
-        from_texts = [re.escape(from_text) for from_text, _ in replacement_list if from_text]
-        if from_texts:
-            # Build regex pattern to match any of the "from" substrings
-            pattern = '|'.join(from_texts)
-            # Filter to include only files whose names contain any of the "from" substrings
-            selected_files_df = self.metadata_df.copy()
-            if data_type_selection != "All":
+        # **Determine Whether to Process File Names or Folder Names**
+        apply_to = self.apply_to_combo_box.currentText()  # "File Names" or "Folder Names"
+
+        if apply_to == "File Names":
+            # **Process File Names**
+            from_texts = [re.escape(from_text) for from_text, _ in replacement_list if from_text]
+            if from_texts:
+                # Build regex pattern to match any of the "from" substrings
+                pattern = '|'.join(from_texts)
+                # Filter to include only files whose names contain any of the "from" substrings
+                selected_files_df = self.metadata_df.copy()
+                if data_type_selection != "All":
+                    selected_files_df = selected_files_df[
+                        selected_files_df['File Name'].str.lower().str.endswith(data_type_selection.lower())
+                    ]
+                # Apply the "Contains" filter
                 selected_files_df = selected_files_df[
-                    selected_files_df['File Name'].str.lower().str.endswith(data_type_selection.lower())
+                    selected_files_df['File Name'].str.contains(
+                        pattern,
+                        flags=re.IGNORECASE,
+                        regex=True
+                    )
                 ]
-            # Apply the "Contains" filter
-            selected_files_df = selected_files_df[
-                selected_files_df['File Name'].str.contains(
-                    pattern,
-                    flags=re.IGNORECASE,
-                    regex=True
-                )
-            ]
-        else:
-            # If no "from" criteria, proceed without filtering
-            selected_files_df = self.metadata_df.copy()
-            if data_type_selection != "All":
-                selected_files_df = selected_files_df[
-                    selected_files_df['File Name'].str.lower().str.endswith(data_type_selection.lower())
-                ]
+            else:
+                # If no "from" criteria, proceed without filtering
+                selected_files_df = self.metadata_df.copy()
+                if data_type_selection != "All":
+                    selected_files_df = selected_files_df[
+                        selected_files_df['File Name'].str.lower().str.endswith(data_type_selection.lower())
+                    ]
 
-        if selected_files_df.empty:
-            QMessageBox.information(self, "No Files Found", f"No files matching the criteria were found.")
-            return
+            if selected_files_df.empty:
+                QMessageBox.information(self, "No Files Found", f"No files matching the criteria were found.")
+                return
 
-        # Exclude files inside the destination folder to prevent recursion (if destination is within root)
-        normalized_dest = os.path.normpath(dest_folder_path) + os.sep
-        selected_files_df = selected_files_df[~selected_files_df['File Path'].str.startswith(normalized_dest)]
+            # Exclude files inside the destination folder to prevent recursion (if destination is within root)
+            normalized_dest = os.path.normpath(dest_folder_path) + os.sep
+            selected_files_df = selected_files_df[~selected_files_df['File Path'].str.startswith(normalized_dest)]
 
-        if selected_files_df.empty:
-            QMessageBox.information(self, "No Files Found", f"No files matching the criteria were found after excluding the destination folder.")
-            return
+            if selected_files_df.empty:
+                QMessageBox.information(self, "No Files Found", f"No files matching the criteria were found after excluding the destination folder.")
+                return
 
-        # Prepare to copy files
-        total_files = len(selected_files_df)
-        self.progress_bar.setMaximum(total_files)
-        self.progress_bar.setValue(0)
+            # **Handle Data Type Selection: "All" or Specific Type**
+            if data_type_selection == "All":
+                # Handle all data types together (no additional filtering)
+                pass
+            else:
+                # Already filtered above
+                pass
 
-        # Confirm action
-        reply = QMessageBox.question(
-            self,
-            "Confirm Rename",
-            f"Are you sure you want to rename and copy {total_files} files to '{dest_folder_path}'?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-        if reply != QMessageBox.Yes:
-            return
+            # Prepare to copy files
+            total_files = len(selected_files_df)
+            self.progress_bar.setMaximum(total_files)
+            self.progress_bar.setValue(0)
 
-        # Prepare a log for the replacements
-        replacement_log = []
+            # Confirm action
+            reply = QMessageBox.question(
+                self,
+                "Confirm Rename",
+                f"Are you sure you want to rename and copy {total_files} files to '{dest_folder_path}'?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
 
-        # Copy and rename files
-        for idx, row in selected_files_df.iterrows():
-            src_file = row['File Path']
-            relative_path = os.path.relpath(src_file, self.root_folder)
-            if not include_subfolders:
-                # If not including subfolders, skip files not in root folder
-                if os.path.dirname(relative_path) != '':
+            # Prepare a log for the replacements
+            replacement_log = []
+
+            # Copy and rename files
+            for idx, row in selected_files_df.iterrows():
+                src_file = row['File Path']
+                relative_path = os.path.relpath(src_file, self.root_folder)
+                if not include_subfolders:
+                    # If not including subfolders, skip files not in root folder
+                    if os.path.dirname(relative_path) != '':
+                        continue
+                original_file_name = row['File Name']
+                new_file_name = original_file_name
+                # Apply replacements
+                for from_text, to_text in replacement_list:
+                    if partial_matching:
+                        new_file_name = new_file_name.replace(from_text, to_text)
+                    else:
+                        # Use regex for exact matching
+                        pattern_replace = re.escape(from_text)
+                        new_file_name = re.sub(r'(?<![a-zA-Z0-9])' + pattern_replace + r'(?![a-zA-Z0-9])', to_text, new_file_name)
+                if new_file_name != original_file_name:
+                    replacement_log.append(f"{original_file_name} -> {new_file_name}")
+                dst_file = os.path.join(dest_folder_path, new_file_name)
+                try:
+                    shutil.copy2(src_file, dst_file)
+                except Exception as e:
+                    QMessageBox.warning(self, "Error Copying File", f"Failed to copy {src_file}:\n{e}")
                     continue
-            original_file_name = row['File Name']
-            new_file_name = original_file_name
-            # Apply replacements
-            for from_text, to_text in replacement_list:
-                if partial_matching:
-                    new_file_name = new_file_name.replace(from_text, to_text)
-                else:
-                    # Use regex for exact matching
-                    pattern_replace = re.escape(from_text)
-                    new_file_name = re.sub(r'(?<![a-zA-Z0-9])' + pattern_replace + r'(?![a-zA-Z0-9])', to_text, new_file_name)
-            if new_file_name != original_file_name:
-                replacement_log.append(f"{original_file_name} -> {new_file_name}")
-            dst_file = os.path.join(dest_folder_path, new_file_name)
+
+                # Update progress bar
+                self.progress_bar.setValue(self.progress_bar.value() + 1)
+                QApplication.processEvents()
+
+            # Write the replacement log to .txt and .yaml files
+            log_file_txt = os.path.join(dest_folder_path, "replacement_log.txt")
+            log_file_yaml = os.path.join(dest_folder_path, "replacement_log.yaml")
             try:
-                shutil.copy2(src_file, dst_file)
+                with open(log_file_txt, 'w') as f_txt, open(log_file_yaml, 'w') as f_yaml:
+                    for line in replacement_log:
+                        f_txt.write(line + '\n')
+                    yaml.dump(replacement_log, f_yaml, default_flow_style=False)
             except Exception as e:
-                QMessageBox.warning(self, "Error Copying File", f"Failed to copy {src_file}:\n{e}")
-                continue
+                QMessageBox.warning(self, "Error Writing Logs", f"Failed to write log files:\n{e}")
 
-            # Update progress bar
-            self.progress_bar.setValue(self.progress_bar.value() + 1)
-            QApplication.processEvents()
+            QMessageBox.information(self, "Renaming Complete", "Files have been renamed and copied successfully.")
+            self.progress_bar.setValue(0)
 
-        # Write the replacement log to .txt and .yaml files
-        log_file_txt = os.path.join(dest_folder_path, "replacement_log.txt")
-        log_file_yaml = os.path.join(dest_folder_path, "replacement_log.yaml")
-        with open(log_file_txt, 'w') as f_txt, open(log_file_yaml, 'w') as f_yaml:
-            for line in replacement_log:
-                f_txt.write(line + '\n')
-            # For YAML, write as a list
-            yaml.dump(replacement_log, f_yaml, default_flow_style=False)
+            # Refresh folder tree
+            self.dir_model.refresh()
 
-        QMessageBox.information(self, "Renaming Complete", "Files have been renamed and copied successfully.")
-        self.progress_bar.setValue(0)
+        elif apply_to == "Folder Names":
+            # **Process Folder Names**
+            from_texts = [re.escape(from_text) for from_text, _ in replacement_list if from_text]
+            if from_texts:
+                # Build regex pattern to match any of the "from" substrings
+                pattern = '|'.join(from_texts)
+                # Filter to include only folders whose names contain any of the "from" substrings
+                # We'll use the 'Folder Path' column
+                selected_folders_df = self.metadata_df.copy()
+                # Depending on how 'Folder Path' is defined, extract folder names
+                selected_folders_df['Folder Name'] = selected_folders_df['Folder Path'].apply(os.path.basename)
+                # Remove duplicates to get unique folder names
+                selected_folders_df = selected_folders_df[['Folder Path', 'Folder Name']].drop_duplicates()
 
-        # Refresh folder tree
-        self.dir_model.refresh()
+                # Apply the "Contains" filter
+                selected_folders_df = selected_folders_df[
+                    selected_folders_df['Folder Name'].str.contains(
+                        pattern,
+                        flags=re.IGNORECASE,
+                        regex=True
+                    )
+                ]
+            else:
+                # If no "from" criteria, proceed without filtering
+                selected_folders_df = self.metadata_df.copy()
+                selected_folders_df['Folder Name'] = selected_folders_df['Folder Path'].apply(os.path.basename)
+                selected_folders_df = selected_folders_df[['Folder Path', 'Folder Name']].drop_duplicates()
+
+            if selected_folders_df.empty:
+                QMessageBox.information(self, "No Folders Found", f"No folders matching the criteria were found.")
+                return
+
+            # Exclude folders inside the destination folder to prevent recursion (if destination is within root)
+            normalized_dest = os.path.normpath(dest_folder_path) + os.sep
+            selected_folders_df = selected_folders_df[~selected_folders_df['Folder Path'].str.startswith(normalized_dest)]
+
+            if selected_folders_df.empty:
+                QMessageBox.information(self, "No Folders Found", f"No folders matching the criteria were found after excluding the destination folder.")
+                return
+
+            # **Prepare to Rename Folders**
+            total_folders = len(selected_folders_df)
+            self.progress_bar.setMaximum(total_folders)
+            self.progress_bar.setValue(0)
+
+            # Confirm action
+            reply = QMessageBox.question(
+                self,
+                "Confirm Rename",
+                f"Are you sure you want to rename and copy {total_folders} folders to '{dest_folder_path}'?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+
+            # Prepare a log for the replacements
+            replacement_log = []
+
+            # Copy and rename folders
+            for idx, row in selected_folders_df.iterrows():
+                src_folder = row['Folder Path']
+                original_folder_name = row['Folder Name']
+                new_folder_name = original_folder_name
+                # Apply replacements
+                for from_text, to_text in replacement_list:
+                    if partial_matching:
+                        new_folder_name = new_folder_name.replace(from_text, to_text)
+                    else:
+                        # Use regex for exact matching
+                        pattern_replace = re.escape(from_text)
+                        new_folder_name = re.sub(r'(?<![a-zA-Z0-9])' + pattern_replace + r'(?![a-zA-Z0-9])', to_text, new_folder_name)
+                if new_folder_name != original_folder_name:
+                    replacement_log.append(f"{original_folder_name} -> {new_folder_name}")
+                dst_folder = os.path.join(dest_folder_path, new_folder_name)
+                try:
+                    shutil.copytree(src_folder, dst_folder)
+                except Exception as e:
+                    QMessageBox.warning(self, "Error Copying Folder", f"Failed to copy {src_folder}:\n{e}")
+                    continue
+
+                # Update progress bar
+                self.progress_bar.setValue(self.progress_bar.value() + 1)
+                QApplication.processEvents()
+
+            # Write the replacement log to .txt and .yaml files
+            log_file_txt = os.path.join(dest_folder_path, "replacement_log.txt")
+            log_file_yaml = os.path.join(dest_folder_path, "replacement_log.yaml")
+            try:
+                with open(log_file_txt, 'w') as f_txt, open(log_file_yaml, 'w') as f_yaml:
+                    for line in replacement_log:
+                        f_txt.write(line + '\n')
+                    yaml.dump(replacement_log, f_yaml, default_flow_style=False)
+            except Exception as e:
+                QMessageBox.warning(self, "Error Writing Logs", f"Failed to write log files:\n{e}")
+
+            QMessageBox.information(self, "Renaming Complete", "Folders have been renamed and copied successfully.")
+            self.progress_bar.setValue(0)
+
+            # Refresh folder tree
+            self.dir_model.refresh()
 
 class FileMetadataModel(QAbstractTableModel):
     """A model to interface between the DataFrame and the QTableView."""
@@ -584,8 +713,11 @@ class BatchFileHandlingPanel(QWidget):
         if folder:
             self.folder_path_line_edit.setText(folder)
             self.scan_folder(folder)
+            # Refresh the directory model
+            self.dir_model.refresh()
             # Update the folder tree view
             self.folder_tree.setRootIndex(self.dir_model.index(folder))
+
 
     def scan_folder(self, root_folder):
         # Scan folders and extract metadata
@@ -608,6 +740,8 @@ class BatchFileHandlingPanel(QWidget):
             lambda x: datetime.datetime.fromtimestamp(os.path.getctime(x)))
         self.metadata_df['File Size'] = self.metadata_df['File Path'].apply(os.path.getsize)
 
+        # After updating metadata_df
+        self.dir_model.refresh()
         # Display metadata in the table
         self.display_metadata()
 
@@ -634,6 +768,7 @@ class BatchFileHandlingPanel(QWidget):
         # After restructuring, update the folder tree
         self.dir_model.refresh()
 
+
 class RestructuringDialog(QDialog):
     def __init__(self, metadata_df, root_folder, parent=None):
         super().__init__(parent)
@@ -643,44 +778,56 @@ class RestructuringDialog(QDialog):
 
     def init_ui(self):
         self.setWindowTitle("Files and Folders Restructuring")
-        self.setMinimumSize(900, 700)  # Increased size for better UI
+        self.setMinimumSize(1200, 700)  # Adjusted size for better side-by-side display
 
+        # **Main Layout: Horizontal Box Layout for Side-by-Side Arrangement**
         main_layout = QHBoxLayout()
         self.setLayout(main_layout)
 
-        # Left side: Input fields and options
+        # **Left Layout: Control Panels**
         left_layout = QVBoxLayout()
-        main_layout.addLayout(left_layout)
+        main_layout.addLayout(left_layout, stretch=3)  # Allocate more space to controls if needed
 
-        # Input fields group
-        input_groupbox = QGroupBox("Criteria for File Selection")
-        input_layout = QVBoxLayout()
-        input_groupbox.setLayout(input_layout)
+        # **Toggle Selection for File or Folder Names**
+        toggle_layout = QHBoxLayout()
+        toggle_label = QLabel("Apply Logic To:")
+        self.apply_to_combo_box = QComboBox()
+        self.apply_to_combo_box.addItems(["File Names", "Folder Names"])
+        toggle_layout.addWidget(toggle_label)
+        toggle_layout.addWidget(self.apply_to_combo_box)
+        toggle_layout.addStretch()  # Push the toggle to the left
+        left_layout.addLayout(toggle_layout)
+
+        # **Criteria for Selection Group**
+        input_groupbox = QGroupBox("Criteria for Selection")
+        input_groupbox_layout = QVBoxLayout()
+        input_groupbox.setLayout(input_groupbox_layout)
         left_layout.addWidget(input_groupbox)
 
-        # Scroll area for criteria groups
+        # **Scroll Area for Criteria Groups**
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_content = QWidget()
         self.criteria_groups_layout = QVBoxLayout(scroll_content)
         scroll_area.setWidget(scroll_content)
-        input_layout.addWidget(scroll_area)
+        input_groupbox_layout.addWidget(scroll_area)
 
-        # Add initial criteria group
+        # **Add Initial Criteria Group**
         self.add_criteria_group()
+        self.criteria_groups_layout.setAlignment(Qt.AlignTop)
 
-        # Button to add more criteria groups
+        # **Add Criteria Group Button**
         self.add_group_button = QPushButton("Add Criteria Group")
         self.add_group_button.setIcon(QIcon(resource_path('gui/resources/add.png')))
         self.add_group_button.clicked.connect(self.add_criteria_group)
-        input_layout.addWidget(self.add_group_button)
+        input_groupbox_layout.addWidget(self.add_group_button)
 
-        # Partial matching checkbox
-        self.partial_matching_checkbox = QCheckBox("Enable Partial Matching in File Name")
+        # **Partial Matching Checkbox**
+        self.partial_matching_checkbox = QCheckBox("Enable Partial Matching in Name")
         self.partial_matching_checkbox.setChecked(True)
         left_layout.addWidget(self.partial_matching_checkbox)
 
-        # Data type selection
+        # **Data Type Selection**
         data_type_layout = QHBoxLayout()
 
         data_type_label = QLabel("Data Type Handling:")
@@ -707,7 +854,7 @@ class RestructuringDialog(QDialog):
         data_type_layout.addWidget(self.data_type_combo_box)
         left_layout.addLayout(data_type_layout)
 
-        # Date range selection for Creation Date
+        # **Creation Date Range Selection**
         creation_date_groupbox = QGroupBox("Creation Date Range Selection (Optional)")
         creation_date_layout = QFormLayout()
         creation_date_groupbox.setLayout(creation_date_layout)
@@ -725,7 +872,7 @@ class RestructuringDialog(QDialog):
         creation_date_layout.addRow("Start Date and Time:", self.creation_start_date_edit)
         creation_date_layout.addRow("End Date and Time:", self.creation_end_date_edit)
 
-        # Add checkbox to include creation date in folder name and activate filtering
+        # **Include Creation Date in Folder Name and Filter Checkbox**
         self.include_creation_date_in_name_checkbox = QCheckBox("Include Creation Date in Folder Name and Filter")
         self.include_creation_date_in_name_checkbox.setChecked(False)
         creation_date_layout.addRow(self.include_creation_date_in_name_checkbox)
@@ -737,7 +884,7 @@ class RestructuringDialog(QDialog):
 
         left_layout.addWidget(creation_date_groupbox)
 
-        # Date range selection for Modification Date
+        # **Modification Date Range Selection**
         modification_date_groupbox = QGroupBox("Modification Date Range Selection (Optional)")
         modification_date_layout = QFormLayout()
         modification_date_groupbox.setLayout(modification_date_layout)
@@ -755,7 +902,7 @@ class RestructuringDialog(QDialog):
         modification_date_layout.addRow("Start Date and Time:", self.modification_start_date_edit)
         modification_date_layout.addRow("End Date and Time:", self.modification_end_date_edit)
 
-        # Add checkbox to include modification date in folder name and activate filtering
+        # **Include Modification Date in Folder Name and Filter Checkbox**
         self.include_modification_date_in_name_checkbox = QCheckBox("Include Modification Date in Folder Name and Filter")
         self.include_modification_date_in_name_checkbox.setChecked(False)
         modification_date_layout.addRow(self.include_modification_date_in_name_checkbox)
@@ -767,7 +914,7 @@ class RestructuringDialog(QDialog):
 
         left_layout.addWidget(modification_date_groupbox)
 
-        # **New: Custom Folder Name Input**
+        # **Custom Folder Name Input**
         custom_folder_layout = QHBoxLayout()
         self.custom_folder_checkbox = QCheckBox("Use Custom Folder Name")
         self.custom_folder_line_edit = QLineEdit()
@@ -781,7 +928,7 @@ class RestructuringDialog(QDialog):
         custom_folder_layout.addWidget(self.custom_folder_line_edit)
         left_layout.addLayout(custom_folder_layout)
 
-        # Destination folder selection
+        # **Destination Folder Selection**
         dest_folder_layout = QHBoxLayout()
         self.dest_folder_line_edit = QLineEdit()
         self.dest_folder_line_edit.setReadOnly(True)
@@ -793,20 +940,20 @@ class RestructuringDialog(QDialog):
         dest_folder_layout.addWidget(self.select_dest_folder_button)
         left_layout.addLayout(dest_folder_layout)
 
-        # Restructure button
+        # **Execute Button**
         self.execute_button = QPushButton("Execute Restructuring")
         self.execute_button.setIcon(QIcon(resource_path('gui/resources/execute_icon.png')))
         self.execute_button.clicked.connect(self.execute_restructuring)
         left_layout.addWidget(self.execute_button)
 
-        # Progress bar
+        # **Progress Bar**
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         left_layout.addWidget(self.progress_bar)
 
-        # Right side: Folder/file tree
+        # **Right Layout: Folder/File Tree**
         right_layout = QVBoxLayout()
-        main_layout.addLayout(right_layout)
+        main_layout.addLayout(right_layout, stretch=2)  # Allocate space for the tree view
 
         self.folder_tree = QTreeView()
         self.dir_model = QDirModel()
@@ -816,9 +963,10 @@ class RestructuringDialog(QDialog):
         right_layout.addWidget(QLabel("Current Folder Structure:"))
         right_layout.addWidget(self.folder_tree)
 
-        # Initially disable date filters
+        # **Initially Disable Date Filters**
         self.toggle_creation_date_filters(self.include_creation_date_in_name_checkbox.isChecked())
         self.toggle_modification_date_filters(self.include_modification_date_in_name_checkbox.isChecked())
+
 
     def toggle_custom_folder_input(self, state):
         """Enable or disable the custom folder name input based on checkbox state."""
@@ -854,12 +1002,109 @@ class RestructuringDialog(QDialog):
                 QMessageBox.warning(self, "Invalid Destination Folder", "The destination folder cannot be inside the root folder.")
                 return
             self.dest_folder_line_edit.setText(folder)
+
+
     def execute_restructuring(self):
-        # Determine if partial matching is enabled
-        partial_matching = self.partial_matching_checkbox.isChecked()
+        # Determine whether to process File Names or Folder Names
+        apply_to = self.apply_to_combo_box.currentText()
+        
+        # Prepare the DataFrame based on the selection
+        if apply_to == "File Names":
+            df = self.metadata_df.copy()
+            name_column = 'File Name'
+            path_column = 'File Path'
+        else:
+            # Get unique folder paths from 'Folder Path' column
+            folder_paths = self.metadata_df['Folder Path'].unique()
+            # For each folder path, get folder name and folder metadata
+            folder_data = []
+            for folder_path in folder_paths:
+                folder_name = os.path.basename(folder_path)
+                try:
+                    creation_date = datetime.datetime.fromtimestamp(os.path.getctime(folder_path))
+                    modification_date = datetime.datetime.fromtimestamp(os.path.getmtime(folder_path))
+                except Exception as e:
+                    # In case the folder doesn't exist or other error
+                    creation_date = None
+                    modification_date = None
+                folder_data.append({
+                    'Folder Path': folder_path,
+                    'Folder Name': folder_name,
+                    'Creation Date': creation_date,
+                    'Modification Date': modification_date
+                })
+            df = pd.DataFrame(folder_data)
+            name_column = 'Folder Name'
+            path_column = 'Folder Path'
+
+        # Get criteria from criteria groups
+        group_masks = []
+        for i in range(self.criteria_groups_layout.count()):
+            group_widget = self.criteria_groups_layout.itemAt(i).widget()
+            if isinstance(group_widget, CriteriaGroup):
+                group_logic = group_widget.logic_combo_box.currentText()  # "AND" or "OR"
+                criteria = group_widget.get_criteria()
+                if criteria:
+                    # Initialize group mask
+                    if group_logic == "AND":
+                        group_mask = pd.Series(True, index=df.index)
+                        for criterion in criteria:
+                            if self.partial_matching_checkbox.isChecked():
+                                group_mask &= df[name_column].str.contains(re.escape(criterion), flags=re.IGNORECASE, na=False)
+                            else:
+                                # Exact matching (whole words)
+                                pattern = r'\b{}\b'.format(re.escape(criterion))
+                                group_mask &= df[name_column].str.contains(pattern, flags=re.IGNORECASE, na=False)
+                    elif group_logic == "OR":
+                        group_mask = pd.Series(False, index=df.index)
+                        for criterion in criteria:
+                            if self.partial_matching_checkbox.isChecked():
+                                group_mask |= df[name_column].str.contains(re.escape(criterion), flags=re.IGNORECASE, na=False)
+                            else:
+                                pattern = r'\b{}\b'.format(re.escape(criterion))
+                                group_mask |= df[name_column].str.contains(pattern, flags=re.IGNORECASE, na=False)
+                    group_masks.append(group_mask)
+
+        if not group_masks:
+            QMessageBox.warning(self, "No Criteria", "Please add at least one criterion.")
+            return
+
+        # Combine group masks using AND logic between groups
+        combined_mask = group_masks[0]
+        for mask in group_masks[1:]:
+            combined_mask &= mask
+
+        # Apply the combined mask to the DataFrame
+        selected_items_df = df[combined_mask].copy()
+
+        # Apply date filters if enabled
+        if self.include_creation_date_in_name_checkbox.isChecked():
+            creation_start_datetime = self.creation_start_date_edit.dateTime().toPyDateTime()
+            creation_end_datetime = self.creation_end_date_edit.dateTime().toPyDateTime()
+            selected_items_df = selected_items_df[
+                (selected_items_df['Creation Date'] >= creation_start_datetime) &
+                (selected_items_df['Creation Date'] <= creation_end_datetime)
+            ]
+        if self.include_modification_date_in_name_checkbox.isChecked():
+            modification_start_datetime = self.modification_start_date_edit.dateTime().toPyDateTime()
+            modification_end_datetime = self.modification_end_date_edit.dateTime().toPyDateTime()
+            selected_items_df = selected_items_df[
+                (selected_items_df['Modification Date'] >= modification_start_datetime) &
+                (selected_items_df['Modification Date'] <= modification_end_datetime)
+            ]
 
         # Get data type handling selection
         data_type_selection = self.data_type_combo_box.currentText()
+
+        # Filter by data type if needed (for files)
+        if apply_to == "File Names" and data_type_selection != "All" and data_type_selection != "Each Separately":
+            selected_items_df = selected_items_df[
+                selected_items_df['File Name'].str.lower().str.endswith(data_type_selection.lower())
+            ]
+
+        if selected_items_df.empty:
+            QMessageBox.information(self, "No Items Found", f"No {apply_to.lower()} matching the criteria were found.")
+            return
 
         # Get destination folder
         dest_folder = self.dest_folder_line_edit.text()
@@ -873,7 +1118,7 @@ class RestructuringDialog(QDialog):
             if not custom_folder_name:
                 QMessageBox.warning(self, "Invalid Folder Name", "Please enter a valid custom folder name.")
                 return
-            # Optional: Validate custom folder name (e.g., no invalid characters)
+            # Validate custom folder name (e.g., no invalid characters)
             if any(char in custom_folder_name for char in r'<>:"/\|?*'):
                 QMessageBox.warning(self, "Invalid Folder Name", "The folder name contains invalid characters.")
                 return
@@ -887,38 +1132,29 @@ class RestructuringDialog(QDialog):
             for i in range(self.criteria_groups_layout.count()):
                 group_widget = self.criteria_groups_layout.itemAt(i).widget()
                 if isinstance(group_widget, CriteriaGroup):
-                    group_criteria = group_widget.get_criteria()
-                    if group_criteria:
-                        criteria_folder_name_parts.append("_".join(group_criteria))
+                    criteria = group_widget.get_criteria()
+                    if criteria:
+                        criteria_str = "_".join(criteria)
+                        criteria_folder_name_parts.append(criteria_str)
             if criteria_folder_name_parts:
                 folder_name_parts.append("_".join(criteria_folder_name_parts))
 
             # Add date ranges to folder name if applicable and if user chose to include them
             date_parts = []
 
-            # Filter and include Creation Date if checkbox is checked
+            # Include Creation Date if checkbox is checked
             if self.include_creation_date_in_name_checkbox.isChecked():
                 creation_start_datetime = self.creation_start_date_edit.dateTime().toPyDateTime()
                 creation_end_datetime = self.creation_end_date_edit.dateTime().toPyDateTime()
-                # Filter based on creation date range
-                selected_files_df = self.metadata_df[
-                    (self.metadata_df['Creation Date'] >= creation_start_datetime) &
-                    (self.metadata_df['Creation Date'] <= creation_end_datetime)
-                ]
                 # Include date and time in folder name
                 creation_start_str = creation_start_datetime.strftime('%d%b%Y_%H-%M-%S')
                 creation_end_str = creation_end_datetime.strftime('%d%b%Y_%H-%M-%S')
                 date_parts.append(f"Created_{creation_start_str}-{creation_end_str}")
 
-            # Filter and include Modification Date if checkbox is checked
+            # Include Modification Date if checkbox is checked
             if self.include_modification_date_in_name_checkbox.isChecked():
                 modification_start_datetime = self.modification_start_date_edit.dateTime().toPyDateTime()
                 modification_end_datetime = self.modification_end_date_edit.dateTime().toPyDateTime()
-                # Filter based on modification date range
-                selected_files_df = self.metadata_df[
-                    (self.metadata_df['Modification Date'] >= modification_start_datetime) &
-                    (self.metadata_df['Modification Date'] <= modification_end_datetime)
-                ]
                 # Include date and time in folder name
                 modification_start_str = modification_start_datetime.strftime('%d%b%Y_%H-%M-%S')
                 modification_end_str = modification_end_datetime.strftime('%d%b%Y_%H-%M-%S')
@@ -927,11 +1163,11 @@ class RestructuringDialog(QDialog):
             if date_parts:
                 folder_name_parts.append("_".join(date_parts))
 
-            # Base folder name without extension
-            base_folder_name = "_".join(folder_name_parts) if folder_name_parts else "Selected_Files"
+            # Base folder name
+            base_folder_name = "_".join(folder_name_parts) if folder_name_parts else "Selected_Items"
 
-            # Append file type to folder name if not "All"
-            if data_type_selection != "All":
+            # Append data type to folder name if processing files and data type is specified
+            if apply_to == "File Names" and data_type_selection != "All" and data_type_selection != "Each Separately":
                 ext_without_dot = data_type_selection[1:] if data_type_selection.startswith('.') else data_type_selection
                 base_folder_name = f"{base_folder_name}_{ext_without_dot}"
 
@@ -939,226 +1175,75 @@ class RestructuringDialog(QDialog):
         dest_folder_path = os.path.join(dest_folder, base_folder_name)
         os.makedirs(dest_folder_path, exist_ok=True)
 
-        # Start with all files
-        selected_files_df = self.metadata_df.copy()
-
-        # Process criteria groups
-        for i in range(self.criteria_groups_layout.count()):
-            group_widget = self.criteria_groups_layout.itemAt(i).widget()
-            if isinstance(group_widget, CriteriaGroup):
-                group_logic = group_widget.logic_combo_box.currentText()
-                group_criteria_list = group_widget.get_criteria()
-
-                if not group_criteria_list:
-                    continue  # Skip empty groups
-
-                # Compile regex patterns for group criteria
-                regex_patterns = []
-                for criteria in group_criteria_list:
-                    escaped_criteria = re.escape(criteria)
-                    if partial_matching:
-                        pattern = escaped_criteria
-                    else:
-                        pattern = r'\b' + escaped_criteria + r'\b'
-                    # Use custom word boundaries to avoid matching within words or numbers
-                    pattern = r'(?<![a-zA-Z0-9])' + pattern + r'(?![a-zA-Z0-9])'
-                    regex_patterns.append(pattern)
-
-                # Filter files based on group logic
-                if group_logic == "AND":
-                    # Files must match all criteria in the group
-                    for pattern in regex_patterns:
-                        selected_files_df = selected_files_df[
-                            selected_files_df['File Name'].str.contains(
-                                pattern,
-                                flags=re.IGNORECASE,
-                                regex=True
-                            )
-                        ]
-                elif group_logic == "OR":
-                    # Files must match at least one criterion in the group
-                    combined_pattern = '|'.join(regex_patterns)
-                    selected_files_df = selected_files_df[
-                        selected_files_df['File Name'].str.contains(
-                            combined_pattern,
-                            flags=re.IGNORECASE,
-                            regex=True
-                        )
-                    ]
-                else:
-                    continue  # Unknown logic, skip
-
-        # **Handle Custom Folder Name if Not Already Handled Above**
-        if not self.custom_folder_checkbox.isChecked():
-            # Add date ranges to folder name if applicable and if user chose to include them
-            # (Already handled above if not using custom name)
-            pass  # No action needed here since handled above
-
-        # Apply date filters if applicable
-        # (Already handled above when building folder name and filtering selected_files_df)
-
-        # **Filter based on data type selection**
-        if data_type_selection != "All":
-            selected_files_df = selected_files_df[
-                selected_files_df['File Name'].str.lower().str.endswith(data_type_selection.lower())
-            ]
-
-        # **Exclude files inside the destination folder to prevent recursion**
+        # Exclude items inside the destination folder to prevent recursion
         normalized_dest = os.path.normpath(dest_folder_path) + os.sep
-        selected_files_df = selected_files_df[~selected_files_df['File Path'].str.startswith(normalized_dest)]
+        selected_items_df = selected_items_df[~selected_items_df[path_column].str.startswith(normalized_dest)]
 
-        if selected_files_df.empty:
-            QMessageBox.information(self, "No Files Found", "No files match the given criteria.")
+        if selected_items_df.empty:
+            QMessageBox.information(self, "No Items Found", f"No {apply_to.lower()} matching the criteria were found after excluding the destination folder.")
             return
 
-        # **Handle Data Type Selection: "All", "Each Separately", or Specific Type**
-        if data_type_selection == "All":
-            # Handle all data types together (no additional filtering)
-            # No further action needed since already handled
-            pass
-
-        elif data_type_selection == "Each Separately":
-            # Handle each data type separately
-            # Iterate through each unique extension and copy files accordingly
-            for ext in self.unique_extensions:
-                # Filter files with the current extension
-                files_with_ext = selected_files_df[selected_files_df['File Name'].str.lower().str.endswith(ext.lower())]
-
-                if files_with_ext.empty:
-                    continue  # Skip if no files with this extension
-
-                # Construct folder name with extension
-                # Remove the dot from extension for folder naming
-                ext_without_dot = ext[1:] if ext.startswith('.') else ext
-                folder_name = f"{base_folder_name}_{ext_without_dot}"
-                dest_folder_path_ext = os.path.join(dest_folder, folder_name)
-                os.makedirs(dest_folder_path_ext, exist_ok=True)
-
-                # Confirm action for each extension
-                reply = QMessageBox.question(
-                    self,
-                    "Confirm Restructuring",
-                    f"Are you sure you want to copy {len(files_with_ext)} '{ext}' files to '{dest_folder_path_ext}'?",
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.No
-                )
-                if reply != QMessageBox.Yes:
-                    continue  # Skip this extension if not confirmed
-
-                # Prepare to copy files
-                total_files_ext = len(files_with_ext)
-                self.progress_bar.setMaximum(total_files_ext)
-                self.progress_bar.setValue(0)
-
-                # Prepare a log for the replacements
-                replacement_log = []
-
-                # Copy files
-                for idx, row in files_with_ext.iterrows():
-                    src_file = row['File Path']
-                    dst_file = os.path.join(dest_folder_path_ext, row['File Name'])
-                    try:
-                        shutil.copy2(src_file, dst_file)
-                        replacement_log.append(f"Copied: {row['File Name']}")
-                    except Exception as e:
-                        QMessageBox.warning(self, "Error Copying File", f"Failed to copy {src_file}:\n{e}")
-                        continue
-
-                    # Update progress bar
-                    self.progress_bar.setValue(self.progress_bar.value() + 1)
-                    QApplication.processEvents()
-
-                # Write the replacement log to .txt and .yaml files
-                log_file_txt = os.path.join(dest_folder_path_ext, "replacement_log.txt")
-                log_file_yaml = os.path.join(dest_folder_path_ext, "replacement_log.yaml")
-                try:
-                    with open(log_file_txt, 'w') as f_txt:
-                        for line in replacement_log:
-                            f_txt.write(line + '\n')
-
-                    with open(log_file_yaml, 'w') as f_yaml:
-                        yaml.dump(replacement_log, f_yaml, default_flow_style=False)
-                except Exception as e:
-                    QMessageBox.warning(self, "Error Writing Logs", f"Failed to write log files:\n{e}")
-
-                QMessageBox.information(self, "Restructuring Complete", f"Copied {total_files_ext} '{ext}' files successfully.")
-                self.progress_bar.setValue(0)
-
-            QMessageBox.information(self, "Restructuring Complete", "All selected files have been copied successfully.")
-            self.progress_bar.setValue(0)
-            return  # Exit the method after handling "Each Separately"
-
-        else:
-            # Handle specific data type
-            # Filter files with the selected extension
-            selected_files_df = selected_files_df[selected_files_df['File Name'].str.lower().str.endswith(data_type_selection.lower())]
-
-            if selected_files_df.empty:
-                QMessageBox.information(self, "No Files Found", f"No files with extension {data_type_selection} match the given criteria.")
-                return
-
-            # Append the extension to the folder name
-            ext_without_dot = data_type_selection[1:] if data_type_selection.startswith('.') else data_type_selection
-            folder_name = f"{base_folder_name}_{ext_without_dot}"
-            dest_folder_path = os.path.join(dest_folder, folder_name)
-            os.makedirs(dest_folder_path, exist_ok=True)
+        # Prepare to process items
+        total_items = len(selected_items_df)
+        self.progress_bar.setMaximum(total_items)
+        self.progress_bar.setValue(0)
 
         # Confirm action
         reply = QMessageBox.question(
             self,
             "Confirm Restructuring",
-            f"Are you sure you want to copy {len(selected_files_df)} files to '{dest_folder_path}'?",
+            f"Are you sure you want to process {total_items} {apply_to.lower()}?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         if reply != QMessageBox.Yes:
             return
 
-        # Prepare to copy files
-        total_files = len(selected_files_df)
-        self.progress_bar.setMaximum(total_files)
-        self.progress_bar.setValue(0)
+        # Prepare a log for the copied items
+        copy_log = []
 
-        # Prepare a log for the replacements
-        replacement_log = []
+        for idx, row in selected_items_df.iterrows():
+            src_path = row[path_column]
+            original_name = row[name_column]
+            new_name = original_name  # Keep the original name
 
-        # Copy files
-        for idx, row in selected_files_df.iterrows():
-            src_file = row['File Path']
-            dst_file = os.path.join(dest_folder_path, row['File Name'])
+            dst_path = os.path.join(dest_folder_path, new_name)
             try:
-                shutil.copy2(src_file, dst_file)
-                replacement_log.append(f"Copied: {row['File Name']}")
+                if apply_to == "File Names":
+                    # Ensure the destination directory exists
+                    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                    shutil.copy2(src_path, dst_path)
+                else:
+                    shutil.copytree(src_path, dst_path)
             except Exception as e:
-                QMessageBox.warning(self, "Error Copying File", f"Failed to copy {src_file}:\n{e}")
+                QMessageBox.warning(self, "Error Copying", f"Failed to copy {src_path}:\n{e}")
                 continue
-
+            # Log the copy operation
+            copy_log.append(f"Copied {src_path} to {dst_path}")
             # Update progress bar
             self.progress_bar.setValue(self.progress_bar.value() + 1)
             QApplication.processEvents()
 
-        # Write the replacement log to .txt and .yaml files
-        log_file_txt = os.path.join(dest_folder_path, "replacement_log.txt")
-        log_file_yaml = os.path.join(dest_folder_path, "replacement_log.yaml")
+        # Write the copy log to .txt and .yaml files
+        log_file_txt = os.path.join(dest_folder_path, "copy_log.txt")
+        log_file_yaml = os.path.join(dest_folder_path, "copy_log.yaml")
         try:
-            with open(log_file_txt, 'w') as f_txt:
-                for line in replacement_log:
+            with open(log_file_txt, 'w') as f_txt, open(log_file_yaml, 'w') as f_yaml:
+                for line in copy_log:
                     f_txt.write(line + '\n')
-
-            with open(log_file_yaml, 'w') as f_yaml:
-                yaml.dump(replacement_log, f_yaml, default_flow_style=False)
+                # For YAML, write as a list
+                yaml.dump(copy_log, f_yaml, default_flow_style=False)
         except Exception as e:
             QMessageBox.warning(self, "Error Writing Logs", f"Failed to write log files:\n{e}")
 
-        QMessageBox.information(self, "Restructuring Complete", "Files have been copied successfully.")
+        QMessageBox.information(self, "Restructuring Complete", f"{apply_to} have been processed successfully.")
         self.progress_bar.setValue(0)
 
         # Refresh folder tree
         self.dir_model.refresh()
 
 
-
-#################################################################################
+    #################################################################################
 #################################################################################
 
 class BatchMetaDataHandlingPanel(QWidget):
