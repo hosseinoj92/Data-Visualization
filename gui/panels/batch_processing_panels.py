@@ -269,7 +269,7 @@ class FileNameHandlingDialog(QDialog):
                 widget.setParent(None)
         # Remove the layout itself
         self.replacement_fields_layout.removeItem(layout)
-        
+
     def select_destination_folder(self):
         options = QFileDialog.Options()
         folder = QFileDialog.getExistingDirectory(
@@ -330,16 +330,43 @@ class FileNameHandlingDialog(QDialog):
         dest_folder_path = os.path.join(dest_folder, base_folder_name)
         os.makedirs(dest_folder_path, exist_ok=True)
 
-        # Filter files based on file type
-        selected_files_df = self.metadata_df.copy()
-
-        if data_type_selection != "All":
+        # Extract "from" substrings for filtering
+        from_texts = [re.escape(from_text) for from_text, _ in replacement_list if from_text]
+        if from_texts:
+            # Build regex pattern to match any of the "from" substrings
+            pattern = '|'.join(from_texts)
+            # Filter to include only files whose names contain any of the "from" substrings
+            selected_files_df = self.metadata_df.copy()
+            if data_type_selection != "All":
+                selected_files_df = selected_files_df[
+                    selected_files_df['File Name'].str.lower().str.endswith(data_type_selection.lower())
+                ]
+            # Apply the "Contains" filter
             selected_files_df = selected_files_df[
-                selected_files_df['File Name'].str.lower().str.endswith(data_type_selection.lower())
+                selected_files_df['File Name'].str.contains(
+                    pattern,
+                    flags=re.IGNORECASE,
+                    regex=True
+                )
             ]
+        else:
+            # If no "from" criteria, proceed without filtering
+            selected_files_df = self.metadata_df.copy()
+            if data_type_selection != "All":
+                selected_files_df = selected_files_df[
+                    selected_files_df['File Name'].str.lower().str.endswith(data_type_selection.lower())
+                ]
 
         if selected_files_df.empty:
-            QMessageBox.information(self, "No Files Found", f"No files with extension {data_type_selection} found.")
+            QMessageBox.information(self, "No Files Found", f"No files matching the criteria were found.")
+            return
+
+        # Exclude files inside the destination folder to prevent recursion (if destination is within root)
+        normalized_dest = os.path.normpath(dest_folder_path) + os.sep
+        selected_files_df = selected_files_df[~selected_files_df['File Path'].str.startswith(normalized_dest)]
+
+        if selected_files_df.empty:
+            QMessageBox.information(self, "No Files Found", f"No files matching the criteria were found after excluding destination folder.")
             return
 
         # Prepare to copy files
@@ -377,8 +404,8 @@ class FileNameHandlingDialog(QDialog):
                     new_file_name = new_file_name.replace(from_text, to_text)
                 else:
                     # Use regex for exact matching
-                    pattern = re.escape(from_text)
-                    new_file_name = re.sub(r'(?<![a-zA-Z0-9])' + pattern + r'(?![a-zA-Z0-9])', to_text, new_file_name)
+                    pattern_replace = re.escape(from_text)
+                    new_file_name = re.sub(r'(?<![a-zA-Z0-9])' + pattern_replace + r'(?![a-zA-Z0-9])', to_text, new_file_name)
             if new_file_name != original_file_name:
                 replacement_log.append(f"{original_file_name} -> {new_file_name}")
             dst_file = os.path.join(dest_folder_path, new_file_name)
@@ -395,12 +422,13 @@ class FileNameHandlingDialog(QDialog):
         # Write the replacement log to .txt and .yaml files
         log_file_txt = os.path.join(dest_folder_path, "replacement_log.txt")
         log_file_yaml = os.path.join(dest_folder_path, "replacement_log.yaml")
-        with open(log_file_txt, 'w') as f_txt, open(log_file_yaml, 'w') as f_yaml:
-            for line in replacement_log:
-                f_txt.write(line + '\n')
-                # For YAML, write as a list
-
-            yaml.dump(replacement_log, f_yaml)
+        try:
+            with open(log_file_txt, 'w') as f_txt, open(log_file_yaml, 'w') as f_yaml:
+                for line in replacement_log:
+                    f_txt.write(line + '\n')
+                yaml.dump(replacement_log, f_yaml, default_flow_style=False)
+        except Exception as e:
+            QMessageBox.warning(self, "Error Writing Logs", f"Failed to write log files:\n{e}")
 
         QMessageBox.information(self, "Renaming Complete", "Files have been renamed and copied successfully.")
         self.progress_bar.setValue(0)
