@@ -212,6 +212,20 @@ class FileNameHandlingDialog(QDialog):
         self.include_subfolders_checkbox.setChecked(True)
         left_layout.addWidget(self.include_subfolders_checkbox)
 
+        # **New: Custom Folder Name Input**
+        custom_folder_layout = QHBoxLayout()
+        self.custom_folder_checkbox = QCheckBox("Use Custom Folder Name")
+        self.custom_folder_line_edit = QLineEdit()
+        self.custom_folder_line_edit.setPlaceholderText("Enter custom folder name here")
+        self.custom_folder_line_edit.setEnabled(False)  # Initially disabled
+
+        # Connect the checkbox to enable/disable the line edit
+        self.custom_folder_checkbox.stateChanged.connect(self.toggle_custom_folder_input)
+
+        custom_folder_layout.addWidget(self.custom_folder_checkbox)
+        custom_folder_layout.addWidget(self.custom_folder_line_edit)
+        left_layout.addLayout(custom_folder_layout)
+
         # Destination folder selection
         dest_folder_layout = QHBoxLayout()
         self.dest_folder_line_edit = QLineEdit()
@@ -247,6 +261,11 @@ class FileNameHandlingDialog(QDialog):
         right_layout.addWidget(QLabel("Current Folder Structure:"))
         right_layout.addWidget(self.folder_tree)
 
+    def toggle_custom_folder_input(self, state):
+        """Enable or disable the custom folder name input based on checkbox state."""
+        is_checked = state == Qt.Checked
+        self.custom_folder_line_edit.setEnabled(is_checked)
+
     def add_replacement_field(self):
         replacement_field_layout = QHBoxLayout()
         from_line_edit = QLineEdit()
@@ -281,7 +300,6 @@ class FileNameHandlingDialog(QDialog):
         if folder:
             self.dest_folder_line_edit.setText(folder)
 
-
     def execute_renaming(self):
         # Get replacement criteria from input fields
         replacement_list = []
@@ -315,16 +333,28 @@ class FileNameHandlingDialog(QDialog):
         # Get data type handling selection
         data_type_selection = self.data_type_combo_box.currentText()
 
-        # Build folder name based on replacements
-        folder_name_parts = []
-        for from_text, to_text in replacement_list:
-            folder_name_parts.append(f"{from_text}_to_{to_text}")
-        base_folder_name = "_".join(folder_name_parts)
+        # **Handle Custom Folder Name**
+        if self.custom_folder_checkbox.isChecked():
+            custom_folder_name = self.custom_folder_line_edit.text().strip()
+            if not custom_folder_name:
+                QMessageBox.warning(self, "Invalid Folder Name", "Please enter a valid custom folder name.")
+                return
+            # Optional: Validate custom folder name (e.g., no invalid characters)
+            if any(char in custom_folder_name for char in r'<>:"/\|?*'):
+                QMessageBox.warning(self, "Invalid Folder Name", "The folder name contains invalid characters.")
+                return
+            base_folder_name = custom_folder_name
+        else:
+            # Build folder name based on replacements
+            folder_name_parts = []
+            for from_text, to_text in replacement_list:
+                folder_name_parts.append(f"{from_text}_to_{to_text}")
+            base_folder_name = "_".join(folder_name_parts)
 
-        # Append file type to folder name if not "All"
-        if data_type_selection != "All":
-            ext_without_dot = data_type_selection[1:] if data_type_selection.startswith('.') else data_type_selection
-            base_folder_name = f"{base_folder_name}_{ext_without_dot}"
+            # Append file type to folder name if not "All"
+            if data_type_selection != "All":
+                ext_without_dot = data_type_selection[1:] if data_type_selection.startswith('.') else data_type_selection
+                base_folder_name = f"{base_folder_name}_{ext_without_dot}"
 
         # Prepare destination folder path
         dest_folder_path = os.path.join(dest_folder, base_folder_name)
@@ -366,7 +396,7 @@ class FileNameHandlingDialog(QDialog):
         selected_files_df = selected_files_df[~selected_files_df['File Path'].str.startswith(normalized_dest)]
 
         if selected_files_df.empty:
-            QMessageBox.information(self, "No Files Found", f"No files matching the criteria were found after excluding destination folder.")
+            QMessageBox.information(self, "No Files Found", f"No files matching the criteria were found after excluding the destination folder.")
             return
 
         # Prepare to copy files
@@ -422,13 +452,11 @@ class FileNameHandlingDialog(QDialog):
         # Write the replacement log to .txt and .yaml files
         log_file_txt = os.path.join(dest_folder_path, "replacement_log.txt")
         log_file_yaml = os.path.join(dest_folder_path, "replacement_log.yaml")
-        try:
-            with open(log_file_txt, 'w') as f_txt, open(log_file_yaml, 'w') as f_yaml:
-                for line in replacement_log:
-                    f_txt.write(line + '\n')
-                yaml.dump(replacement_log, f_yaml, default_flow_style=False)
-        except Exception as e:
-            QMessageBox.warning(self, "Error Writing Logs", f"Failed to write log files:\n{e}")
+        with open(log_file_txt, 'w') as f_txt, open(log_file_yaml, 'w') as f_yaml:
+            for line in replacement_log:
+                f_txt.write(line + '\n')
+            # For YAML, write as a list
+            yaml.dump(replacement_log, f_yaml, default_flow_style=False)
 
         QMessageBox.information(self, "Renaming Complete", "Files have been renamed and copied successfully.")
         self.progress_bar.setValue(0)
@@ -605,6 +633,7 @@ class BatchFileHandlingPanel(QWidget):
         self.restructuring_dialog.exec_()
         # After restructuring, update the folder tree
         self.dir_model.refresh()
+
 class RestructuringDialog(QDialog):
     def __init__(self, metadata_df, root_folder, parent=None):
         super().__init__(parent)
@@ -738,6 +767,20 @@ class RestructuringDialog(QDialog):
 
         left_layout.addWidget(modification_date_groupbox)
 
+        # **New: Custom Folder Name Input**
+        custom_folder_layout = QHBoxLayout()
+        self.custom_folder_checkbox = QCheckBox("Use Custom Folder Name")
+        self.custom_folder_line_edit = QLineEdit()
+        self.custom_folder_line_edit.setPlaceholderText("Enter custom folder name here")
+        self.custom_folder_line_edit.setEnabled(False)  # Initially disabled
+
+        # Connect the checkbox to enable/disable the line edit
+        self.custom_folder_checkbox.stateChanged.connect(self.toggle_custom_folder_input)
+
+        custom_folder_layout.addWidget(self.custom_folder_checkbox)
+        custom_folder_layout.addWidget(self.custom_folder_line_edit)
+        left_layout.addLayout(custom_folder_layout)
+
         # Destination folder selection
         dest_folder_layout = QHBoxLayout()
         self.dest_folder_line_edit = QLineEdit()
@@ -777,6 +820,11 @@ class RestructuringDialog(QDialog):
         self.toggle_creation_date_filters(self.include_creation_date_in_name_checkbox.isChecked())
         self.toggle_modification_date_filters(self.include_modification_date_in_name_checkbox.isChecked())
 
+    def toggle_custom_folder_input(self, state):
+        """Enable or disable the custom folder name input based on checkbox state."""
+        is_checked = state == Qt.Checked
+        self.custom_folder_line_edit.setEnabled(is_checked)
+
     def toggle_creation_date_filters(self, state):
         """Enable or disable creation date/time filters based on checkbox state."""
         is_checked = state == Qt.Checked
@@ -806,7 +854,6 @@ class RestructuringDialog(QDialog):
                 QMessageBox.warning(self, "Invalid Destination Folder", "The destination folder cannot be inside the root folder.")
                 return
             self.dest_folder_line_edit.setText(folder)
-
     def execute_restructuring(self):
         # Determine if partial matching is enabled
         partial_matching = self.partial_matching_checkbox.isChecked()
@@ -820,19 +867,77 @@ class RestructuringDialog(QDialog):
             QMessageBox.warning(self, "No Destination Folder", "Please select a destination folder.")
             return
 
-        # Build folder name based on criteria and date ranges
-        folder_name_parts = []
+        # **Handle Custom Folder Name**
+        if self.custom_folder_checkbox.isChecked():
+            custom_folder_name = self.custom_folder_line_edit.text().strip()
+            if not custom_folder_name:
+                QMessageBox.warning(self, "Invalid Folder Name", "Please enter a valid custom folder name.")
+                return
+            # Optional: Validate custom folder name (e.g., no invalid characters)
+            if any(char in custom_folder_name for char in r'<>:"/\|?*'):
+                QMessageBox.warning(self, "Invalid Folder Name", "The folder name contains invalid characters.")
+                return
+            base_folder_name = custom_folder_name
+        else:
+            # Build folder name based on criteria and date ranges
+            folder_name_parts = []
 
-        # Collect folder name parts from criteria groups
-        criteria_folder_name_parts = []
-        for i in range(self.criteria_groups_layout.count()):
-            group_widget = self.criteria_groups_layout.itemAt(i).widget()
-            if isinstance(group_widget, CriteriaGroup):
-                group_criteria = group_widget.get_criteria()
-                if group_criteria:
-                    criteria_folder_name_parts.append("_".join(group_criteria))
-        if criteria_folder_name_parts:
-            folder_name_parts.append("_".join(criteria_folder_name_parts))
+            # Collect folder name parts from criteria groups
+            criteria_folder_name_parts = []
+            for i in range(self.criteria_groups_layout.count()):
+                group_widget = self.criteria_groups_layout.itemAt(i).widget()
+                if isinstance(group_widget, CriteriaGroup):
+                    group_criteria = group_widget.get_criteria()
+                    if group_criteria:
+                        criteria_folder_name_parts.append("_".join(group_criteria))
+            if criteria_folder_name_parts:
+                folder_name_parts.append("_".join(criteria_folder_name_parts))
+
+            # Add date ranges to folder name if applicable and if user chose to include them
+            date_parts = []
+
+            # Filter and include Creation Date if checkbox is checked
+            if self.include_creation_date_in_name_checkbox.isChecked():
+                creation_start_datetime = self.creation_start_date_edit.dateTime().toPyDateTime()
+                creation_end_datetime = self.creation_end_date_edit.dateTime().toPyDateTime()
+                # Filter based on creation date range
+                selected_files_df = self.metadata_df[
+                    (self.metadata_df['Creation Date'] >= creation_start_datetime) &
+                    (self.metadata_df['Creation Date'] <= creation_end_datetime)
+                ]
+                # Include date and time in folder name
+                creation_start_str = creation_start_datetime.strftime('%d%b%Y_%H-%M-%S')
+                creation_end_str = creation_end_datetime.strftime('%d%b%Y_%H-%M-%S')
+                date_parts.append(f"Created_{creation_start_str}-{creation_end_str}")
+
+            # Filter and include Modification Date if checkbox is checked
+            if self.include_modification_date_in_name_checkbox.isChecked():
+                modification_start_datetime = self.modification_start_date_edit.dateTime().toPyDateTime()
+                modification_end_datetime = self.modification_end_date_edit.dateTime().toPyDateTime()
+                # Filter based on modification date range
+                selected_files_df = self.metadata_df[
+                    (self.metadata_df['Modification Date'] >= modification_start_datetime) &
+                    (self.metadata_df['Modification Date'] <= modification_end_datetime)
+                ]
+                # Include date and time in folder name
+                modification_start_str = modification_start_datetime.strftime('%d%b%Y_%H-%M-%S')
+                modification_end_str = modification_end_datetime.strftime('%d%b%Y_%H-%M-%S')
+                date_parts.append(f"Modified_{modification_start_str}-{modification_end_str}")
+
+            if date_parts:
+                folder_name_parts.append("_".join(date_parts))
+
+            # Base folder name without extension
+            base_folder_name = "_".join(folder_name_parts) if folder_name_parts else "Selected_Files"
+
+            # Append file type to folder name if not "All"
+            if data_type_selection != "All":
+                ext_without_dot = data_type_selection[1:] if data_type_selection.startswith('.') else data_type_selection
+                base_folder_name = f"{base_folder_name}_{ext_without_dot}"
+
+        # Prepare destination folder path
+        dest_folder_path = os.path.join(dest_folder, base_folder_name)
+        os.makedirs(dest_folder_path, exist_ok=True)
 
         # Start with all files
         selected_files_df = self.metadata_df.copy()
@@ -883,52 +988,34 @@ class RestructuringDialog(QDialog):
                 else:
                     continue  # Unknown logic, skip
 
-        # Add date ranges to folder name if applicable and if user chose to include them
-        date_parts = []
+        # **Handle Custom Folder Name if Not Already Handled Above**
+        if not self.custom_folder_checkbox.isChecked():
+            # Add date ranges to folder name if applicable and if user chose to include them
+            # (Already handled above if not using custom name)
+            pass  # No action needed here since handled above
 
-        # Filter and include Creation Date if checkbox is checked
-        if self.include_creation_date_in_name_checkbox.isChecked():
-            creation_start_datetime = self.creation_start_date_edit.dateTime().toPyDateTime()
-            creation_end_datetime = self.creation_end_date_edit.dateTime().toPyDateTime()
-            # Filter based on creation date range
+        # Apply date filters if applicable
+        # (Already handled above when building folder name and filtering selected_files_df)
+
+        # **Filter based on data type selection**
+        if data_type_selection != "All":
             selected_files_df = selected_files_df[
-                (selected_files_df['Creation Date'] >= creation_start_datetime) &
-                (selected_files_df['Creation Date'] <= creation_end_datetime)
+                selected_files_df['File Name'].str.lower().str.endswith(data_type_selection.lower())
             ]
-            # Include date and time in folder name
-            creation_start_str = creation_start_datetime.strftime('%d%b%Y_%H-%M-%S')
-            creation_end_str = creation_end_datetime.strftime('%d%b%Y_%H-%M-%S')
-            date_parts.append(f"Created_{creation_start_str}-{creation_end_str}")
 
-        # Filter and include Modification Date if checkbox is checked
-        if self.include_modification_date_in_name_checkbox.isChecked():
-            modification_start_datetime = self.modification_start_date_edit.dateTime().toPyDateTime()
-            modification_end_datetime = self.modification_end_date_edit.dateTime().toPyDateTime()
-            # Filter based on modification date range
-            selected_files_df = selected_files_df[
-                (selected_files_df['Modification Date'] >= modification_start_datetime) &
-                (selected_files_df['Modification Date'] <= modification_end_datetime)
-            ]
-            # Include date and time in folder name
-            modification_start_str = modification_start_datetime.strftime('%d%b%Y_%H-%M-%S')
-            modification_end_str = modification_end_datetime.strftime('%d%b%Y_%H-%M-%S')
-            date_parts.append(f"Modified_{modification_start_str}-{modification_end_str}")
-
-        if date_parts:
-            folder_name_parts.append("_".join(date_parts))
-
-        # Base folder name without extension
-        base_folder_name = "_".join(folder_name_parts) if folder_name_parts else "Selected_Files"
+        # **Exclude files inside the destination folder to prevent recursion**
+        normalized_dest = os.path.normpath(dest_folder_path) + os.sep
+        selected_files_df = selected_files_df[~selected_files_df['File Path'].str.startswith(normalized_dest)]
 
         if selected_files_df.empty:
             QMessageBox.information(self, "No Files Found", "No files match the given criteria.")
             return
 
-        # Handle data type selection
+        # **Handle Data Type Selection: "All", "Each Separately", or Specific Type**
         if data_type_selection == "All":
             # Handle all data types together (no additional filtering)
-            dest_folder_path = os.path.join(dest_folder, base_folder_name)
-            os.makedirs(dest_folder_path, exist_ok=True)
+            # No further action needed since already handled
+            pass
 
         elif data_type_selection == "Each Separately":
             # Handle each data type separately
@@ -1068,6 +1155,7 @@ class RestructuringDialog(QDialog):
 
         # Refresh folder tree
         self.dir_model.refresh()
+
 
 
 #################################################################################
