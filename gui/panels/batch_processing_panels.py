@@ -15,6 +15,7 @@ from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtGui import QIcon
 import yaml
 import datetime
+from PyQt5.QtCore import pyqtSignal
 
 def resource_path(relative_path):
     """Get the absolute path to a resource, works for development and PyInstaller."""
@@ -757,19 +758,36 @@ class BatchFileHandlingPanel(QWidget):
         self.metadata_table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
 
 
+ 
     def open_restructuring_window(self):
         if self.folder_path_line_edit.text() == '':
             QMessageBox.warning(self, "No Root Folder Selected", "Please select a root folder first.")
             return
 
+        # Instantiate the RestructuringDialog
         self.restructuring_dialog = RestructuringDialog(
             self.metadata_df, self.folder_path_line_edit.text(), self)
-        self.restructuring_dialog.exec_()
-        # After restructuring, update the folder tree
-        self.dir_model.refresh()
 
+        # Connect the restructuring_done signal to a slot that refreshes metadata_df
+        self.restructuring_dialog.restructuring_done.connect(
+            lambda: self.after_restructuring(self.restructuring_dialog))
+
+        # Execute the dialog
+        self.restructuring_dialog.exec_()
+
+    def after_restructuring(self, dialog):
+        """Slot to handle actions after restructuring is done."""
+        # Re-scan the root folder to update metadata_df
+        self.scan_folder(self.folder_path_line_edit.text())
+        # Refresh the folder tree view
+        self.dir_model.refresh()
+        # Optionally, inform the user
+        QMessageBox.information(self, "Update Complete", "The internal metadata has been updated to reflect the changes.")
 
 class RestructuringDialog(QDialog):
+
+    restructuring_done = pyqtSignal()
+
     def __init__(self, metadata_df, root_folder, parent=None):
         super().__init__(parent)
         self.metadata_df = metadata_df
@@ -1242,6 +1260,7 @@ class RestructuringDialog(QDialog):
         # Refresh folder tree
         self.dir_model.refresh()
 
+        self.restructuring_done.emit()
 
     #################################################################################
 #################################################################################
