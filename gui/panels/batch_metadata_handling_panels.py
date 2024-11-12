@@ -18,6 +18,8 @@ from PyQt5.QtCore import (
 )
 from PyQt5.QtGui import QIcon, QKeySequence
 from collections import OrderedDict
+from gui.dialogs.help_dialog import HelpDialog 
+from gui.utils.help_content import METADATA_HELP
 
 def resource_path(relative_path):
     """Get the absolute path to a resource, works for development and PyInstaller."""
@@ -135,6 +137,7 @@ class BatchMetaDataHandlingPanel(QWidget):
         """)
         left_panel.addWidget(self.metadata_group_box)
 
+  
         # Buttons below scroll area
         button_layout = QHBoxLayout()
         self.add_investigation_button = QPushButton('Add Investigation')
@@ -167,11 +170,21 @@ class BatchMetaDataHandlingPanel(QWidget):
         self.extract_metadata_button = QPushButton('Extract Metadata from Data Points')
         self.extract_metadata_button.setIcon(QIcon(resource_path('gui/resources/extract_icon.png')))  # Ensure the icon exists
         self.extract_metadata_button.setToolTip('Extract metadata from data points based on token mapping.')
-        
+
+        # **New: Help Button Layout**
+        help_button_layout = QHBoxLayout()
+        self.help_button = QPushButton('Help')
+        self.help_button.setIcon(QIcon(resource_path('gui/resources/help_icon.png')))  # Optional: add a help icon
+        self.help_button.setToolTip('Click for help and instructions.')
+        self.help_button.clicked.connect(self.show_help)
+
         save_export_layout.addWidget(self.save_metadata_button)
         save_export_layout.addWidget(self.export_metadata_button)
         save_export_layout.addWidget(self.extract_metadata_button)
+        save_export_layout.addWidget(self.help_button)
+
         left_panel.addLayout(save_export_layout)
+
         self.extract_metadata_button.hide()  # Initially hidden
 
         # Add a progress bar below the Save and Export buttons
@@ -229,7 +242,7 @@ class BatchMetaDataHandlingPanel(QWidget):
 
     def get_expanded_paths(self):
         expanded_paths = []
-        
+
         def recurse(index):
             if not index.isValid():
                 return
@@ -240,7 +253,7 @@ class BatchMetaDataHandlingPanel(QWidget):
                 for i in range(self.dir_model.rowCount(index)):
                     child_index = self.dir_model.index(i, 0, index)
                     recurse(child_index)
-        
+
         root_index = self.tree_view.rootIndex()
         recurse(root_index)
         return expanded_paths
@@ -254,10 +267,14 @@ class BatchMetaDataHandlingPanel(QWidget):
         return None
 
     def set_expanded_paths(self, expanded_paths):
+        valid_paths = []
         for path in expanded_paths:
             index = self.dir_model.index(path)
             if index.isValid():
-                self.tree_view.expand(index)
+                valid_paths.append(path)
+        for path in valid_paths:
+            index = self.dir_model.index(path)
+            self.tree_view.expand(index)
 
     def set_selected_path(self, selected_path):
         index = self.dir_model.index(selected_path)
@@ -274,11 +291,9 @@ class BatchMetaDataHandlingPanel(QWidget):
                     parent_index, QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows)
                 self.tree_view.scrollTo(parent_index)
 
-
     def refresh_tree_view(self, expanded_paths=None, selected_path=None):
         """Refresh the QDirModel by re-instantiating it and reassigning it to the QTreeView."""
         if self.root_folder_path:
-            # If expanded_paths and selected_path are not provided, save them
             if expanded_paths is None:
                 expanded_paths = self.get_expanded_paths()
             if selected_path is None:
@@ -417,12 +432,17 @@ class BatchMetaDataHandlingPanel(QWidget):
         self.metadata_fields = []
 
     def add_investigation(self):
-        if not self.root_folder_path:
-            QMessageBox.warning(self, 'No Root Folder', 'Please select a root folder first.')
+        selected_folder = self.get_selected_folder()
+        if not selected_folder:
+            QMessageBox.warning(
+                self,
+                'No Folder Selected',
+                'Please select a folder in the hierarchy tree to add Investigation metadata.'
+            )
             return
         self.clear_scroll_area()
         self.current_metadata_type = 'Investigation'
-        self.current_folder_path = self.root_folder_path
+        self.current_folder_path = selected_folder
         # Default fields
         fields = [
             ('Title', ''),
@@ -534,7 +554,7 @@ class BatchMetaDataHandlingPanel(QWidget):
             elif os.path.isfile(path):
                 return {'type': 'file', 'path': path}
         return None
-
+    
     def save_metadata(self):
         if not self.current_metadata_type:
             QMessageBox.warning(self, 'No Metadata', 'Please add metadata first.')
@@ -580,6 +600,10 @@ class BatchMetaDataHandlingPanel(QWidget):
 
             save_path = os.path.join(save_folder, default_name)
 
+            # Save expanded paths and selected path before saving
+            expanded_paths = self.get_expanded_paths()
+            selected_path = self.get_selected_path()
+
             try:
                 with open(save_path, 'w') as f:
                     f.write(content)
@@ -587,12 +611,13 @@ class BatchMetaDataHandlingPanel(QWidget):
                 self.metadata_processed.emit()  # Emit signal after saving metadata
 
                 # Refresh the hierarchy tree to reflect the new metadata file
-                self.refresh_tree_view()
+                self.refresh_tree_view(expanded_paths=expanded_paths, selected_path=selected_path)
 
             except Exception as e:
                 QMessageBox.warning(self, 'Save Error', f'Failed to save metadata:\n{e}')
         else:
             QMessageBox.warning(self, 'Format Not Selected', 'Please select a format to save metadata.')
+
 
     def export_metadata(self):
         # Implement export functionality as needed
@@ -672,6 +697,10 @@ class BatchMetaDataHandlingPanel(QWidget):
         if not ok:
             QMessageBox.warning(self, 'Format Not Selected', 'Please select a format to save metadata.')
             return
+
+        # Save expanded paths and selected path before processing
+        expanded_paths = self.get_expanded_paths()
+        selected_path = self.get_selected_path()
 
         # Prepare to save metadata for each file
         total_files = len(files)
@@ -765,8 +794,7 @@ class BatchMetaDataHandlingPanel(QWidget):
         self.progress_bar.setValue(0)  # Reset progress bar value
 
         # Refresh the hierarchy tree to show new metadata files
-        self.refresh_tree_view()
-
+        self.refresh_tree_view(expanded_paths=expanded_paths, selected_path=selected_path)
 
     def navigate_back(self):
         if self.navigation_history:
@@ -777,3 +805,8 @@ class BatchMetaDataHandlingPanel(QWidget):
                 self.back_button.setEnabled(False)
         else:
             self.back_button.setEnabled(False)
+
+    def show_help(self):
+        help_content = METADATA_HELP
+        dialog = HelpDialog("Metadata Help Content", help_content, self)
+        dialog.exec_()

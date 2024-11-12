@@ -2308,3 +2308,156 @@ FOURIER_TRANSFORM_HELP = """
 </body>
 </html>
 """
+
+
+METADATA_HELP = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Metadata Handling - Advanced Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #2E8B57;
+        }
+        p, ul, ol {
+            font-size: 16px;
+        }
+        ul, ol {
+            margin-left: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        hr {
+            border: none;
+            height: 4px;
+            background-color: #2E8B57;
+            margin: 40px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Advanced Metadata Handling</h1>
+    <p>
+        This guide delves into the scientific and technical aspects of metadata management, the role of the ISA-API framework, and the objectives of the National Research Data Infrastructure (NFDI). It also outlines challenges and solutions in research data stewardship under the FAIR principles. Metadata is not only crucial for data organization but also plays a critical role in data interoperability, preservation, and reproducibility.
+    </p>
+
+    <h2>Understanding Metadata in Research</h2>
+    <p>
+        Metadata, often defined as "data about data," provides structured, contextual information about research data. In a scientific setting, metadata enables researchers to understand the lineage, methodology, conditions, and transformations that data has undergone. This facilitates reuse, comparison, and integration with other data sets.
+    </p>
+    <p>
+        In-Essentially, metadata captures details such as experimental protocols, instrument settings, sample descriptions, environmental conditions, and data processing steps. Beyond merely describing data, metadata supports knowledge discovery, advanced analytics, and machine learning applications by embedding meaning and context within data. Examples of essential metadata fields include:
+    </p>
+    <ul>
+        <li><strong>Technical Attributes:</strong> Data format, software and hardware specifications, measurement units, calibration details.</li>
+        <li><strong>Descriptive Elements:</strong> Titles, authorship, funding sources, related publications, keywords, and research objectives.</li>
+        <li><strong>Provenance Data:</strong> Record of all transformations, analysis steps, and derived data from original datasets.</li>
+    </ul>
+
+    <h2>Challenges in Metadata Management</h2>
+    <p>
+        Despite its importance, metadata management presents several challenges:
+    </p>
+    <ul>
+        <li><strong>Data Heterogeneity:</strong> Research data comes from diverse sources, requiring standardization to ensure compatibility and accessibility across fields.</li>
+        <li><strong>Data Overload:</strong> Large volumes of metadata can overwhelm systems, demanding efficient storage and retrieval mechanisms.</li>
+        <li><strong>Preservation of Metadata Integrity:</strong> Ensuring metadata remains consistent, complete, and current as data evolves over time.</li>
+        <li><strong>Data Interoperability:</strong> Aligning metadata with recognized standards for interoperability across disciplines and databases.</li>
+    </ul>
+
+    <h2>The FAIR Principles and Their Importance</h2>
+    <p>
+        The FAIR principles—<strong>Findable, Accessible, Interoperable, and Reusable</strong>—were developed to provide guidelines for data and metadata management. Ensuring data adheres to these principles enhances its potential for discovery, analysis, and reuse.
+    </p>
+    <ul>
+        <li><strong>Findable:</strong> Metadata should include identifiers, such as DOIs, that make datasets easily searchable and accessible in global registries.</li>
+        <li><strong>Accessible:</strong> Metadata should be retrievable through standardized protocols, ideally allowing both humans and machines to access and understand the metadata.</li>
+        <li><strong>Interoperable:</strong> Metadata should utilize controlled vocabularies and standardized formats to enable integration and harmonization with data from other sources.</li>
+        <li><strong>Reusable:</strong> Metadata should be sufficiently detailed and documented to support both immediate and long-term data reuse by others.</li>
+    </ul>
+
+    <h2>ISA-API: A Metadata Framework for Research</h2>
+    <p>
+        The <strong>Investigation, Study, Assay (ISA) API</strong> is a metadata management tool that facilitates the standardization and interoperability of research data. It is widely adopted in fields where multi-dimensional metadata is critical for experiment reproducibility and interoperability.
+    </p>
+    <p>
+        The ISA-API framework divides metadata into three components:
+    </p>
+    <ol>
+        <li><strong>Investigation:</strong> The overarching research project, including background information, objectives, and methods.</li>
+        <li><strong>Study:</strong> A particular aspect of the investigation that includes information on participants, procedures, and experimental conditions.</li>
+        <li><strong>Assay:</strong> Describes the analytical methods, instruments, and raw data used to analyze the samples.</li>
+    </ol>
+    <p>
+        By implementing ISA-API, researchers can standardize their metadata, facilitating seamless integration with external databases and tools. ISA-API also supports machine-readable formats, aiding in automated data processing, sharing, and reuse.
+    </p>
+
+    <h2>National Research Data Infrastructure (NFDI)</h2>
+    <p>
+        The <strong>National Research Data Infrastructure (NFDI)</strong> is an initiative that aims to establish a cohesive data management infrastructure in Germany, supporting research across disciplines. NFDI’s objective is to facilitate the collection, processing, and preservation of research data in a way that maximizes FAIR compliance and fosters collaborative research environments.
+    </p>
+    <p>
+        NFDI works by establishing specialized consortia that represent different research domains. These consortia develop standards, guidelines, and tools tailored to their field’s needs, ensuring metadata aligns with international standards and is interoperable across disciplines.
+    </p>
+
+    <h2>Implementing Metadata Standards and Ontologies</h2>
+    <p>
+        Metadata standards, such as <strong>Dublin Core, Darwin Core, NFDI Metadata-Ontologies and Data Documentation Initiative (DDI)</strong>, provide structured formats for metadata across various fields.
+    <p>
+        NFDI encourages researchers to align their metadata with domain-specific standards and ontologies, enabling efficient data integration and sharing across research institutions and disciplines.
+    </p>
+
+    <h2>How to Use the Metadata Handling Module</h2>
+    <p>
+        The Metadata Handling Module in this software is designed to streamline metadata management and ensure adherence to FAIR principles and ISA-API standards. Here’s how to use it effectively:
+    </p>
+    <ol>
+        <li>
+            <strong>Select Root Folder:</strong> Define the directory containing your data files. This folder serves as the starting point for all metadata operations, and all subdirectories within will be processed.
+        </li>
+        <li>
+            <strong>Add Metadata Fields:</strong> Based on the type of metadata (Investigation, Study, Assay), use the module’s forms to enter specific metadata attributes. You can customize fields based on your project’s requirements.
+        </li>
+        <li>
+            <strong>Use Token Mapping:</strong> This feature helps map tokens in filenames to metadata fields, automating metadata extraction from structured filenames.
+        </li>
+        <li>
+            <strong>Save and Export Metadata:</strong> Save metadata in formats such as YAML or JSON to ensure compatibility with various data systems. Use the export feature to share metadata externally.
+        </li>
+        <li>
+            <strong>Validate Metadata:</strong> Regularly review metadata entries to ensure they remain accurate, complete, and aligned with standards.
+        </li>
+    </ol>
+
+    <h2>Best Practices for Metadata Management</h2>
+    <ul>
+        <li><strong>Adopt Standardized Vocabulary:</strong> Use established ontologies and metadata standards relevant to your field to ensure consistency.</li>
+        <li><strong>Ensure Metadata Completeness:</strong> Thoroughly document all relevant details to maximize the reusability of your data.</li>
+        <li><strong>Regularly Update Metadata:</strong> Metadata should reflect changes in data as research progresses.</li>
+        <li><strong>Apply Consistent Naming Conventions:</strong> Clear and consistent naming conventions improve data organization and readability.</li>
+    </ul>
+
+    <h2>Good Luck!</h2>
+    <p>
+    </p>
+</body>
+</html>
+
+"""

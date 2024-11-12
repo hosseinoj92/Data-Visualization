@@ -38,9 +38,9 @@ class HelpDialog(QDialog):
         # Close button
         close_button = QPushButton("Close")
         close_button.clicked.connect(self.accept)
-        close_button.setFixedWidth(100)
-        close_button.setFixedHeight(30)
-        close_button.setStyleSheet("margin: 10px;")
+        close_button.setFixedWidth(120)
+        close_button.setFixedHeight(50)
+        close_button.setStyleSheet("margin: 11px;")
         
         # Align the Close button to the right
         button_layout = QVBoxLayout()
