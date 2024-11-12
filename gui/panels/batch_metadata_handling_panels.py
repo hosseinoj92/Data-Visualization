@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
 
 )
 from PyQt5.QtCore import (
-    Qt, QDir, pyqtSignal
+    Qt, QDir, pyqtSignal,QItemSelectionModel
 )
 from PyQt5.QtGui import QIcon, QKeySequence
 
@@ -118,7 +118,7 @@ class BatchMetaDataHandlingPanel(QWidget):
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setWidget(self.scroll_area_widget)
         self.metadata_group_layout.addWidget(self.scroll_area)
-        
+
         self.metadata_group_box.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
@@ -202,6 +202,10 @@ class BatchMetaDataHandlingPanel(QWidget):
         self.tree_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tree_view.customContextMenuRequested.connect(self.open_context_menu)
         self.tree_view.doubleClicked.connect(self.on_tree_item_double_clicked)
+
+        # Set the default column width for the "Name" column
+        self.tree_view.setColumnWidth(0, 250)  # Adjust the width as desired
+        
         right_panel.addWidget(self.tree_view)
 
         main_layout.addLayout(right_panel)
@@ -222,9 +226,63 @@ class BatchMetaDataHandlingPanel(QWidget):
         self.metadata_fields = []
         self.root_folder_path = None
 
-    def refresh_tree_view(self):
+    def get_expanded_paths(self):
+        expanded_paths = []
+        
+        def recurse(index):
+            if not index.isValid():
+                return
+            if self.tree_view.isExpanded(index):
+                path = self.dir_model.filePath(index)
+                expanded_paths.append(path)
+                # Recurse into children
+                for i in range(self.dir_model.rowCount(index)):
+                    child_index = self.dir_model.index(i, 0, index)
+                    recurse(child_index)
+        
+        root_index = self.tree_view.rootIndex()
+        recurse(root_index)
+        return expanded_paths
+
+    def get_selected_path(self):
+        indexes = self.tree_view.selectedIndexes()
+        if indexes:
+            index = indexes[0]
+            path = self.dir_model.filePath(index)
+            return path
+        return None
+
+    def set_expanded_paths(self, expanded_paths):
+        for path in expanded_paths:
+            index = self.dir_model.index(path)
+            if index.isValid():
+                self.tree_view.expand(index)
+
+    def set_selected_path(self, selected_path):
+        index = self.dir_model.index(selected_path)
+        if index.isValid():
+            self.tree_view.selectionModel().select(
+                index, QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows)
+            self.tree_view.scrollTo(index)
+        else:
+            # If the selected path no longer exists, select the parent directory
+            parent_path = os.path.dirname(selected_path)
+            parent_index = self.dir_model.index(parent_path)
+            if parent_index.isValid():
+                self.tree_view.selectionModel().select(
+                    parent_index, QItemSelectionModel.ClearAndSelect | QItemSelectionModel.Rows)
+                self.tree_view.scrollTo(parent_index)
+
+
+    def refresh_tree_view(self, expanded_paths=None, selected_path=None):
         """Refresh the QDirModel by re-instantiating it and reassigning it to the QTreeView."""
         if self.root_folder_path:
+            # If expanded_paths and selected_path are not provided, save them
+            if expanded_paths is None:
+                expanded_paths = self.get_expanded_paths()
+            if selected_path is None:
+                selected_path = self.get_selected_path()
+
             # Re-instantiate the model
             self.dir_model = QDirModel()
             self.dir_model.setReadOnly(False)
@@ -233,7 +291,11 @@ class BatchMetaDataHandlingPanel(QWidget):
             self.tree_view.setModel(self.dir_model)
             index = self.dir_model.index(self.root_folder_path)
             self.tree_view.setRootIndex(index)
-            self.tree_view.collapseAll()
+
+            # Restore expanded paths and selection
+            self.set_expanded_paths(expanded_paths)
+            self.set_selected_path(selected_path)
+
 
     def select_root_folder(self):
         folder_path = QFileDialog.getExistingDirectory(self, "Select Root Folder")
@@ -290,6 +352,10 @@ class BatchMetaDataHandlingPanel(QWidget):
                 self.create_new_folder(index)
 
     def delete_item(self, index):
+        # Save expanded paths and selected path before deletion
+        expanded_paths = self.get_expanded_paths()
+        selected_path = self.get_selected_path()
+
         path = self.dir_model.filePath(index)
         if os.path.isdir(path):
             try:
@@ -303,10 +369,20 @@ class BatchMetaDataHandlingPanel(QWidget):
             except Exception as e:
                 QMessageBox.warning(self, 'Delete Error', f'Cannot delete file: {e}')
                 return
+
+        # Remove deleted path from expanded_paths if present
+        if path in expanded_paths:
+            expanded_paths.remove(path)
+
         # Refresh the hierarchy tree
-        self.refresh_tree_view()
+        self.refresh_tree_view(expanded_paths=expanded_paths, selected_path=selected_path)
+
 
     def create_new_folder(self, index):
+        # Save expanded paths and selected path before creating the folder
+        expanded_paths = self.get_expanded_paths()
+        selected_path = self.get_selected_path()
+
         path = self.dir_model.filePath(index)
         folder_name, ok = QInputDialog.getText(self, 'New Folder', 'Folder Name:')
         if ok and folder_name:
@@ -314,9 +390,10 @@ class BatchMetaDataHandlingPanel(QWidget):
             try:
                 os.mkdir(new_folder_path)
                 # Refresh the hierarchy tree
-                self.refresh_tree_view()
+                self.refresh_tree_view(expanded_paths=expanded_paths, selected_path=selected_path)
             except Exception as e:
                 QMessageBox.warning(self, 'Folder Creation Error', f'Cannot create folder: {e}')
+
 
 
     def on_tree_item_double_clicked(self, index):
