@@ -872,6 +872,14 @@ class RestructuringDialog(QDialog):
         data_type_layout.addWidget(self.data_type_combo_box)
         left_layout.addLayout(data_type_layout)
 
+        # **Add "Include Subfolders" Checkbox**
+        include_subfolders_layout = QHBoxLayout()
+        self.include_subfolders_checkbox = QCheckBox("Include Subfolders")
+        self.include_subfolders_checkbox.setChecked(True)  # Pre-checked by default
+        include_subfolders_layout.addWidget(self.include_subfolders_checkbox)
+        include_subfolders_layout.addStretch()  # Push the checkbox to the left
+        left_layout.addLayout(include_subfolders_layout)
+
         # **Creation Date Range Selection**
         creation_date_groupbox = QGroupBox("Creation Date Range Selection (Optional)")
         creation_date_layout = QFormLayout()
@@ -1106,6 +1114,16 @@ class RestructuringDialog(QDialog):
         # Apply the combined mask to the DataFrame
         selected_items_df = df[combined_mask].copy()
 
+        # **Retrieve the State of the "Include Subfolders" Checkbox**
+        include_subfolders = self.include_subfolders_checkbox.isChecked()
+
+        # **Apply Subfolder Filter If Needed**
+        if not include_subfolders:
+            # Only include items directly within the root folder
+            selected_items_df = selected_items_df[
+                selected_items_df['Folder Path'].apply(lambda x: os.path.dirname(x) == self.root_folder)
+            ]
+
         # Apply date filters if enabled
         if self.include_creation_date_in_name_checkbox.isChecked():
             creation_start_datetime = self.creation_start_date_edit.dateTime().toPyDateTime()
@@ -1273,6 +1291,7 @@ class RestructuringDialog(QDialog):
 
         # Emit the restructuring_done signal
         self.restructuring_done.emit()
+
 
     #################################################################################
 #################################################################################
