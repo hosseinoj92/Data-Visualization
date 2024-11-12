@@ -172,6 +172,19 @@ class BatchMetaDataHandlingPanel(QWidget):
         self.metadata_fields = []
         self.root_folder_path = None
 
+    def refresh_tree_view(self):
+        """Refresh the QDirModel by re-instantiating it and reassigning it to the QTreeView."""
+        if self.root_folder_path:
+            # Re-instantiate the model
+            self.dir_model = QDirModel()
+            self.dir_model.setReadOnly(False)
+            self.dir_model.setFilter(QDir.AllDirs | QDir.NoDotAndDotDot | QDir.Files)
+            # Reassign the model to the tree view
+            self.tree_view.setModel(self.dir_model)
+            index = self.dir_model.index(self.root_folder_path)
+            self.tree_view.setRootIndex(index)
+            self.tree_view.collapseAll()
+
     def select_root_folder(self):
         folder_path = QFileDialog.getExistingDirectory(self, "Select Root Folder")
         if folder_path:
@@ -186,10 +199,12 @@ class BatchMetaDataHandlingPanel(QWidget):
 
     def populate_tree_view(self):
         if self.root_folder_path:
+            # Set up the model and view
+            self.dir_model.setFilter(QDir.AllDirs | QDir.NoDotAndDotDot | QDir.Files)
             index = self.dir_model.index(self.root_folder_path)
             self.tree_view.setRootIndex(index)
             self.tree_view.collapseAll()  # Ensure all nodes are collapsed
-       
+
 
 
     def navigate_back(self):
@@ -238,8 +253,8 @@ class BatchMetaDataHandlingPanel(QWidget):
             except Exception as e:
                 QMessageBox.warning(self, 'Delete Error', f'Cannot delete file: {e}')
                 return
-        # Refresh the model
-        self.dir_model.refresh()
+        # Refresh the hierarchy tree
+        self.refresh_tree_view()
 
     def create_new_folder(self, index):
         path = self.dir_model.filePath(index)
@@ -248,9 +263,11 @@ class BatchMetaDataHandlingPanel(QWidget):
             new_folder_path = os.path.join(path, folder_name)
             try:
                 os.mkdir(new_folder_path)
-                self.dir_model.refresh()
+                # Refresh the hierarchy tree
+                self.refresh_tree_view()
             except Exception as e:
                 QMessageBox.warning(self, 'Folder Creation Error', f'Cannot create folder: {e}')
+
 
     def on_tree_item_double_clicked(self, index):
         path = self.dir_model.filePath(index)
@@ -434,11 +451,16 @@ class BatchMetaDataHandlingPanel(QWidget):
                 save_folder = self.current_folder_path
 
             save_path = os.path.join(save_folder, default_name)
+
             try:
                 with open(save_path, 'w') as f:
                     f.write(content)
                 QMessageBox.information(self, 'Metadata Saved', f'Metadata saved to {save_path}')
                 self.metadata_processed.emit()  # Emit signal after saving metadata
+
+                # Refresh the hierarchy tree to reflect the new metadata file
+                self.refresh_tree_view()
+
             except Exception as e:
                 QMessageBox.warning(self, 'Save Error', f'Failed to save metadata:\n{e}')
         else:
@@ -583,6 +605,10 @@ class BatchMetaDataHandlingPanel(QWidget):
         self.metadata_processed.emit()  # Emit signal after processing metadata
         self.progress_bar.setVisible(False)  # Hide the progress bar after completion
         self.progress_bar.setValue(0)  # Reset progress bar value
+
+        # Refresh the hierarchy tree to show new metadata files
+        self.refresh_tree_view()
+
 
     def navigate_back(self):
         if self.navigation_history:
