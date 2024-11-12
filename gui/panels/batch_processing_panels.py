@@ -8,7 +8,8 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFileDialog,
     QLineEdit, QTableView, QTreeView, QAbstractItemView, QHeaderView,
     QProgressBar, QMessageBox, QCalendarWidget, QDateEdit, QDialog, QFormLayout,
-    QGroupBox, QScrollArea, QDateTimeEdit, QGridLayout, QApplication,QDirModel,QCheckBox,QComboBox
+    QGroupBox, QScrollArea, QDateTimeEdit, QGridLayout, 
+    QApplication,QDirModel,QCheckBox,QComboBox, QTextEdit,QTabWidget
 )
 from PyQt5.QtCore import pyqtSignal, Qt, QAbstractTableModel, QModelIndex, QDir, QDateTime
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
@@ -16,6 +17,11 @@ from PyQt5.QtGui import QIcon
 import yaml
 import datetime
 from PyQt5.QtCore import pyqtSignal
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+
 
 def resource_path(relative_path):
     """Get the absolute path to a resource, works for development and PyInstaller."""
@@ -668,6 +674,12 @@ class BatchFileHandlingPanel(QWidget):
         self.metadata_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         left_layout.addWidget(self.metadata_table)
 
+        # **Add "Run Scan for Statistics" button**
+        self.statistics_button = QPushButton("Run Scan for Statistics")
+        self.statistics_button.setIcon(QIcon(resource_path('gui/resources/statistics_icon.png')))
+        self.statistics_button.clicked.connect(self.run_statistics_scan)
+        left_layout.addWidget(self.statistics_button)
+
         # New "File Name Handling" button
         self.file_name_handling_button = QPushButton("File Name Handling")
         self.file_name_handling_button.setIcon(QIcon(resource_path('gui/resources/file_name_handling_icon.png')))
@@ -691,6 +703,16 @@ class BatchFileHandlingPanel(QWidget):
         self.folder_tree.setSortingEnabled(True)
         right_layout.addWidget(QLabel("Folder Structure:"))
         right_layout.addWidget(self.folder_tree)
+
+    def run_statistics_scan(self):
+        if self.folder_path_line_edit.text() == '':
+            QMessageBox.warning(self, "No Root Folder Selected", "Please select a root folder first.")
+            return
+
+        # Open the Statistics Dialog
+        self.statistics_dialog = StatisticsDialog(self.metadata_df, self.folder_path_line_edit.text(), self)
+        self.statistics_dialog.exec_()
+
 
     def open_file_name_handling_window(self):
         if self.folder_path_line_edit.text() == '':
@@ -1292,6 +1314,168 @@ class RestructuringDialog(QDialog):
         # Emit the restructuring_done signal
         self.restructuring_done.emit()
 
+class StatisticsDialog(QDialog):
+    def __init__(self, metadata_df, root_folder, parent=None):
+        super().__init__(parent)
+        self.metadata_df = metadata_df
+        self.root_folder = root_folder
+        self.init_ui()
+
+    def init_ui(self):
+        self.setWindowTitle("Statistics Report")
+        self.setMinimumSize(1000, 700)
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        # Tab widget to organize different statistics
+        self.tabs = QTabWidget()
+        layout.addWidget(self.tabs)
+
+        # **Report Tab**
+        self.report_tab = QWidget()
+        self.report_layout = QVBoxLayout()
+        self.report_tab.setLayout(self.report_layout)
+
+        self.text_edit = QTextEdit()
+        self.text_edit.setReadOnly(True)
+        self.report_layout.addWidget(self.text_edit)
+
+        self.tabs.addTab(self.report_tab, "Report")
+
+        # **Plots Tab**
+        self.plots_tab = QWidget()
+        self.plots_layout = QVBoxLayout()
+        self.plots_tab.setLayout(self.plots_layout)
+
+        self.figure = plt.figure(figsize=(10, 8))
+        self.canvas = FigureCanvas(self.figure)
+        self.plots_layout.addWidget(self.canvas)
+
+        self.tabs.addTab(self.plots_tab, "Plots")
+
+        # **Buttons to Save Report and Plots**
+        buttons_layout = QHBoxLayout()
+        self.save_report_button = QPushButton("Save Report")
+        self.save_report_button.clicked.connect(self.save_report)
+        buttons_layout.addWidget(self.save_report_button)
+
+        self.save_plots_button = QPushButton("Save Plots")
+        self.save_plots_button.clicked.connect(self.save_plots)
+        buttons_layout.addWidget(self.save_plots_button)
+
+        layout.addLayout(buttons_layout)
+
+        # Generate statistics after UI is set up
+        self.generate_statistics()
+
+    def generate_statistics(self):
+        # Initialize a report string
+        report = ""
+
+        # **1. Analyze File Names**
+        file_names = self.metadata_df['File Name'].dropna()
+        file_tokens = file_names.apply(lambda name: re.split(r'[_\-\s]+', name))
+        file_tokens = file_tokens.explode().str.lower()
+        file_token_counts = file_tokens.value_counts()
+
+        report += "File Name Token Frequencies:\n"
+        report += file_token_counts.to_string()
+        report += "\n\n"
+
+        # **2. Analyze Folder Names**
+        folder_paths = self.metadata_df['Folder Path'].dropna().unique()
+        folder_names = pd.Series(folder_paths).apply(os.path.basename)
+        folder_tokens = folder_names.apply(lambda name: re.split(r'[_\-\s]+', name))
+        folder_tokens = folder_tokens.explode().str.lower()
+        folder_token_counts = folder_tokens.value_counts()
+
+        report += "Folder Name Token Frequencies:\n"
+        report += folder_token_counts.to_string()
+        report += "\n\n"
+
+        # **3. Analyze Creation and Modification Dates**
+        creation_dates = self.metadata_df['Creation Date'].dropna()
+        modification_dates = self.metadata_df['Modification Date'].dropna()
+
+        # Convert dates to datetime.date for grouping
+        creation_dates = creation_dates.dt.date
+        modification_dates = modification_dates.dt.date
+
+        creation_date_counts = creation_dates.value_counts().sort_index()
+        modification_date_counts = modification_dates.value_counts().sort_index()
+
+        report += "Creation Dates Distribution:\n"
+        report += creation_date_counts.to_string()
+        report += "\n\n"
+
+        report += "Modification Dates Distribution:\n"
+        report += modification_date_counts.to_string()
+        report += "\n\n"
+
+        # **4. Analyze File Sizes**
+        file_sizes = self.metadata_df['File Size'].dropna()
+        report += f"File Size Statistics (in bytes):\n"
+        report += f"Mean: {file_sizes.mean():.2f}\n"
+        report += f"Median: {file_sizes.median():.2f}\n"
+        report += f"Max: {file_sizes.max():.2f}\n"
+        report += f"Min: {file_sizes.min():.2f}\n"
+        report += "\n\n"
+
+        # **Set the report in the text edit**
+        self.text_edit.setPlainText(report)
+
+        # **Generate Plots**
+        self.figure.clear()
+        axes = self.figure.subplots(2, 2)
+
+        # Top 20 File Name Tokens
+        file_token_counts.head(20).plot(kind='bar', ax=axes[0, 0], color='skyblue')
+        axes[0, 0].set_title('Top 20 File Name Tokens')
+        axes[0, 0].set_xlabel('Tokens')
+        axes[0, 0].set_ylabel('Frequency')
+
+        # Top 20 Folder Name Tokens
+        folder_token_counts.head(20).plot(kind='bar', ax=axes[0, 1], color='lightgreen')
+        axes[0, 1].set_title('Top 20 Folder Name Tokens')
+        axes[0, 1].set_xlabel('Tokens')
+        axes[0, 1].set_ylabel('Frequency')
+
+        # Creation Dates Over Time
+        creation_date_counts.plot(kind='line', ax=axes[1, 0], marker='o', color='coral')
+        axes[1, 0].set_title('Files Created Over Time')
+        axes[1, 0].set_xlabel('Date')
+        axes[1, 0].set_ylabel('Number of Files')
+
+        # Modification Dates Over Time
+        modification_date_counts.plot(kind='line', ax=axes[1, 1], marker='o', color='violet')
+        axes[1, 1].set_title('Files Modified Over Time')
+        axes[1, 1].set_xlabel('Date')
+        axes[1, 1].set_ylabel('Number of Files')
+
+        self.figure.tight_layout()
+        self.canvas.draw()
+
+    def save_report(self):
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save Report", "", "Text Files (*.txt);;YAML Files (*.yaml)", options=options)
+        if file_name:
+            if file_name.endswith('.yaml'):
+                # Save report as YAML
+                report_data = self.text_edit.toPlainText()
+                # Convert report string into a dictionary
+                report_dict = {'report': report_data}
+                with open(file_name, 'w') as f:
+                    yaml.dump(report_dict, f)
+            else:
+                # Save report as text
+                with open(file_name, 'w') as f:
+                    f.write(self.text_edit.toPlainText())
+
+    def save_plots(self):
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save Plots", "", "PNG Files (*.png);;PDF Files (*.pdf)", options=options)
+        if file_name:
+            self.figure.savefig(file_name)
 
     #################################################################################
 #################################################################################
