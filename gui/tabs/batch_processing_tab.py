@@ -7,12 +7,12 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
 
-# Import the panels
-from gui.panels.batch_processing_panels import (
-    BatchDataHandlingPanel,
-    BatchFileHandlingPanel,
-    BatchMetaDataHandlingPanel
-)
+
+from gui.panels.batch_file_handling_panels import BatchFileHandlingPanel
+from gui.panels.batch_data_handling_panels import BatchDataHandlingPanel
+from gui.panels.batch_metadata_handling_panels import BatchMetaDataHandlingPanel
+
+
 import sys 
 
 def resource_path(relative_path):

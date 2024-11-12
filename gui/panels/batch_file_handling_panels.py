@@ -1,4 +1,4 @@
-# batch_processing_panels.py
+# batch_file_handling_panels.py
 import os
 import sys
 import shutil
@@ -40,28 +40,6 @@ def is_subdirectory(child, parent):
         return False
     return os.path.commonpath([parent, child]) == parent
 
-class BatchDataHandlingPanel(QWidget):
-    data_processed = pyqtSignal()
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.init_ui()
-
-    def init_ui(self):
-        layout = QVBoxLayout()
-
-        # Example content for Batch Data Handling
-        layout.addWidget(QLabel("Batch Data Handling Panel"))
-        self.process_data_button = QPushButton("Process Data")
-        self.process_data_button.clicked.connect(self.process_data)
-        layout.addWidget(self.process_data_button)
-
-        self.setLayout(layout)
-
-    def process_data(self):
-        # Placeholder for processing data
-        print("Processing data...")
-        self.data_processed.emit()
 
 #################################################################################
 #################################################################################
@@ -1477,28 +1455,6 @@ class StatisticsDialog(QDialog):
         if file_name:
             self.figure.savefig(file_name)
 
-    #################################################################################
+
 #################################################################################
-
-class BatchMetaDataHandlingPanel(QWidget):
-    metadata_processed = pyqtSignal()
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.init_ui()
-
-    def init_ui(self):
-        layout = QVBoxLayout()
-
-        # Example content for Batch Meta Data Handling
-        layout.addWidget(QLabel("Batch Meta Data Handling Panel"))
-        self.process_metadata_button = QPushButton("Process Meta Data")
-        self.process_metadata_button.clicked.connect(self.process_metadata)
-        layout.addWidget(self.process_metadata_button)
-
-        self.setLayout(layout)
-
-    def process_metadata(self):
-        # Placeholder for processing metadata
-        print("Processing metadata...")
-        self.metadata_processed.emit()
+#################################################################################
