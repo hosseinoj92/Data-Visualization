@@ -34,6 +34,7 @@ class MetadataField(QWidget):
         self.key_edit = QLineEdit(key)
         self.value_edit = QLineEdit(value)
         self.remove_button = QPushButton('Remove')
+        self.remove_button.setIcon(QIcon(resource_path('gui/resources/remove.png')))  # Ensure the icon exists
         self.remove_button.setFixedWidth(60)
         self.layout.addWidget(self.key_edit)
         self.layout.addWidget(self.value_edit)
@@ -98,10 +99,15 @@ class BatchMetaDataHandlingPanel(QWidget):
         # Buttons below scroll area
         button_layout = QHBoxLayout()
         self.add_investigation_button = QPushButton('Add Investigation')
+        self.add_investigation_button.setIcon(QIcon(resource_path('gui/resources/investigation_icon.png')))  # Ensure the icon exists
         self.add_investigation_button.setToolTip('Add metadata for an Investigation.')
+
         self.add_study_button = QPushButton('Add Study')
+        self.add_study_button.setIcon(QIcon(resource_path('gui/resources/study_icon.png')))  # Ensure the icon exists
         self.add_study_button.setToolTip('Add metadata for a Study.')
+
         self.add_assay_button = QPushButton('Add Assay')
+        self.add_assay_button.setIcon(QIcon(resource_path('gui/resources/assay_icon.png')))  # Ensure the icon exists
         self.add_assay_button.setToolTip('Add metadata for an Assay.')
         button_layout.addWidget(self.add_investigation_button)
         
@@ -112,11 +118,17 @@ class BatchMetaDataHandlingPanel(QWidget):
         # Save and Export buttons
         save_export_layout = QHBoxLayout()
         self.save_metadata_button = QPushButton('Save Metadata')
+        self.save_metadata_button.setIcon(QIcon(resource_path('gui/resources/save_icon.png')))  # Ensure the icon exists
         self.save_metadata_button.setToolTip('Save the current metadata.')
+
         self.export_metadata_button = QPushButton('Export Metadata')
+        self.export_metadata_button.setIcon(QIcon(resource_path('gui/resources/export_icon.png')))  # Ensure the icon exists
         self.export_metadata_button.setToolTip('Export the current metadata.')
+
         self.extract_metadata_button = QPushButton('Extract Metadata from Data Points')
+        self.extract_metadata_button.setIcon(QIcon(resource_path('gui/resources/extract_icon.png')))  # Ensure the icon exists
         self.extract_metadata_button.setToolTip('Extract metadata from data points based on token mapping.')
+        
         save_export_layout.addWidget(self.save_metadata_button)
         save_export_layout.addWidget(self.export_metadata_button)
         save_export_layout.addWidget(self.extract_metadata_button)
@@ -315,7 +327,7 @@ class BatchMetaDataHandlingPanel(QWidget):
             self.add_metadata_field(key, value)
         # Button to add additional fields
         self.add_field_button = QPushButton('Add Field')
-        self.add_field_button.setIcon(QIcon(resource_path('gui/resources/add_field_icon.png')))  # Optional: add icon
+        self.add_field_button.setIcon(QIcon(resource_path('gui/resources/add2.png')))  # Optional: add icon
         self.add_field_button.clicked.connect(self.add_empty_field)
         self.scroll_layout.addRow(self.add_field_button)
         self.extract_metadata_button.hide()
@@ -342,7 +354,7 @@ class BatchMetaDataHandlingPanel(QWidget):
                 self.add_metadata_field(key, value)
             # Button to add additional fields
             self.add_field_button = QPushButton('Add Field')
-            self.add_field_button.setIcon(QIcon(resource_path('gui/resources/add_field_icon.png')))  # Optional: add icon
+            self.add_field_button.setIcon(QIcon(resource_path('gui/resources/add2.png')))  # Optional: add icon
             self.add_field_button.clicked.connect(self.add_empty_field)
             self.scroll_layout.addRow(self.add_field_button)
             self.extract_metadata_button.hide()
@@ -369,7 +381,7 @@ class BatchMetaDataHandlingPanel(QWidget):
                 self.add_metadata_field(key, value)
             # Button to add additional fields
             self.add_field_button = QPushButton('Add Field')
-            self.add_field_button.setIcon(QIcon(resource_path('gui/resources/add_field_icon.png')))  # Optional: add icon
+            self.add_field_button.setIcon(QIcon(resource_path('gui/resources/add2.png')))  # Optional: add icon
             self.add_field_button.clicked.connect(self.add_empty_field)
             self.scroll_layout.addRow(self.add_field_button)
             self.extract_metadata_button.show()
