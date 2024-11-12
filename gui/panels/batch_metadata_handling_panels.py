@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog,
     QTreeView, QAbstractItemView, QMessageBox, QLabel, QLineEdit,
     QScrollArea, QFormLayout, QComboBox, QTextEdit, QInputDialog,
-    QMenu, QAction, QApplication, QProgressBar, QDirModel, QGroupBox, QProgressBar,QShortcut
+    QMenu, QAction, QApplication, QProgressBar, QDirModel, QGroupBox, QProgressBar,QShortcut, QSizePolicy
 
 )
 from PyQt5.QtCore import (
@@ -31,16 +31,34 @@ class MetadataField(QWidget):
     def __init__(self, key='', value='', parent=None):
         super().__init__(parent)
         self.layout = QHBoxLayout()
+        
+        # Create input fields
         self.key_edit = QLineEdit(key)
         self.value_edit = QLineEdit(value)
-        self.remove_button = QPushButton('Remove')
+        
+        # Create remove button with icon and fixed size
+        self.remove_button = QPushButton()
         self.remove_button.setIcon(QIcon(resource_path('gui/resources/remove.png')))  # Ensure the icon exists
-        self.remove_button.setFixedWidth(60)
-        self.layout.addWidget(self.key_edit)
-        self.layout.addWidget(self.value_edit)
+        self.remove_button.setFixedSize(24, 24)  # Set fixed size for the remove button
+        self.remove_button.setToolTip('Remove this field')
+        
+        # Adjust size policies
+        self.key_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.value_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.remove_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        
+        # Add widgets to the layout with stretch factors
+        self.layout.addWidget(self.key_edit, 2)
+        self.layout.addWidget(self.value_edit, 3)
         self.layout.addWidget(self.remove_button)
+        
+        # Set layout margins and spacing
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(5)
+        
         self.setLayout(self.layout)
         self.remove_button.clicked.connect(self.remove_self)
+
 
     def remove_self(self):
         self.setParent(None)
@@ -87,6 +105,11 @@ class BatchMetaDataHandlingPanel(QWidget):
         left_panel.addLayout(navigation_layout)
 
 
+        # Group box for metadata fields
+        self.metadata_group_box = QGroupBox('Metadata Fields')
+        self.metadata_group_layout = QVBoxLayout()
+        self.metadata_group_box.setLayout(self.metadata_group_layout)
+
         # Scroll Area for Metadata Fields
         self.scroll_area = QScrollArea()
         self.scroll_area_widget = QWidget()
@@ -94,7 +117,22 @@ class BatchMetaDataHandlingPanel(QWidget):
         self.scroll_area_widget.setLayout(self.scroll_layout)
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setWidget(self.scroll_area_widget)
-        left_panel.addWidget(self.scroll_area)
+        self.metadata_group_layout.addWidget(self.scroll_area)
+        
+        self.metadata_group_box.setStyleSheet("""
+            QGroupBox {
+                font-weight: bold;
+                border: 1px solid gray;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding: 0 3px;
+            }
+        """)
+        left_panel.addWidget(self.metadata_group_box)
 
         # Buttons below scroll area
         button_layout = QHBoxLayout()
