@@ -17,6 +17,7 @@ from PyQt5.QtCore import (
     Qt, QDir, pyqtSignal,QItemSelectionModel
 )
 from PyQt5.QtGui import QIcon, QKeySequence
+from collections import OrderedDict
 
 def resource_path(relative_path):
     """Get the absolute path to a resource, works for development and PyInstaller."""
@@ -205,7 +206,7 @@ class BatchMetaDataHandlingPanel(QWidget):
 
         # Set the default column width for the "Name" column
         self.tree_view.setColumnWidth(0, 250)  # Adjust the width as desired
-        
+
         right_panel.addWidget(self.tree_view)
 
         main_layout.addLayout(right_panel)
@@ -539,7 +540,7 @@ class BatchMetaDataHandlingPanel(QWidget):
             QMessageBox.warning(self, 'No Metadata', 'Please add metadata first.')
             return
 
-        data = {}
+        data = OrderedDict()
         for field in self.metadata_fields:
             key, value = field.get_data()
             data[key] = value
@@ -549,10 +550,10 @@ class BatchMetaDataHandlingPanel(QWidget):
         if ok:
             if format_choice == 'YAML':
                 file_extension = '.yaml'
-                content = yaml.dump(data)
+                content = yaml.dump(data, default_flow_style=False)
             elif format_choice == 'JSON':
                 file_extension = '.json'
-                content = json.dumps(data, indent=2)
+                content = json.dumps(data, indent=2, sort_keys=False)
             elif format_choice == 'TXT':
                 file_extension = '.txt'
                 content = '\n'.join(f'{k}: {v}' for k, v in data.items())
@@ -666,13 +667,6 @@ class BatchMetaDataHandlingPanel(QWidget):
                 return
             metadata_keys.append(key)
 
-        # Confirm the number of tokens matches the number of metadata keys
-        sample_file = files[0]
-        tokens = re.split(r'[_\-\s]+', sample_file)
-        if len(tokens) != len(metadata_keys):
-            QMessageBox.warning(self, 'Mismatch', 'The number of tokens does not match the number of metadata keys.')
-            return
-
         format_options = ['YAML', 'JSON', 'TXT']
         format_choice, ok = QInputDialog.getItem(self, 'Select Format', 'Choose metadata format:', format_options, 0, False)
         if not ok:
@@ -685,29 +679,57 @@ class BatchMetaDataHandlingPanel(QWidget):
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(True)  # Show the progress bar
 
+        skipped_files = []  # Collect skipped files
+
+        # Build ordered list of metadata keys
+        ordered_keys = []
+
+        # Add keys from static fields (metadata_fields)
+        for field in self.metadata_fields:
+            key, value = field.get_data()
+            if key:
+                ordered_keys.append(key)
+
+        # Add keys from token mapping fields (token_fields)
+        for key in metadata_keys:
+            ordered_keys.append(key)
+
         for file_name in files:
             tokens = re.split(r'[_\-\s]+', file_name)
             if len(tokens) != len(metadata_keys):
-                QMessageBox.warning(self, 'Token Mismatch', f'File "{file_name}" does not have the expected number of tokens.')
+                skipped_files.append(file_name)
                 continue
 
-            data = {}
-            for key, token in zip(metadata_keys, tokens):
-                data[key] = token.strip()
+            data = OrderedDict()
 
-            # Add static fields if any (if you want to include additional metadata beyond tokens)
+            # Collect values for static fields
+            static_field_values = OrderedDict()
             for field in self.metadata_fields:
                 key, value = field.get_data()
                 if key:
-                    data[key] = value
+                    static_field_values[key] = value
+
+            # Collect values for token-mapped fields
+            token_field_values = OrderedDict()
+            for key, token in zip(metadata_keys, tokens):
+                token_field_values[key] = token.strip()
+
+            # Build data in order
+            for key in ordered_keys:
+                if key in static_field_values:
+                    data[key] = static_field_values[key]
+                elif key in token_field_values:
+                    data[key] = token_field_values[key]
+                else:
+                    data[key] = ''  # or None
 
             # Determine file extension and content
             if format_choice == 'YAML':
                 file_extension = '.yaml'
-                content = yaml.dump(data)
+                content = yaml.dump(data, default_flow_style=False)
             elif format_choice == 'JSON':
                 file_extension = '.json'
-                content = json.dumps(data, indent=2)
+                content = json.dumps(data, indent=2, sort_keys=False)
             elif format_choice == 'TXT':
                 file_extension = '.txt'
                 content = '\n'.join(f'{k}: {v}' for k, v in data.items())
@@ -727,6 +749,15 @@ class BatchMetaDataHandlingPanel(QWidget):
             # Update progress bar
             self.progress_bar.setValue(self.progress_bar.value() + 1)
             QApplication.processEvents()
+
+        # After processing all files
+        if skipped_files:
+            skipped_files_str = '\n'.join(skipped_files)
+            QMessageBox.information(
+                self,
+                'Skipped Files',
+                f'The following files were skipped due to token mismatch:\n{skipped_files_str}'
+            )
 
         QMessageBox.information(self, 'Metadata Extraction', 'Metadata extracted and saved for all files.')
         self.metadata_processed.emit()  # Emit signal after processing metadata
