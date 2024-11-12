@@ -971,7 +971,7 @@ class RestructuringDialog(QDialog):
 
         # **Right Layout: Folder/File Tree**
         right_layout = QVBoxLayout()
-        main_layout.addLayout(right_layout, stretch=2)  # Allocate space for the tree view
+        main_layout.addLayout(right_layout, stretch=3)  # Allocate space for the tree view
 
         self.folder_tree = QTreeView()
         self.dir_model = QDirModel()
@@ -984,7 +984,6 @@ class RestructuringDialog(QDialog):
         # **Initially Disable Date Filters**
         self.toggle_creation_date_filters(self.include_creation_date_in_name_checkbox.isChecked())
         self.toggle_modification_date_filters(self.include_modification_date_in_name_checkbox.isChecked())
-
 
     def toggle_custom_folder_input(self, state):
         """Enable or disable the custom folder name input based on checkbox state."""
@@ -1021,11 +1020,10 @@ class RestructuringDialog(QDialog):
                 return
             self.dest_folder_line_edit.setText(folder)
 
-
     def execute_restructuring(self):
         # Determine whether to process File Names or Folder Names
         apply_to = self.apply_to_combo_box.currentText()
-        
+
         # Prepare the DataFrame based on the selection
         if apply_to == "File Names":
             df = self.metadata_df.copy()
@@ -1083,14 +1081,27 @@ class RestructuringDialog(QDialog):
                                 group_mask |= df[name_column].str.contains(pattern, flags=re.IGNORECASE, na=False)
                     group_masks.append(group_mask)
 
-        if not group_masks:
-            QMessageBox.warning(self, "No Criteria", "Please add at least one criterion.")
+        # Check if no criteria groups are added and no date filters are enabled
+        if not group_masks and not (
+            self.include_creation_date_in_name_checkbox.isChecked() or 
+            self.include_modification_date_in_name_checkbox.isChecked()
+        ):
+            QMessageBox.warning(
+                self, 
+                "No Criteria", 
+                "Please add at least one replacement criterion or specify a date range."
+            )
             return
 
-        # Combine group masks using AND logic between groups
-        combined_mask = group_masks[0]
-        for mask in group_masks[1:]:
-            combined_mask &= mask
+        # Initialize combined_mask
+        if group_masks:
+            # Combine group masks using AND logic between groups
+            combined_mask = group_masks[0]
+            for mask in group_masks[1:]:
+                combined_mask &= mask
+        else:
+            # If no replacement criteria, start with all True
+            combined_mask = pd.Series(True, index=df.index)
 
         # Apply the combined mask to the DataFrame
         selected_items_df = df[combined_mask].copy()
@@ -1124,13 +1135,12 @@ class RestructuringDialog(QDialog):
             QMessageBox.information(self, "No Items Found", f"No {apply_to.lower()} matching the criteria were found.")
             return
 
-        # Get destination folder
-        dest_folder = self.dest_folder_line_edit.text()
+        # **Handle Custom Folder Name**
+        dest_folder = self.dest_folder_line_edit.text()  # Ensure dest_folder is defined here
         if not dest_folder:
             QMessageBox.warning(self, "No Destination Folder", "Please select a destination folder.")
             return
 
-        # **Handle Custom Folder Name**
         if self.custom_folder_checkbox.isChecked():
             custom_folder_name = self.custom_folder_line_edit.text().strip()
             if not custom_folder_name:
@@ -1146,16 +1156,17 @@ class RestructuringDialog(QDialog):
             folder_name_parts = []
 
             # Collect folder name parts from criteria groups
-            criteria_folder_name_parts = []
-            for i in range(self.criteria_groups_layout.count()):
-                group_widget = self.criteria_groups_layout.itemAt(i).widget()
-                if isinstance(group_widget, CriteriaGroup):
-                    criteria = group_widget.get_criteria()
-                    if criteria:
-                        criteria_str = "_".join(criteria)
-                        criteria_folder_name_parts.append(criteria_str)
-            if criteria_folder_name_parts:
-                folder_name_parts.append("_".join(criteria_folder_name_parts))
+            if group_masks:
+                criteria_folder_name_parts = []
+                for i in range(self.criteria_groups_layout.count()):
+                    group_widget = self.criteria_groups_layout.itemAt(i).widget()
+                    if isinstance(group_widget, CriteriaGroup):
+                        criteria = group_widget.get_criteria()
+                        if criteria:
+                            criteria_str = "_".join(criteria)
+                            criteria_folder_name_parts.append(criteria_str)
+                if criteria_folder_name_parts:
+                    folder_name_parts.append("_".join(criteria_folder_name_parts))
 
             # Add date ranges to folder name if applicable and if user chose to include them
             date_parts = []
@@ -1260,6 +1271,7 @@ class RestructuringDialog(QDialog):
         # Refresh folder tree
         self.dir_model.refresh()
 
+        # Emit the restructuring_done signal
         self.restructuring_done.emit()
 
     #################################################################################
