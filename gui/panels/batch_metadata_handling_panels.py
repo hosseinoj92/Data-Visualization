@@ -10,7 +10,8 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog,
     QTreeView, QAbstractItemView, QMessageBox, QLabel, QLineEdit,
     QScrollArea, QFormLayout, QComboBox, QTextEdit, QInputDialog,
-    QMenu, QAction, QApplication, QProgressBar, QDirModel, QGroupBox, QProgressBar,QShortcut, QSizePolicy
+    QMenu, QAction, QApplication, QProgressBar, QDirModel, QGroupBox,
+      QProgressBar,QShortcut, QSizePolicy, QCheckBox  
 
 )
 from PyQt5.QtCore import (
@@ -662,12 +663,23 @@ class BatchMetaDataHandlingPanel(QWidget):
                 token_mapping_layout.addRow(f'Token {i+1}:', key_field)
                 self.token_fields.append(key_field)
 
+            # **Add the "Save in Separate Folder" checkbox**
+            self.save_in_separate_folder_checkbox = QCheckBox('Save in Separate Folder')
+            self.save_in_separate_folder_checkbox.setChecked(True)  # Pre-check the checkbox
+
             # Button to apply mapping
-            self.apply_button = QPushButton('Apply for all')
+            self.apply_button = QPushButton('Apply for All')
             self.apply_button.setToolTip('Apply the token mappings to all files in the selected folder.')
             self.apply_button.setIcon(QIcon(resource_path('gui/resources/apply_icon.png')))  # Optional: add icon
             self.apply_button.clicked.connect(self.apply_token_mapping)
-            self.scroll_layout.addRow(self.apply_button)
+
+            # **Create a horizontal layout to hold the checkbox and the apply button**
+            apply_layout = QVBoxLayout()
+            apply_layout.addWidget(self.save_in_separate_folder_checkbox)
+            apply_layout.addWidget(self.apply_button)
+
+            # **Add the layout to the scroll area**
+            self.scroll_layout.addRow(apply_layout)
         else:
             QMessageBox.warning(self, 'No Folder Selected', 'Please select a folder in the hierarchy tree to extract metadata.')
 
@@ -723,6 +735,17 @@ class BatchMetaDataHandlingPanel(QWidget):
         for key in metadata_keys:
             ordered_keys.append(key)
 
+        # **Determine the save folder based on the checkbox state**
+        if self.save_in_separate_folder_checkbox.isChecked():
+            # Create a new folder within the selected folder
+            parent_folder_name = os.path.basename(selected_folder)
+            new_folder_name = f"Assay_Metadata_{parent_folder_name}"
+            save_folder = os.path.join(selected_folder, new_folder_name)
+            # Create the new folder if it doesn't exist
+            os.makedirs(save_folder, exist_ok=True)
+        else:
+            save_folder = selected_folder
+
         for file_name in files:
             tokens = re.split(r'[_\-\s]+', file_name)
             if len(tokens) != len(metadata_keys):
@@ -765,9 +788,10 @@ class BatchMetaDataHandlingPanel(QWidget):
             else:
                 continue
 
-            # Save metadata file
+            # **Construct the save path using the determined save folder**
             base_name = os.path.splitext(file_name)[0]
-            save_path = os.path.join(selected_folder, base_name + '_metadata' + file_extension)
+            save_path = os.path.join(save_folder, base_name + '_metadata' + file_extension)
+
             try:
                 with open(save_path, 'w') as f:
                     f.write(content)
