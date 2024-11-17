@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QLabel, QToolButton, QScrollArea, QSizePolicy,
     QPushButton, QHBoxLayout, QFrame, QFileDialog, QListWidgetItem, QColorDialog, QTableWidget, QHeaderView, QTableWidgetItem,
     QMessageBox, QButtonGroup, QGroupBox, QVBoxLayout, QDialog, 
-    QComboBox, QSpinBox, QCheckBox, QLineEdit, QDoubleSpinBox
+    QComboBox, QSpinBox, QCheckBox, QLineEdit, QDoubleSpinBox,QFormLayout
 
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QEvent
@@ -104,6 +104,10 @@ class SubplotsConfigDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Configure Subplots")
+
+        self.resize(800, 600)
+        self.setMinimumSize(700, 600)
+ 
         self.current_configs = []  # List of configurations (dictionaries)
         self.subplot_configs = []  # To store subplot configurations
         self.layout_settings = {'rows': 1, 'columns': 1, 'auto_layout': False}
@@ -246,111 +250,110 @@ class SubplotConfigWidget(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        layout = QVBoxLayout()
+        main_layout = QVBoxLayout()
 
-        # Title for the subplot
-        subplot_title_layout = QHBoxLayout()
-        subplot_title_layout.addWidget(QLabel("Subplot Title:"))
+        # Use QFormLayout for the subplot details
+        form_layout = QFormLayout()
+        form_layout.setLabelAlignment(Qt.AlignRight)
+        form_layout.setFormAlignment(Qt.AlignLeft)
+        form_layout.setSpacing(10)
+
+        # Subplot Title
         self.title_input = QLineEdit()
         self.title_input.setPlaceholderText("Enter subplot title")
-        subplot_title_layout.addWidget(self.title_input)
-        layout.addLayout(subplot_title_layout)
+        form_layout.addRow("Subplot Title:", self.title_input)
 
-        # Font size for subplot title
-        title_font_size_layout = QHBoxLayout()
-        title_font_size_layout.addWidget(QLabel("Title Font Size:"))
+        # Title Font Size
         self.title_font_size_spinbox = QSpinBox()
         self.title_font_size_spinbox.setRange(6, 24)
         self.title_font_size_spinbox.setValue(14)
-        title_font_size_layout.addWidget(self.title_font_size_spinbox)
-        layout.addLayout(title_font_size_layout)
+        form_layout.addRow("Title Font Size:", self.title_font_size_spinbox)
 
         # X Axis Label
-        x_axis_layout = QHBoxLayout()
-        x_axis_layout.addWidget(QLabel("X Axis Label:"))
         self.x_axis_label_input = QLineEdit()
         self.x_axis_label_input.setPlaceholderText("Enter X axis label")
-        x_axis_layout.addWidget(self.x_axis_label_input)
-        layout.addLayout(x_axis_layout)
+        form_layout.addRow("X Axis Label:", self.x_axis_label_input)
 
         # Y Axis Label
-        y_axis_layout = QHBoxLayout()
-        y_axis_layout.addWidget(QLabel("Y Axis Label:"))
         self.y_axis_label_input = QLineEdit()
         self.y_axis_label_input.setPlaceholderText("Enter Y axis label")
-        y_axis_layout.addWidget(self.y_axis_label_input)
-        layout.addLayout(y_axis_layout)
+        self.y_axis_label_input.setMaximumWidth(300)
+        form_layout.addRow("Y Axis Label:", self.y_axis_label_input)
+
+        main_layout.addLayout(form_layout)
 
         # Advanced Options Button
         self.advanced_options_button = QPushButton("Advanced Options")
         advanced_options_icon_path = resource_path("gui/resources/advanced_options_icon.png")
-        self.advanced_options_button.setIcon(QIcon(advanced_options_icon_path))
+        if os.path.exists(advanced_options_icon_path):
+            self.advanced_options_button.setIcon(QIcon(advanced_options_icon_path))
+        else:
+            print(f"Warning: Advanced Options icon not found at {advanced_options_icon_path}")
         self.advanced_options_button.clicked.connect(self.open_advanced_options_dialog)
-        layout.addWidget(self.advanced_options_button)
+        main_layout.addWidget(self.advanced_options_button)
 
         # Container for multiple DatasetConfigWidgets
         self.datasets_container = QVBoxLayout()
-        layout.addLayout(self.datasets_container)
+        main_layout.addLayout(self.datasets_container)
 
         # Buttons to add/remove datasets
         datasets_buttons_layout = QHBoxLayout()
         self.add_dataset_button = QPushButton("Add Dataset")
-
-        # Set the icon for Add Dataset button
         add_icon_path = resource_path("gui/resources/add.png")
-        self.add_dataset_button.setIcon(QIcon(add_icon_path))
-
+        if os.path.exists(add_icon_path):
+            self.add_dataset_button.setIcon(QIcon(add_icon_path))
+        else:
+            print(f"Warning: Add icon not found at {add_icon_path}")
         self.add_dataset_button.clicked.connect(self.add_dataset)
         self.remove_dataset_button = QPushButton("Remove Selected Dataset")
-
-        # Set the icon for Remove Selected Dataset button
         remove_icon_path = resource_path("gui/resources/remove.png")
-        self.remove_dataset_button.setIcon(QIcon(remove_icon_path))
-
+        if os.path.exists(remove_icon_path):
+            self.remove_dataset_button.setIcon(QIcon(remove_icon_path))
+        else:
+            print(f"Warning: Remove icon not found at {remove_icon_path}")
         self.remove_dataset_button.clicked.connect(self.remove_selected_datasets)
         datasets_buttons_layout.addWidget(self.add_dataset_button)
         datasets_buttons_layout.addWidget(self.remove_dataset_button)
-        layout.addLayout(datasets_buttons_layout)
+        main_layout.addLayout(datasets_buttons_layout)
 
         # Grid Options
         grid_layout = QHBoxLayout()
         self.enable_grid_checkbox = QCheckBox("Enable Grid")
         self.enable_grid_checkbox.setChecked(True)  # Set default to checked
         grid_layout.addWidget(self.enable_grid_checkbox)
-        layout.addLayout(grid_layout)
+        main_layout.addLayout(grid_layout)
 
         # Legend Options
-        legend_layout = QHBoxLayout()
+        legend_layout = QFormLayout()
         self.enable_legend_checkbox = QCheckBox("Enable Legend")
         self.enable_legend_checkbox.setChecked(True)  # Set default to checked
-        legend_layout.addWidget(self.enable_legend_checkbox)
-        legend_layout.addWidget(QLabel("Legend Location:"))
+
         self.legend_location_dropdown = QComboBox()
         self.legend_location_dropdown.addItems([
             "Best", "Upper Right", "Upper Left", "Lower Left",
             "Lower Right", "Right", "Center Left", "Center Right",
             "Lower Center", "Upper Center", "Center"
         ])
-        legend_layout.addWidget(self.legend_location_dropdown)
-        layout.addLayout(legend_layout)
+        self.legend_location_dropdown.setMaximumWidth(150)
 
-        # Legend Font Size
-        legend_size_layout = QHBoxLayout()
-        legend_size_layout.addWidget(QLabel("Legend Font Size:"))
         self.legend_font_size_spinbox = QSpinBox()
         self.legend_font_size_spinbox.setRange(6, 24)
         self.legend_font_size_spinbox.setValue(10)
-        legend_size_layout.addWidget(self.legend_font_size_spinbox)
-        layout.addLayout(legend_size_layout)
+        self.legend_font_size_spinbox.setMaximumWidth(100)
+
+        legend_layout.addRow(self.enable_legend_checkbox)
+        legend_layout.addRow("Legend Location:", self.legend_location_dropdown)
+        legend_layout.addRow("Legend Font Size:", self.legend_font_size_spinbox)
+        main_layout.addLayout(legend_layout)
 
         # Remove Subplot Checkbox
         remove_layout = QHBoxLayout()
         self.remove_checkbox = QCheckBox("Remove Subplot")
         remove_layout.addStretch()
         remove_layout.addWidget(self.remove_checkbox)
-        layout.addLayout(remove_layout)
+        main_layout.addLayout(remove_layout)
 
-        self.setLayout(layout)
+        self.setLayout(main_layout)
 
     def open_advanced_options_dialog(self):
         dialog = SubplotAdvancedOptionsDialog(self)
@@ -421,57 +424,77 @@ class DatasetConfigWidget(QWidget):
         self.init_ui()
 
     def init_ui(self):
-        layout = QHBoxLayout()
+        main_layout = QVBoxLayout()
+
+        # First Row
+        row1_layout = QHBoxLayout()
 
         # Dataset selection
-        layout.addWidget(QLabel("Dataset:"))
+        row1_layout.addWidget(QLabel("Dataset:"))
         self.dataset_dropdown = QComboBox()
+        self.dataset_dropdown.setMaximumWidth(150)
         self.dataset_dropdown.currentIndexChanged.connect(self.update_columns)
-        layout.addWidget(self.dataset_dropdown)
+        row1_layout.addWidget(self.dataset_dropdown)
 
         # X Column selection
-        layout.addWidget(QLabel("X Column:"))
+        row1_layout.addWidget(QLabel("X Column:"))
         self.x_column_dropdown = QComboBox()
-        layout.addWidget(self.x_column_dropdown)
+        self.x_column_dropdown.setMaximumWidth(100)
+        row1_layout.addWidget(self.x_column_dropdown)
 
         # Y Column selection
-        layout.addWidget(QLabel("Y Column:"))
+        row1_layout.addWidget(QLabel("Y Column:"))
         self.y_column_dropdown = QComboBox()
-        layout.addWidget(self.y_column_dropdown)
+        self.y_column_dropdown.setMaximumWidth(100)
+        row1_layout.addWidget(self.y_column_dropdown)
 
         # Legend Label
-        layout.addWidget(QLabel("Legend Label:"))
+        row1_layout.addWidget(QLabel("Legend Label:"))
         self.legend_label_input = QLineEdit()
-        layout.addWidget(self.legend_label_input)
+        self.legend_label_input.setMaximumWidth(150)
+        row1_layout.addWidget(self.legend_label_input)
+
+        main_layout.addLayout(row1_layout)
+
+        # Second Row
+        row2_layout = QHBoxLayout()
 
         # Line Style
-        layout.addWidget(QLabel("Line Style:"))
+        row2_layout.addWidget(QLabel("Line Style:"))
         self.line_style_combo = QComboBox()
         self.line_style_combo.addItems(['Solid', 'Dashed', 'Dash-Dot', 'None'])
-        layout.addWidget(self.line_style_combo)
+        self.line_style_combo.setMaximumWidth(100)
+        row2_layout.addWidget(self.line_style_combo)
 
         # Point Style
-        layout.addWidget(QLabel("Point Style:"))
+        row2_layout.addWidget(QLabel("Point Style:"))
         self.point_style_combo = QComboBox()
         self.point_style_combo.addItems([
             'None', 'Circle', 'Square', 'Triangle Up', 'Triangle Down', 'Star',
             'Plus', 'Cross', 'Diamond', 'Pentagon', 'Hexagon'
         ])
-        layout.addWidget(self.point_style_combo)
+        self.point_style_combo.setMaximumWidth(100)
+        row2_layout.addWidget(self.point_style_combo)
 
         # Line Thickness
-        layout.addWidget(QLabel("Line Thickness:"))
+        row2_layout.addWidget(QLabel("Line Thickness:"))
         self.line_thickness_spinbox = QDoubleSpinBox()
         self.line_thickness_spinbox.setRange(0.1, 10.0)
         self.line_thickness_spinbox.setSingleStep(0.1)
         self.line_thickness_spinbox.setValue(1.0)
-        layout.addWidget(self.line_thickness_spinbox)
+        self.line_thickness_spinbox.setMaximumWidth(80)
+        row2_layout.addWidget(self.line_thickness_spinbox)
 
         # Remove Dataset Checkbox
         self.remove_checkbox = QCheckBox("Remove")
-        layout.addWidget(self.remove_checkbox)
+        row2_layout.addWidget(self.remove_checkbox)
 
-        self.setLayout(layout)
+        # Add spacer to push the Remove checkbox to the right
+        row2_layout.addStretch()
+
+        main_layout.addLayout(row2_layout)
+
+        self.setLayout(main_layout)
 
         # Now populate datasets after initializing all widgets
         self.populate_datasets()
