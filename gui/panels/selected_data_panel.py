@@ -8,6 +8,18 @@ from PyQt5.QtCore import Qt,QUrl, QMimeData
 
 from gui.utils.widgets import DraggableListWidget  # Import the DraggableListWidget from widgets.py
 
+import sys
+from PyQt5.QtGui import QIcon
+
+def resource_path(relative_path):
+    """Get the absolute path to a resource, works for development and PyInstaller."""
+    try:
+        # PyInstaller creates a temporary folder and stores its path in sys._MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 
 class SelectedDataPanel(QGroupBox):
     def __init__(self, include_retract_button=False, parent=None):
@@ -33,8 +45,17 @@ class SelectedDataPanel(QGroupBox):
 
         # Set up buttons
         self.file_selector_button = QPushButton("Choose Files")
+        file_selector_path = resource_path('gui/resources/select_folder_icon.png')
+        self.file_selector_button.setIcon(QIcon(file_selector_path))
+
         self.add_file_button = QPushButton("Add Files")
+        add_file_path = resource_path('gui/resources/add.png')
+        self.add_file_button.setIcon(QIcon(add_file_path))
+
         self.select_all_button = QPushButton("Select All")
+        select_all_path = resource_path('gui/resources/select_all.png')
+        self.select_all_button.setIcon(QIcon(select_all_path))
+
 
         # Set up tooltips
         self.file_selector_button.setToolTip("Click to choose and add files.")

@@ -110,6 +110,8 @@ class SubplotsConfigDialog(QDialog):
  
         self.current_configs = []  # List of configurations (dictionaries)
         self.subplot_configs = []  # To store subplot configurations
+        self.subplot_containers = []  # To store subplot containers
+        self.is_first_subplot = True  # Flag to check if it's the first subplot
         self.layout_settings = {'rows': 1, 'columns': 1, 'auto_layout': False}
         self.general_tab = parent  # Store the reference to GeneralTab
 
@@ -184,11 +186,13 @@ class SubplotsConfigDialog(QDialog):
             self.columns_spinbox.setEnabled(True)
 
     def add_subplot(self):
-        subplot_config_widget = SubplotConfigWidget(self.general_tab, self)
-        self.subplots_layout.addWidget(subplot_config_widget)
-        self.subplot_configs.append(subplot_config_widget)
+        subplot_container = SubplotContainer(self.general_tab, self)
+        self.subplots_layout.addWidget(subplot_container)
+        self.subplot_containers.append(subplot_container)
+        self.subplot_configs.append(subplot_container.subplot_config_widget)
         # Automatically add an initial dataset to prevent crashes
-        subplot_config_widget.add_dataset()
+        subplot_container.subplot_config_widget.add_dataset()
+
 
     def on_apply_clicked(self):
         # Collect the current configurations without overwriting self.subplot_configs
@@ -199,13 +203,18 @@ class SubplotsConfigDialog(QDialog):
 
     def remove_selected_subplots(self):
         to_remove = []
-        for subplot in self.subplot_configs:
+        for idx, container in enumerate(self.subplot_containers):
+            subplot = container.subplot_config_widget
             if subplot.remove_checkbox.isChecked():
-                self.subplots_layout.removeWidget(subplot)
-                subplot.deleteLater()
-                to_remove.append(subplot)
-        for subplot in to_remove:
-            self.subplot_configs.remove(subplot)
+                self.subplots_layout.removeWidget(container)
+                container.deleteLater()
+                to_remove.append(idx)
+        for idx in reversed(to_remove):
+            del self.subplot_configs[idx]
+            del self.subplot_containers[idx]
+        # Reset the is_first_subplot flag in case all subplots are removed
+        if not self.subplot_containers:
+            self.is_first_subplot = True
 
     def get_subplot_configs(self):
         configs = []
@@ -277,7 +286,6 @@ class SubplotConfigWidget(QWidget):
         # Y Axis Label
         self.y_axis_label_input = QLineEdit()
         self.y_axis_label_input.setPlaceholderText("Enter Y axis label")
-        self.y_axis_label_input.setMaximumWidth(300)
         form_layout.addRow("Y Axis Label:", self.y_axis_label_input)
 
         main_layout.addLayout(form_layout)
@@ -595,3 +603,30 @@ class SubplotAdvancedOptionsDialog(QDialog):
             'plot_style': self.plot_style_combo.currentText()
         }
         return options
+
+
+class SubplotContainer(QWidget):
+    def __init__(self, general_tab, parent=None):
+        super().__init__(parent)
+        self.general_tab = general_tab
+        self.parent_dialog = parent  # Reference to SubplotsConfigDialog
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+
+        # Add separator line at the top (except for the first subplot)
+        if not self.parent_dialog.is_first_subplot:
+            separator = QFrame()
+            separator.setFrameShape(QFrame.HLine)
+            separator.setFrameShadow(QFrame.Sunken)
+            separator.setStyleSheet("QFrame { color: black; }")  
+            layout.addWidget(separator)
+        else:
+            # Indicate that the first subplot has been added
+            self.parent_dialog.is_first_subplot = False
+
+        # Add the SubplotConfigWidget
+        self.subplot_config_widget = SubplotConfigWidget(self.general_tab, self)
+        layout.addWidget(self.subplot_config_widget)
