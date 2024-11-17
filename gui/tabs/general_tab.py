@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QLabel, QToolButton, QScrollArea, QSizePolicy,
     QPushButton, QHBoxLayout, QFrame, QFileDialog, QListWidgetItem, QColorDialog, QTableWidget, QHeaderView, QTableWidgetItem,
     QMessageBox, QButtonGroup, QGroupBox,QTextEdit,
-      QVBoxLayout, QDialog, QComboBox, QSpinBox, QCheckBox, QLineEdit,QMessageBox
+      QVBoxLayout, QDialog, QComboBox, QSpinBox, QCheckBox, QLineEdit,QMessageBox,QDoubleSpinBox
 
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QEvent
@@ -60,6 +60,9 @@ class GeneralTab(QWidget):
 
         self.apply_stylesheet()
 
+        # Initialize the styles dictionary
+        self.data_series_styles = {}
+
     def apply_stylesheet(self):
         stylesheet_path = resource_path('style.qss')
         if os.path.exists(stylesheet_path):
@@ -69,6 +72,7 @@ class GeneralTab(QWidget):
             print(f"Warning: stylesheet not found at {stylesheet_path}")
 
     def init_ui(self):
+        # Initialize the main grid layout
         self.layout = QGridLayout()
         self.layout.setContentsMargins(10, 10, 10, 10)
         self.layout.setSpacing(10)
@@ -93,10 +97,11 @@ class GeneralTab(QWidget):
         self.layout.addWidget(self.custom_annotations_panel, 2, 0)
         self.layout.addWidget(self.additional_text_panel, 2, 1)
 
+        # Adjust column stretch to balance the layout
         self.layout.setColumnStretch(0, 1)
         self.layout.setColumnStretch(1, 1)
 
-        # Plot area
+        # Plot area setup
         self.figure = plt.figure()
         self.canvas = FigureCanvas(self.figure)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -117,10 +122,16 @@ class GeneralTab(QWidget):
         plot_layout = QVBoxLayout()
         plot_layout.addWidget(self.plot_frame)
 
+        # Initialize buttons
         self.update_button = QPushButton("Update Plot")
         update_icon_path = resource_path('gui/resources/update_icon.png')
         self.update_button.setIcon(QIcon(update_icon_path))
         self.update_button.clicked.connect(self.update_plot)
+
+        self.customize_styles_button = QPushButton("Customize Data Styles")
+        customize_styles_icon_path = resource_path('gui/resources/data_styles_icon.png')
+        self.customize_styles_button.setIcon(QIcon(customize_styles_icon_path))
+        self.customize_styles_button.clicked.connect(self.open_data_styles_dialog)
 
         self.show_data_structure_button = QPushButton("Show Data Structure")
         data_structure_icon_path = resource_path('gui/resources/data_structure_icon.png')
@@ -152,28 +163,43 @@ class GeneralTab(QWidget):
         self.configure_subplots_button.setIcon(QIcon(configure_subplots_icon_path))
         self.configure_subplots_button.clicked.connect(self.open_subplots_config_dialog)
 
+        # **Create two separate horizontal layouts for the button rows**
+        self.plot_buttons_layout_row1 = QHBoxLayout()
+        self.plot_buttons_layout_row2 = QHBoxLayout()
 
-        self.plot_buttons_layout = QHBoxLayout()
-        self.plot_buttons_layout.addWidget(self.update_button)
-        self.plot_buttons_layout.addWidget(self.plot_type_2d_button)
-        self.plot_buttons_layout.addWidget(self.plot_type_3d_button)
-        self.plot_buttons_layout.addWidget(self.show_data_structure_button)
-        self.plot_buttons_layout.addWidget(self.expand_button)
-        self.plot_buttons_layout.addWidget(self.save_plot_button)
-        self.plot_buttons_layout.addWidget(self.configure_subplots_button)
+        # **Add buttons to Row 1**
+        self.plot_buttons_layout_row1.addWidget(self.update_button)
+        self.plot_buttons_layout_row1.addWidget(self.customize_styles_button)
+        self.plot_buttons_layout_row1.addWidget(self.plot_type_2d_button)
+        self.plot_buttons_layout_row1.addWidget(self.plot_type_3d_button)
+        self.plot_buttons_layout_row1.addWidget(self.configure_subplots_button)
 
-        plot_layout.addLayout(self.plot_buttons_layout)
+        # **Add buttons to Row 2**
+        self.plot_buttons_layout_row2.addWidget(self.show_data_structure_button)
+        self.plot_buttons_layout_row2.addWidget(self.expand_button)
+        self.plot_buttons_layout_row2.addWidget(self.save_plot_button)
 
+        # **Create a vertical layout to hold both button rows**
+        self.plot_buttons_vertical_layout = QVBoxLayout()
+        self.plot_buttons_vertical_layout.addLayout(self.plot_buttons_layout_row1)
+        self.plot_buttons_vertical_layout.addLayout(self.plot_buttons_layout_row2)
+
+        # **Add the vertical button layout to the plot_layout**
+        plot_layout.addLayout(self.plot_buttons_vertical_layout)
+
+        # **Create a plot_widget and set its layout**
         plot_widget = QWidget()
         plot_widget.setLayout(plot_layout)
 
+        # **Add the plot_widget to the main grid layout, spanning all rows in the 3rd column**
         self.layout.addWidget(plot_widget, 0, 2, 3, 1)  # Span all rows in the 3rd column
 
-        self.layout.setColumnStretch(0, 2)
-        self.layout.setColumnStretch(1, 2)
+        # **Adjust column stretch to allocate more space to the plot area**
+        self.layout.setColumnStretch(0, 1)
+        self.layout.setColumnStretch(1, 1)
         self.layout.setColumnStretch(2, 4)
 
-        # Initialize plot type
+        # Initialize plot type and annotation variables
         self.plot_type = "2D"
         self.text_items = []
         self.annotations = []
@@ -184,12 +210,11 @@ class GeneralTab(QWidget):
         # Connect signals and slots from the panels
         self.connect_signals()
 
-        # Connect the canvas to the event handler
+        # Connect the canvas to the event handlers
         self.canvas.mpl_connect('button_press_event', self.on_click)
         self.canvas.mpl_connect('motion_notify_event', self.on_mouse_move)
 
-
-        # Update the plot_frame stylesheet
+        # **Update the plot_frame stylesheet for better aesthetics**
         self.plot_frame.setStyleSheet("""
             #PlotFrame {
                 border: 1px solid #cccccc;
@@ -198,12 +223,14 @@ class GeneralTab(QWidget):
             }
         """)
 
-        configure_subplots_icon_path = os.path.join(os.path.dirname(__file__), 'resources', 'configure_subplots_icon.png')  # New
-        if os.path.exists(configure_subplots_icon_path):  # New
-            self.configure_subplots_button.setIcon(QIcon(configure_subplots_icon_path))  # New
+        # **Ensure the Configure Subplots icon exists and set it; otherwise, warn the user**
+        configure_subplots_icon_path = os.path.join(os.path.dirname(__file__), 'resources', 'configure_subplots_icon.png')  
+        if os.path.exists(configure_subplots_icon_path):  
+            self.configure_subplots_button.setIcon(QIcon(configure_subplots_icon_path))  
         else:  
-            print(f"Warning: Configure Subplots icon not found at {configure_subplots_icon_path}")  # New
-   
+            print(f"Warning: Configure Subplots icon not found at {configure_subplots_icon_path}")  
+
+
     def connect_signals(self):
         # Access panels
         #general_tab = self
@@ -221,6 +248,16 @@ class GeneralTab(QWidget):
     # These methods are similar to those in the original main_window.py
     # Ensure all methods are properly implemented as in the previous code
         #self.expand_button.clicked.connect(self.expand_window)
+
+
+    def open_data_styles_dialog(self):
+        # Create and open the DataStylesDialog
+        self.data_styles_dialog = DataStylesDialog(self)
+        self.data_styles_dialog.exec_()
+        # After the dialog is closed, update the plot with new styles
+        self.update_plot()
+        # Ensure the styles dialog is updated next time it's opened
+        self.data_styles_dialog = None  # Force re-creation of the dialog
 
     def read_numeric_data(self, file_path):
         return read_numeric_data(file_path, parent=self)
@@ -298,8 +335,23 @@ class GeneralTab(QWidget):
         plot_details = self.plot_details_panel.get_plot_details()
         axis_details = self.axis_details_panel.get_axis_details()
         plot_visuals = self.plot_visuals_panel.get_plot_visuals()
-        # Call the plot_data function
-        plot_data(self.figure, data_files, plot_details, axis_details, plot_visuals, is_3d=(self.plot_type == "3D"))
+
+        # Ensure data_series_styles only includes current data_files
+        self.data_series_styles = {k: v for k, v in self.data_series_styles.items() if k in data_files}
+
+        # Get per-data-series styles
+        data_series_styles = self.data_series_styles
+
+        # Call the plot_data function with data_series_styles
+        plot_data(
+            self.figure,
+            data_files,
+            plot_details,
+            axis_details,
+            plot_visuals,
+            data_series_styles=data_series_styles,
+            is_3d=(self.plot_type == "3D")
+        )
 
         # Re-add all existing text items
         ax = self.figure.gca()
@@ -307,19 +359,7 @@ class GeneralTab(QWidget):
             for text_item in self.text_items:
                 ax.add_artist(text_item)
 
-        # Initialize annotations list for the main axes
-        if not hasattr(ax, 'annotations'):
-            ax.annotations = []
-
-        # Call the plot_data function
-        plot_data(
-            self.figure, data_files, plot_details,
-            axis_details, plot_visuals, is_3d=(self.plot_type == "3D")
-        )
-
         self.canvas.draw_idle()
-        #print("GeneralTab: plot_updated signal emitted") 
-        #self.plot_updated.emit()
 
     def plot_2d(self):
         self.plot_type = "2D"
@@ -966,3 +1006,146 @@ class GeneralTab(QWidget):
 
         # Render the updated plot
         self.canvas.draw_idle()
+
+
+class DataStylesDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.general_tab = parent
+        self.setWindowTitle("Customize Data Styles")
+        self.setMinimumSize(600, 400)
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+
+        # Table to display data files and their styles
+        self.table = QTableWidget()
+        self.table.setColumnCount(4)
+        self.table.setHorizontalHeaderLabels(['Data File', 'Line Style', 'Point Style', 'Line Thickness'])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+        layout.addWidget(self.table)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        self.ok_button = QPushButton("OK")
+        self.cancel_button = QPushButton("Cancel")
+        button_layout.addWidget(self.ok_button)
+        button_layout.addWidget(self.cancel_button)
+        layout.addLayout(button_layout)
+
+        self.setLayout(layout)
+
+        # Populate the table with current data files and styles
+        self.populate_table()
+
+        # Connect signals
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+
+    def populate_table(self):
+        data_files = self.general_tab.selected_data_panel.get_selected_files()
+        self.table.setRowCount(len(data_files))
+
+        for row, file_path in enumerate(data_files):
+            file_name = os.path.basename(file_path)
+            # Retrieve previous styles if available
+            styles = self.general_tab.data_series_styles.get(file_path, {})
+            line_style = styles.get('line_style', '-')  # default to '-'
+            point_style = styles.get('point_style', 'o')  # default to 'o'
+            line_thickness = styles.get('line_thickness', 1.0)  # default to 1.0
+
+            # Data File Name
+            file_name_item = QTableWidgetItem(file_name)
+            file_name_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            file_name_item.setData(Qt.UserRole, file_path)
+            self.table.setItem(row, 0, file_name_item)
+
+            # Line Style ComboBox
+            line_style_combo = QComboBox()
+            line_style_combo.addItems(['Solid', 'Dashed', 'Dash-Dot', 'None'])
+            # Map line styles to matplotlib styles
+            line_style_map = {'Solid': '-', 'Dashed': '--', 'Dash-Dot': '-.', 'None': 'None'}
+            # Set current text based on existing style
+            current_line_style = 'None' if line_style == 'None' else next(
+                (k for k, v in line_style_map.items() if v == line_style), 'Solid'
+            )
+            line_style_combo.setCurrentText(current_line_style)
+            self.table.setCellWidget(row, 1, line_style_combo)
+
+            # Point Style ComboBox
+            point_style_combo = QComboBox()
+            point_style_combo.addItems(['None', 'Circle', 'Square', 'Triangle Up', 'Triangle Down', 'Star', 'Plus', 'Cross', 'Diamond', 'Pentagon', 'Hexagon'])
+            # Map point styles to matplotlib styles
+            point_style_map = {
+                "None": "",
+                "Circle": "o",
+                "Square": "s",
+                "Triangle Up": "^",
+                "Triangle Down": "v",
+                "Star": "*",
+                "Plus": "+",
+                "Cross": "x",
+                "Diamond": "D",
+                "Pentagon": "p",
+                "Hexagon": "h",
+            }
+            # Set current text based on existing style
+            current_point_style = 'None' if point_style == 'None' else next(
+                (k for k, v in point_style_map.items() if v == point_style), 'Circle'
+            )
+            point_style_combo.setCurrentText(current_point_style)
+            self.table.setCellWidget(row, 2, point_style_combo)
+
+            # Line Thickness SpinBox
+            line_thickness_spin = QDoubleSpinBox()
+            line_thickness_spin.setRange(0.1, 10.0)
+            line_thickness_spin.setSingleStep(0.1)
+            line_thickness_spin.setValue(line_thickness)
+            self.table.setCellWidget(row, 3, line_thickness_spin)
+
+    def accept(self):
+        # Update the styles in the GeneralTab
+        for row in range(self.table.rowCount()):
+            file_name_item = self.table.item(row, 0)
+            if file_name_item is None:
+                continue
+            file_path = file_name_item.data(Qt.UserRole)
+
+            # Get widgets
+            line_style_combo = self.table.cellWidget(row, 1)
+            point_style_combo = self.table.cellWidget(row, 2)
+            line_thickness_spin = self.table.cellWidget(row, 3)
+
+            # Get values
+            selected_line_style = line_style_combo.currentText()
+            line_style_map = {'Solid': '-', 'Dashed': '--', 'Dash-Dot': '-.', 'None': 'None'}
+            line_style = line_style_map.get(selected_line_style, '-')
+
+            selected_point_style = point_style_combo.currentText()
+            point_style_map = {
+                "None": "",
+                "Circle": "o",
+                "Square": "s",
+                "Triangle Up": "^",
+                "Triangle Down": "v",
+                "Star": "*",
+                "Plus": "+",
+                "Cross": "x",
+                "Diamond": "D",
+                "Pentagon": "p",
+                "Hexagon": "h",
+            }
+            point_style = point_style_map.get(selected_point_style, 'o')
+
+            line_thickness = line_thickness_spin.value()
+
+            # Update styles in GeneralTab
+            self.general_tab.data_series_styles[file_path] = {
+                'line_style': line_style,
+                'point_style': point_style,
+                'line_thickness': line_thickness
+            }
+
+        super().accept()  # Close the dialog

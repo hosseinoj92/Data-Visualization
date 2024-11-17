@@ -9,7 +9,6 @@ from PyQt5.QtGui import QIcon
 from gui.tabs.general_tab import GeneralTab
 from gui.tabs.normalization_tab import NormalizationTab
 from gui.tabs.data_fitting_tab import DataFittingTab
-from gui.tabs.batch_processing_tab import BatchProcessingTab  # Import the new BatchProcessingTab
 
 def resource_path(relative_path):
     """Get the absolute path to a resource, works for development and PyInstaller."""
@@ -40,20 +39,17 @@ class MainWindow(QMainWindow):
         self.general_tab = GeneralTab()
         self.normalization_tab = NormalizationTab(general_tab=self.general_tab)
         self.data_fitting_tab = DataFittingTab(general_tab=self.general_tab)
-        self.batch_processing_tab = BatchProcessingTab(general_tab=self.general_tab)  # Pass the general tab
 
         # Add tabs to the tab widget with icons
         general_icon_path = resource_path('gui/resources/general_icon.png')
         normalization_icon_path = resource_path('gui/resources/normalization_icon.png')
         data_icon_path = resource_path('gui/resources/fitting_icon.png')
-        batch_processing_icon_path = resource_path('gui/resources/batch_processing_icon.png')
 
         self.setWindowIcon(QIcon(resource_path('gui/resources/icon.png')))
 
         self.tabs.addTab(self.general_tab, QIcon(general_icon_path), "General")
         self.tabs.addTab(self.normalization_tab, QIcon(normalization_icon_path), "Normalization")
         self.tabs.addTab(self.data_fitting_tab, QIcon(data_icon_path), "Fitting")
-        self.tabs.addTab(self.batch_processing_tab, QIcon(batch_processing_icon_path), "Batch Processing")  # Add the new tab
 
         # Optionally, set the default tab
         self.tabs.setCurrentWidget(self.general_tab)

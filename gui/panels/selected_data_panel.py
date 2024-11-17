@@ -71,7 +71,7 @@ class SelectedDataPanel(QGroupBox):
 
         # Connect buttons to their respective functions
         self.file_selector_button.clicked.connect(self.choose_files)
-        self.add_file_button.clicked.connect(self.add_files)
+        self.add_file_button.clicked.connect(self.add_files_via_dialog)
         self.select_all_button.clicked.connect(self.toggle_select_all)
 
     def choose_files(self):
@@ -97,6 +97,23 @@ class SelectedDataPanel(QGroupBox):
             file_paths = [file_paths]
         for file_path in file_paths:
             self.add_file_to_panel(file_path)
+
+    def add_files_via_dialog(self):
+        """
+        Open a file dialog to select multiple files and add them to the panel.
+        This method is connected to the "Add Files" button.
+        """
+        file_paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Add Files",
+            self.last_directory,
+            "All Files (*)"
+        )
+        if file_paths:
+            self.add_files(file_paths)
+            # Update last_directory to the directory of the last selected file
+            self.last_directory = os.path.dirname(file_paths[-1])
+
 
     def add_file_to_panel(self, file_path):
         """
