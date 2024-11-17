@@ -858,7 +858,7 @@ class GeneralTab(QWidget):
         self.update_plot_with_subplots()
         # Close the dialog
         self.dialog.close()
-
+            
     def update_plot_with_subplots(self):
 
         # Store current rcParams
@@ -902,22 +902,6 @@ class GeneralTab(QWidget):
             try:
                 # Extract advanced options
                 advanced_options = config.get('advanced_options', {})
-                line_style = {
-                    'Solid': '-',
-                    'Dashed': '--',
-                    'Dash-Dot': '-.'
-                }.get(advanced_options.get('line_style', 'Solid'), '-')
-                point_style = {
-                    'None': '',
-                    'Circle': 'o',
-                    'Square': 's',
-                    'Triangle Up': '^',
-                    'Triangle Down': 'v',
-                    'Star': '*',
-                    'Plus': '+',
-                    'Cross': 'x'
-                }.get(advanced_options.get('point_style', 'None'), '')
-                line_thickness = int(advanced_options.get('line_thickness', 2))
                 scale_type = advanced_options.get('scale_type', 'Linear')
                 plot_style = advanced_options.get('plot_style', 'default')
 
@@ -927,20 +911,45 @@ class GeneralTab(QWidget):
                 # Apply style parameters to the axes
                 self.apply_style_to_axes(ax, style_dict)
 
-                 # Apply LaTeX options if they exist
+                # Apply LaTeX options if they exist
                 latex_options = config.get('latex_options', None)
                 if latex_options:
-                    self.apply_latex_compatibility_to_axes(ax, latex_options)  
+                    self.apply_latex_compatibility_to_axes(ax, latex_options)
 
-                # Plot datasets
+                # Plot datasets with specified styles
                 for dataset_config in config['datasets']:
                     df = pd.read_csv(dataset_config['dataset'])
-                    x = df.iloc[:, int(dataset_config['x_column'])]
-                    y = df.iloc[:, int(dataset_config['y_column'])]
-                    label = dataset_config['legend_label']
+                    x = df.iloc[:, int(dataset_config.get('x_column', 0))]
+                    y = df.iloc[:, int(dataset_config.get('y_column', 1))]
+
+                    # Retrieve per-dataset styling options
+                    line_style = {
+                        'Solid': '-',
+                        'Dashed': '--',
+                        'Dash-Dot': '-.',
+                        'None': 'None'
+                    }.get(dataset_config.get('line_style', 'Solid'), '-')
+                    point_style = {
+                        "None": "",
+                        "Circle": "o",
+                        "Square": "s",
+                        "Triangle Up": "^",
+                        "Triangle Down": "v",
+                        "Star": "*",
+                        "Plus": "+",
+                        "Cross": "x",
+                        "Diamond": "D",
+                        "Pentagon": "p",
+                        "Hexagon": "h",
+                    }.get(dataset_config.get('point_style', 'None'), '')
+                    line_thickness = dataset_config.get('line_thickness', 1.0)
+
+                    label = dataset_config.get('legend_label', os.path.basename(dataset_config['dataset']))
+
+                    # Plot the data
                     ax.plot(
                         x, y, label=rf"{label}",
-                        linestyle=line_style,
+                        linestyle=line_style if line_style != 'None' else '',
                         marker=point_style if point_style != '' else None,
                         linewidth=line_thickness
                     )
@@ -991,7 +1000,8 @@ class GeneralTab(QWidget):
 
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Failed to plot Subplot {idx + 1}: {e}")
-            # **Restore original rcParams if needed**
+
+        # Restore original rcParams
         plt.rcParams.update(original_rcparams)
 
         # Hide any unused axes
@@ -1006,6 +1016,7 @@ class GeneralTab(QWidget):
 
         # Render the updated plot
         self.canvas.draw_idle()
+
 
 
 class DataStylesDialog(QDialog):

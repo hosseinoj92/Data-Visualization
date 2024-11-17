@@ -3,7 +3,8 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QLabel, QToolButton, QScrollArea, QSizePolicy,
     QPushButton, QHBoxLayout, QFrame, QFileDialog, QListWidgetItem, QColorDialog, QTableWidget, QHeaderView, QTableWidgetItem,
-    QMessageBox, QButtonGroup, QGroupBox, QVBoxLayout, QDialog, QComboBox, QSpinBox, QCheckBox, QLineEdit
+    QMessageBox, QButtonGroup, QGroupBox, QVBoxLayout, QDialog, 
+    QComboBox, QSpinBox, QCheckBox, QLineEdit, QDoubleSpinBox
 
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QEvent
@@ -443,6 +444,29 @@ class DatasetConfigWidget(QWidget):
         self.legend_label_input = QLineEdit()
         layout.addWidget(self.legend_label_input)
 
+        # Line Style
+        layout.addWidget(QLabel("Line Style:"))
+        self.line_style_combo = QComboBox()
+        self.line_style_combo.addItems(['Solid', 'Dashed', 'Dash-Dot', 'None'])
+        layout.addWidget(self.line_style_combo)
+
+        # Point Style
+        layout.addWidget(QLabel("Point Style:"))
+        self.point_style_combo = QComboBox()
+        self.point_style_combo.addItems([
+            'None', 'Circle', 'Square', 'Triangle Up', 'Triangle Down', 'Star',
+            'Plus', 'Cross', 'Diamond', 'Pentagon', 'Hexagon'
+        ])
+        layout.addWidget(self.point_style_combo)
+
+        # Line Thickness
+        layout.addWidget(QLabel("Line Thickness:"))
+        self.line_thickness_spinbox = QDoubleSpinBox()
+        self.line_thickness_spinbox.setRange(0.1, 10.0)
+        self.line_thickness_spinbox.setSingleStep(0.1)
+        self.line_thickness_spinbox.setValue(1.0)
+        layout.addWidget(self.line_thickness_spinbox)
+
         # Remove Dataset Checkbox
         self.remove_checkbox = QCheckBox("Remove")
         layout.addWidget(self.remove_checkbox)
@@ -483,7 +507,6 @@ class DatasetConfigWidget(QWidget):
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Failed to load columns from {dataset_path}: {e}")
 
-
     def get_config(self):
         config = {}
         config['dataset'] = self.dataset_dropdown.currentData()
@@ -491,9 +514,13 @@ class DatasetConfigWidget(QWidget):
         config['y_column'] = self.y_column_dropdown.currentData()
         legend_label = self.legend_label_input.text() or os.path.splitext(os.path.basename(config['dataset']))[0]
         config['legend_label'] = rf"{legend_label}"  # Use raw string
+
+        # Get styling options
+        config['line_style'] = self.line_style_combo.currentText()
+        config['point_style'] = self.point_style_combo.currentText()
+        config['line_thickness'] = self.line_thickness_spinbox.value()
+
         return config
-
-
 class SubplotAdvancedOptionsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -502,31 +529,6 @@ class SubplotAdvancedOptionsDialog(QDialog):
 
     def init_ui(self):
         layout = QVBoxLayout()
-
-        # Line Style
-        line_style_layout = QHBoxLayout()
-        line_style_layout.addWidget(QLabel("Line Style:"))
-        self.line_style_combo = QComboBox()
-        self.line_style_combo.addItems(["Solid", "Dashed", "Dash-Dot"])
-        line_style_layout.addWidget(self.line_style_combo)
-        layout.addLayout(line_style_layout)
-
-        # Point Style
-        point_style_layout = QHBoxLayout()
-        point_style_layout.addWidget(QLabel("Point Style:"))
-        self.point_style_combo = QComboBox()
-        self.point_style_combo.addItems(["None", "Circle", "Square", "Triangle Up", "Triangle Down", "Star", "Plus", "Cross"])
-        point_style_layout.addWidget(self.point_style_combo)
-        layout.addLayout(point_style_layout)
-
-        # Line Thickness
-        line_thickness_layout = QHBoxLayout()
-        line_thickness_layout.addWidget(QLabel("Line Thickness:"))
-        self.line_thickness_spinbox = QSpinBox()
-        self.line_thickness_spinbox.setRange(1, 10)
-        self.line_thickness_spinbox.setValue(2)
-        line_thickness_layout.addWidget(self.line_thickness_spinbox)
-        layout.addLayout(line_thickness_layout)
 
         # Scale Type
         scale_type_layout = QHBoxLayout()
@@ -561,19 +563,12 @@ class SubplotAdvancedOptionsDialog(QDialog):
 
     def set_advanced_options(self, options):
         # Set the dialog widgets based on the provided options
-        self.line_style_combo.setCurrentText(options.get('line_style', 'Solid'))
-        self.point_style_combo.setCurrentText(options.get('point_style', 'None'))
-        self.line_thickness_spinbox.setValue(options.get('line_thickness', 2))
         self.scale_type_combo.setCurrentText(options.get('scale_type', 'Linear'))
         self.plot_style_combo.setCurrentText(options.get('plot_style', 'default'))
 
     def get_advanced_options(self):
         options = {
-            'line_style': self.line_style_combo.currentText(),
-            'point_style': self.point_style_combo.currentText(),
-            'line_thickness': self.line_thickness_spinbox.value(),
             'scale_type': self.scale_type_combo.currentText(),
             'plot_style': self.plot_style_combo.currentText()
         }
         return options
-
