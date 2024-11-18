@@ -2,7 +2,8 @@
 
 import os
 from PyQt5.QtWidgets import (
-    QGroupBox, QVBoxLayout, QHBoxLayout, QPushButton, QScrollArea, QFileDialog, QMessageBox
+    QGroupBox, QVBoxLayout, QHBoxLayout, QPushButton, 
+    QScrollArea, QFileDialog, QMessageBox,QSizePolicy
 )
 from PyQt5.QtCore import Qt,QUrl, QMimeData
 
@@ -42,6 +43,8 @@ class SelectedDataPanel(QGroupBox):
 
     def init_ui(self, include_retract_button):
         self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(5, 5, 5, 5)  # Reduced margins
+        self.layout.setSpacing(5)  # Reduced spacing
 
         # Set up buttons
         self.file_selector_button = QPushButton("Choose Files")
@@ -56,7 +59,6 @@ class SelectedDataPanel(QGroupBox):
         select_all_path = resource_path('gui/resources/select_all.png')
         self.select_all_button.setIcon(QIcon(select_all_path))
 
-
         # Set up tooltips
         self.file_selector_button.setToolTip("Click to choose and add files.")
         self.add_file_button.setToolTip("Click to add more files.")
@@ -69,17 +71,20 @@ class SelectedDataPanel(QGroupBox):
 
         # Draggable and Selectable List Widget
         self.selected_files_list = DraggableListWidget()
+        self.selected_files_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Allow vertical expansion
 
         # Scroll Area for the List Widget
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setWidget(self.selected_files_list)
+        self.scroll_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # Add buttons to the layout
         self.layout.addWidget(self.file_selector_button)
 
         # Create a horizontal layout for "Add Files" and "Select All" buttons
         buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(5)  # Reduced spacing between buttons
         buttons_layout.addWidget(self.add_file_button)
         buttons_layout.addWidget(self.select_all_button)
 
@@ -88,7 +93,11 @@ class SelectedDataPanel(QGroupBox):
 
         # Add the scroll area containing the list widget
         self.layout.addWidget(self.scroll_area)
+
         self.setLayout(self.layout)
+
+        # **Ensure the panel itself can expand**
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # Connect buttons to their respective functions
         self.file_selector_button.clicked.connect(self.choose_files)

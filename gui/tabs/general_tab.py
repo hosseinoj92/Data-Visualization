@@ -5,7 +5,8 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QGridLayout, QLabel, QToolButton, QScrollArea, QSizePolicy,
     QPushButton, QHBoxLayout, QFrame, QFileDialog, QListWidgetItem, QColorDialog, QTableWidget, QHeaderView, QTableWidgetItem,
     QMessageBox, QButtonGroup, QGroupBox,QTextEdit,
-      QVBoxLayout, QDialog, QComboBox, QSpinBox, QCheckBox, QLineEdit,QMessageBox,QDoubleSpinBox
+      QVBoxLayout, QDialog, QComboBox, QSpinBox, QCheckBox,
+        QLineEdit,QMessageBox,QDoubleSpinBox, QSplitter
 
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QEvent
@@ -89,17 +90,62 @@ class GeneralTab(QWidget):
         self.plot_visuals_panel = PlotVisualsPanel()
         self.plot_details_panel = PlotDetailsPanel()
 
-        # Arrange panels in the grid layout
-        self.layout.addWidget(self.selected_data_panel, 0, 0)
-        self.layout.addWidget(self.axis_details_panel, 0, 1)
-        self.layout.addWidget(self.plot_details_panel, 1, 0)
-        self.layout.addWidget(self.plot_visuals_panel, 1, 1)
-        self.layout.addWidget(self.custom_annotations_panel, 2, 0)
-        self.layout.addWidget(self.additional_text_panel, 2, 1)
+        # Create a vertical splitter for the left column
+        left_splitter = QSplitter(Qt.Vertical)
 
-        # Adjust column stretch to balance the layout
+        # Add the Selected Data Panel to the splitter
+        left_splitter.addWidget(self.selected_data_panel)
+
+        # Create a widget to hold the lower panels (Plot Details and Custom Annotations)
+        lower_left_widget = QWidget()
+        lower_left_layout = QVBoxLayout(lower_left_widget)
+        lower_left_layout.setContentsMargins(0, 0, 0, 0)
+        lower_left_layout.setSpacing(5)
+
+        # Add Plot Details Panel and Custom Annotations Panel to the lower layout
+        lower_left_layout.addWidget(self.plot_details_panel)
+        lower_left_layout.addWidget(self.custom_annotations_panel)
+
+        # Add the lower widget to the splitter
+        left_splitter.addWidget(lower_left_widget)
+
+        # Set the stretch factors to allocate more space to Selected Data Panel
+        left_splitter.setStretchFactor(0, 3)  # Selected Data Panel
+        left_splitter.setStretchFactor(1, 1)  # Lower panels
+
+        # Do the same for the right column (Axis Details and Additional Text)
+        right_splitter = QSplitter(Qt.Vertical)
+        right_splitter.addWidget(self.axis_details_panel)
+
+        lower_right_widget = QWidget()
+        lower_right_layout = QVBoxLayout(lower_right_widget)
+        lower_right_layout.setContentsMargins(0, 0, 0, 0)
+        lower_right_layout.setSpacing(5)
+
+        lower_right_layout.addWidget(self.plot_visuals_panel)
+        lower_right_layout.addWidget(self.additional_text_panel)
+
+        right_splitter.addWidget(lower_right_widget)
+
+        right_splitter.setStretchFactor(0, 1)
+        right_splitter.setStretchFactor(1, 1)
+
+        # Add splitters to the grid layout
+        self.layout.addWidget(left_splitter, 0, 0)
+        self.layout.addWidget(right_splitter, 0, 1)
+
+        # Adjust column stretch to allocate more space to the plot area
         self.layout.setColumnStretch(0, 1)
         self.layout.setColumnStretch(1, 1)
+        self.layout.setColumnStretch(2, 4)
+
+        # Initialize plot type and annotation variables
+        self.plot_type = "2D"
+        self.text_items = []
+        self.annotations = []
+        self.annotation_mode = None  # None, 'point', 'vline', 'hline'
+        self.temp_annotation = None
+        self.selected_lines = []
 
         # Plot area setup
         self.figure = plt.figure()
@@ -163,49 +209,36 @@ class GeneralTab(QWidget):
         self.configure_subplots_button.setIcon(QIcon(configure_subplots_icon_path))
         self.configure_subplots_button.clicked.connect(self.open_subplots_config_dialog)
 
-        # **Create two separate horizontal layouts for the button rows**
+        # Create two separate horizontal layouts for the button rows
         self.plot_buttons_layout_row1 = QHBoxLayout()
         self.plot_buttons_layout_row2 = QHBoxLayout()
 
-        # **Add buttons to Row 1**
+        # Add buttons to Row 1
         self.plot_buttons_layout_row1.addWidget(self.update_button)
         self.plot_buttons_layout_row1.addWidget(self.customize_styles_button)
         self.plot_buttons_layout_row1.addWidget(self.plot_type_2d_button)
         self.plot_buttons_layout_row1.addWidget(self.plot_type_3d_button)
         self.plot_buttons_layout_row1.addWidget(self.configure_subplots_button)
 
-        # **Add buttons to Row 2**
+        # Add buttons to Row 2
         self.plot_buttons_layout_row2.addWidget(self.show_data_structure_button)
         self.plot_buttons_layout_row2.addWidget(self.expand_button)
         self.plot_buttons_layout_row2.addWidget(self.save_plot_button)
 
-        # **Create a vertical layout to hold both button rows**
+        # Create a vertical layout to hold both button rows
         self.plot_buttons_vertical_layout = QVBoxLayout()
         self.plot_buttons_vertical_layout.addLayout(self.plot_buttons_layout_row1)
         self.plot_buttons_vertical_layout.addLayout(self.plot_buttons_layout_row2)
 
-        # **Add the vertical button layout to the plot_layout**
+        # Add the vertical button layout to the plot_layout
         plot_layout.addLayout(self.plot_buttons_vertical_layout)
 
-        # **Create a plot_widget and set its layout**
+        # Create a plot_widget and set its layout
         plot_widget = QWidget()
         plot_widget.setLayout(plot_layout)
 
-        # **Add the plot_widget to the main grid layout, spanning all rows in the 3rd column**
-        self.layout.addWidget(plot_widget, 0, 2, 3, 1)  # Span all rows in the 3rd column
-
-        # **Adjust column stretch to allocate more space to the plot area**
-        self.layout.setColumnStretch(0, 1)
-        self.layout.setColumnStretch(1, 1)
-        self.layout.setColumnStretch(2, 4)
-
-        # Initialize plot type and annotation variables
-        self.plot_type = "2D"
-        self.text_items = []
-        self.annotations = []
-        self.annotation_mode = None  # None, 'point', 'vline', 'hline'
-        self.temp_annotation = None
-        self.selected_lines = []
+        # Add the plot_widget to the main grid layout
+        self.layout.addWidget(plot_widget, 0, 2)
 
         # Connect signals and slots from the panels
         self.connect_signals()
@@ -214,7 +247,7 @@ class GeneralTab(QWidget):
         self.canvas.mpl_connect('button_press_event', self.on_click)
         self.canvas.mpl_connect('motion_notify_event', self.on_mouse_move)
 
-        # **Update the plot_frame stylesheet for better aesthetics**
+        # Update the plot_frame stylesheet for better aesthetics
         self.plot_frame.setStyleSheet("""
             #PlotFrame {
                 border: 1px solid #cccccc;
@@ -1064,7 +1097,7 @@ class DataStylesDialog(QDialog):
             # Retrieve previous styles if available
             styles = self.general_tab.data_series_styles.get(file_path, {})
             line_style = styles.get('line_style', '-')  # default to '-'
-            point_style = styles.get('point_style', 'o')  # default to 'o'
+            point_style = styles.get('point_style', '')  # default to 'o'
             line_thickness = styles.get('line_thickness', 1.0)  # default to 1.0
 
             # Data File Name

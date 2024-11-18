@@ -6,7 +6,7 @@ import os
 from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QGroupBox, QPushButton, QLabel, QFileDialog, QListWidgetItem, 
     QMessageBox, QScrollArea, QCheckBox, QWidget, QDialog, 
-    QLineEdit,QComboBox, QListWidget, QGridLayout, QSpinBox,QColorDialog
+    QLineEdit,QComboBox, QListWidget, QGridLayout, QSpinBox,QColorDialog, QSizePolicy
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
@@ -15,6 +15,17 @@ import pandas as pd
 from gui.utils.widgets import DraggableListWidget  
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import QIcon, QColor
+import sys
+
+def resource_path(relative_path):
+    """Get the absolute path to a resource, works for development and PyInstaller."""
+    try:
+        # PyInstaller creates a temporary folder and stores its path in sys._MEIPASS
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 
 class DatasetSelectionDialog(QDialog):
     def __init__(self, structure, parent=None):
@@ -169,6 +180,8 @@ class AdditionalTextPanel(QGroupBox):
 
         self.layout.addWidget(QLabel("Text Color:"), 4, 0)
         self.text_color_button = QPushButton("Choose Color")
+        text_color_icon_path = resource_path('gui/resources/droplet.png')
+        self.text_color_button.setIcon(QIcon(text_color_icon_path))
         self.layout.addWidget(self.text_color_button, 4, 1)
 
         # Add a QLabel to display the selected color
@@ -178,7 +191,12 @@ class AdditionalTextPanel(QGroupBox):
         self.layout.addWidget(self.color_display, 4, 2)
 
         self.add_text_button = QPushButton("Add to Plot")
+        add_text_icon_path = resource_path('gui/resources/add2.png')
+        self.add_text_button.setIcon(QIcon(add_text_icon_path))
+
         self.delete_text_button = QPushButton("Delete from Plot")
+        delete_text_icon_path = resource_path('gui/resources/remove.png')
+        self.delete_text_button.setIcon(QIcon(delete_text_icon_path))
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.add_text_button)
@@ -214,24 +232,36 @@ class AdditionalTextPanel(QGroupBox):
         else:
             QMessageBox.information(self, "Color Selection Cancelled", "No color was selected.")
 
-
 class CustomAnnotationsPanel(QGroupBox):
     def __init__(self, parent=None):
         super().__init__("Custom Annotations", parent)
         self.init_ui()
 
     def init_ui(self):
-        self.layout = QVBoxLayout()
+        self.layout = QGridLayout()
+        self.layout.setContentsMargins(5, 5, 5, 5)  # Reduced margins
+        self.layout.setSpacing(5)  # Reduced spacing
 
+        self.layout.addWidget(QLabel("Annotation Type:"), 0, 0)
         self.annotation_type_combo = QComboBox()
         self.annotation_type_combo.addItems(["None", "Annotation Point", "Vertical Line", "Horizontal Line"])
-        self.layout.addWidget(self.annotation_type_combo)
+        self.layout.addWidget(self.annotation_type_combo, 0, 1)
 
-        self.apply_changes_button = QPushButton("Apply All Changes")
-        self.layout.addWidget(self.apply_changes_button)
+        # Buttons in a horizontal layout
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setSpacing(5)
+
+        self.apply_changes_button = QPushButton("Apply Changes")
+        apply_changes_icon_path = resource_path('gui/resources/apply_icon.png')
+        self.apply_changes_button.setIcon(QIcon(apply_changes_icon_path))
 
         self.calculate_distance_button = QPushButton("Calculate Distance")
-        self.layout.addWidget(self.calculate_distance_button)
+        calculate_distance_icon_path = resource_path('gui/resources/calculate.png')
+        self.calculate_distance_button.setIcon(QIcon(calculate_distance_icon_path))
+
+        buttons_layout.addWidget(self.apply_changes_button)
+        buttons_layout.addWidget(self.calculate_distance_button)
+        self.layout.addLayout(buttons_layout, 1, 0, 1, 2)
 
         self.setLayout(self.layout)
 
@@ -285,6 +315,7 @@ class PlotDetailsPanel(QGroupBox):
     def __init__(self, parent=None):
         super().__init__("Plot Details", parent)
         self.init_ui()
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)  # Prevent vertical expansion
 
     def init_ui(self):
         self.layout = QVBoxLayout()
