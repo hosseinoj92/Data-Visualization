@@ -43,6 +43,7 @@ from lmfit.models import GaussianModel, LorentzianModel, VoigtModel, PseudoVoigt
 import matplotlib
 matplotlib.rcParams['text.usetex'] = False  # Use Matplotlib's built-in math rendering
 import matplotlib.colors as mcolors
+import tempfile 
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for development and PyInstaller."""
@@ -86,6 +87,9 @@ def exponential_gaussian(x, amplitude, center, sigma, gamma):
 class DataFittingTab(QWidget):
 
     plot_updated = pyqtSignal()  # Define the custom signal
+
+    # **MODIFICATION: Define a new signal to notify fitting panels about data column updates**
+    data_columns_updated = pyqtSignal(list)  # Emits the list of available columns
 
     def __init__(self, general_tab, parent=None):
         super().__init__(parent)
@@ -335,9 +339,18 @@ class DataFittingTab(QWidget):
         # self.selected_data_panel.retract_button.clicked.connect(self.retract_from_general)
         self.expand_button.clicked.connect(self.expand_window)
 
+        self.data_columns_updated.connect(self.update_all_fitting_panels_columns)
+
         # Connect the "Retract from General" button if it exists
         if hasattr(self.selected_data_panel, 'retract_button'):
             self.selected_data_panel.retract_button.clicked.connect(self.retract_from_general)
+
+    def update_all_fitting_panels_columns(self, columns):
+        """Updates the data columns in all open fitting panels."""
+        for window in self.fitting_method_windows.values():
+            if hasattr(window.panel, 'set_data_columns'):
+                window.panel.set_data_columns(columns)
+                print(f"Updated data columns in {window.method_name} panel.")
 
     def on_section_expanded(self, expanded_section):
         if self.is_collapsing:
@@ -384,6 +397,15 @@ class DataFittingTab(QWidget):
                 item.setData(Qt.UserRole, file)  # Store the full file path in the item
                 self.selected_data_panel.selected_files_list.addItem(item)
 
+            # **MODIFICATION: Update data columns based on the first file and emit signal**
+            first_file = files[0]
+            df, _, _ = self.read_numeric_data(first_file)
+            if df is not None:
+                columns = df.columns.tolist()
+                self.data_columns_updated.emit(columns)
+            else:
+                self.data_columns_updated.emit([])
+
     def add_files(self):
         files, _ = QFileDialog.getOpenFileNames(self, "Select Files", self.last_directory, "CSV Files (*.csv);;All Files (*)")
         if files:
@@ -396,12 +418,32 @@ class DataFittingTab(QWidget):
                 item.setData(Qt.UserRole, file)  # Store the full file path in the item
                 self.selected_data_panel.selected_files_list.addItem(item)
 
+            # **MODIFICATION: Update data columns based on the first added file and emit signal**
+            first_added_file = files[0]
+            df, _, _ = self.read_numeric_data(first_added_file)
+            if df is not None:
+                columns = df.columns.tolist()
+                self.data_columns_updated.emit(columns)
+            else:
+                self.data_columns_updated.emit([])
+
     def toggle_select_all_files(self):
         select_all = self.selected_data_panel.select_all_button.text() == "Select All"
         for index in range(self.selected_data_panel.selected_files_list.count()):
             item = self.selected_data_panel.selected_files_list.item(index)
             item.setCheckState(Qt.Checked if select_all else Qt.Unchecked)
         self.selected_data_panel.select_all_button.setText("Deselect All" if select_all else "Select All")
+
+        # **MODIFICATION: After toggling selection, emit data_columns_updated if selection affects columns**
+        selected_files = self.selected_data_panel.get_selected_files()
+        if selected_files:
+            first_selected_file = selected_files[0]
+            df, _, _ = self.read_numeric_data(first_selected_file)
+            if df is not None:
+                columns = df.columns.tolist()
+                self.data_columns_updated.emit(columns)
+            else:
+                self.data_columns_updated.emit([])
 
     def retract_from_general(self):
         # **Access the General Tab's SelectedDataPanel**
@@ -431,10 +473,19 @@ class DataFittingTab(QWidget):
                     added_files.append(file_path)
                     break
 
-        if added_files:
-            QMessageBox.information(self, "Retract Successful", f"Added {len(added_files)} file(s) to the Data Fitting Tab.")
-        else:
-            QMessageBox.information(self, "No New Files", "No new files were added (they may already exist).")
+            if added_files:
+                QMessageBox.information(self, "Retract Successful", f"Added {len(added_files)} file(s) to the Data Fitting Tab.")
+
+                # **MODIFICATION: Update data columns based on the first added file and emit signal**
+                first_added_file = added_files[0]
+                df, _, _ = self.read_numeric_data(first_added_file)
+                if df is not None:
+                    columns = df.columns.tolist()
+                    self.data_columns_updated.emit(columns)
+                else:
+                    self.data_columns_updated.emit([])
+            else:
+                QMessageBox.information(self, "No New Files", "No new files were added (they may already exist).")
 
     def toggle_manual_peak_picking_mode(self, panel, enter_mode):
         if enter_mode:
@@ -479,21 +530,25 @@ class DataFittingTab(QWidget):
         # Process each data file
         for file_path in data_files:
             try:
-                # Use read_numeric_data to read the file
-                df, x, y = self.read_numeric_data(file_path)
+                # **Read the DataFrame**
+                df, _, _ = self.read_numeric_data(file_path)
                 if df is None:
                     print(f"Skipping file {file_path} due to insufficient data.")
                     continue
 
-                # Extract column names
-                if len(df.columns) >= 2:
-                    x_col_name = df.columns[0]
-                    y_col_name = df.columns[1]
-                else:
-                    x_col_name = 'X'
-                    y_col_name = 'Y'
+                # **Extract selected columns**
+                x_column = params.get('x_column')
+                y_column = params.get('y_column')
 
-                self.column_names[file_path] = (x_col_name, y_col_name)  # Store column names
+                if x_column not in df.columns or y_column not in df.columns:
+                    QMessageBox.warning(self, "Column Error", f"Selected columns not found in {file_path}.")
+                    continue
+
+                x = df[x_column].values
+                y = df[y_column].values
+
+                # **Update self.column_names**
+                self.column_names[file_path] = (x_column, y_column)
 
                 # Check which panel is being used
                 if isinstance(panel, PolynomialFittingPanel):
@@ -1195,6 +1250,10 @@ class DataFittingTab(QWidget):
 
         return fitted_y, fit_info
 
+    def sanitize_filename(self, name):
+        """Sanitize the string to be filesystem-friendly."""
+        return ''.join(c if c.isalnum() or c == '_' else '_' for c in name)
+
     def send_fitted_data_to_data_panel(self, panel):
         if not self.fitted_data:
             QMessageBox.warning(self, "No Fitted Data", "Please apply fitting first.")
@@ -1207,8 +1266,6 @@ class DataFittingTab(QWidget):
             return
 
         # Prepare to send data to the data panel
-        import tempfile
-
         fitted_file_paths = []
 
         for file_path in data_files:
@@ -1216,31 +1273,44 @@ class DataFittingTab(QWidget):
                 x, y, fitted_y, fit_info = self.fitted_data[file_path]
                 try:
                     base_name = os.path.splitext(os.path.basename(file_path))[0]
-                    new_file_name = f"{base_name}_fitted.csv"
+                    
+                    # **Retrieve the Y column name**
+                    y_col_name = self.column_names.get(file_path, ('X', 'Y'))[1]
+                    
+                    # **Sanitize the Y column name to make it filesystem-friendly**
+                    safe_y_col_name = self.sanitize_filename(y_col_name)
+                    
+                    # **Update the filename to include the Y column name**
+                    new_file_name = f"{base_name}_fitted_{safe_y_col_name}.csv"
                     temp_dir = tempfile.gettempdir()
                     new_file_path = os.path.join(temp_dir, new_file_name)
 
                     # Get original column names
                     x_col_name, y_col_name = self.column_names.get(file_path, ('X', 'Y'))
 
-                    # Save x and fitted_y to CSV
+                    # **Save x and fitted_y to CSV with Y column name included**
                     df = pd.DataFrame({
                         x_col_name: x,
-                        'Fitted_' + y_col_name: fitted_y
+                        f"Fitted_{y_col_name}": fitted_y
                     })
 
                     df.to_csv(new_file_path, index=False)
                     fitted_file_paths.append(new_file_path)
 
+                    print(f"Fitted data saved to {new_file_path}")
+
                 except Exception as e:
                     QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
+                    print(f"Error saving file {new_file_path}: {e}")
 
         if fitted_file_paths:
-            # Add fitted files to Selected Data panel
+            # **Add fitted files to Selected Data panel**
             self.selected_data_panel.add_files(fitted_file_paths)
             QMessageBox.information(self, "Send Successful", "Fitted data sent to Selected Data panel.")
+            print("Fitted data sent to Selected Data panel successfully.")
         else:
             QMessageBox.warning(self, "No Data Sent", "No fitted data was sent to the Selected Data panel.")
+            print("No fitted data was sent to the Selected Data panel.")
 
     def run_peak_finder(self, panel):
         # Get the selected data files
@@ -1260,7 +1330,22 @@ class DataFittingTab(QWidget):
                     self, "Data Error", "Failed to read the data file or insufficient data."
                 )
                 return
+            
+            # **Ensure that the panel has y_column selected**
+            x_column = panel.x_column_combo.currentText()
+            y_column = panel.y_column_combo.currentText()
 
+            if not x_column or not y_column:
+                QMessageBox.warning(self, "Column Selection", "Please select both X and Y columns for peak finding.")
+                return
+
+            if x_column not in df.columns or y_column not in df.columns:
+                QMessageBox.warning(self, "Column Error", f"Selected columns not found in {file_path}.")
+                return
+
+            x = df[x_column].values
+            y = df[y_column].values
+            
             # Get sensitivity from panel
             try:
                 sensitivity = float(panel.sensitivity_input.text())
@@ -1415,9 +1500,11 @@ class DataFittingTab(QWidget):
                 base_name = os.path.splitext(os.path.basename(file_path))[0]
                 x_col_name, y_col_name = self.column_names.get(file_path, ('X', 'Y'))
 
+                # **Sanitize the Y column name**
+                safe_y_col_name = self.sanitize_filename(y_col_name)
+
                 # === Saving CSV Files ===
                 try:
-
                     if 'transform_type' in fit_info and fit_info['transform_type'] == 'FFT':
                         df = pd.DataFrame({
                             'Frequency': x,
@@ -1435,22 +1522,22 @@ class DataFittingTab(QWidget):
                         df = pd.DataFrame({
                             x_col_name: x,
                             y_col_name: y,
-                            'Fitted_' + y_col_name: fitted_y,
+                            f"Fitted_{y_col_name}": fitted_y,
                             'Residuals': fit_info.get('residuals', np.nan)
                         })
 
-                    new_file_name = f"{base_name}_fitted.csv"
+                    # **Update the filename to include the Y column name**
+                    new_file_name = f"{base_name}_fitted_{safe_y_col_name}.csv"
                     new_file_path = os.path.join(directory, new_file_name)
                     df.to_csv(new_file_path, index=False)
                     print(f"Fitted data saved to {new_file_path}")
 
                 except Exception as e:
-                    QMessageBox.warning(self, "Error Saving CSV", f"Error saving CSV for {base_name}:\n{e}")
+                    QMessageBox.warning(self, "Error Saving CSV", f"Error saving CSV for {base_name}: {e}")
                     print(f"Error saving CSV for {base_name}: {e}")
 
                 try:
                     # === Saving Fit Parameters as Text Files ===
-
                     if 'coefficients' in fit_info:
                         # Polynomial Fitting Parameters
                         coeffs = fit_info['coefficients']
@@ -1467,8 +1554,8 @@ class DataFittingTab(QWidget):
                         params_text += f"R-squared: {r_squared:.4f}\n"
                         params_text += f"Reduced Chi-Squared: {reduced_chi_squared:.4f}\n"
                         
-                        # Define the text file name and path
-                        params_file_name = f"{base_name}_fit_parameters.txt"
+                        # **Update the filename to include the Y column name**
+                        params_file_name = f"{base_name}_fit_parameters_{safe_y_col_name}.txt"
                         params_file_path = os.path.join(directory, params_file_name)
                         
                         # Write the parameters to the text file
@@ -1477,7 +1564,6 @@ class DataFittingTab(QWidget):
                         
                         print(f"Fit parameters saved to {params_file_path}")
 
-                    
                     elif 'fit_params' in fit_info:
                         # Peak Fitting Parameters
                         fit_params = fit_info['fit_params']
@@ -1534,12 +1620,13 @@ class DataFittingTab(QWidget):
                                 })
                             else:
                                 print(f"Unknown function type: {function_type}")
+                                continue
                             params_data.append(param_dict)
 
                         # Create DataFrame
                         params_df = pd.DataFrame(params_data)
 
-                        # Add R-squared and Reduced Chi-Squared as overall statistics
+                        # Add R-squared and Reduced Chi-squared as overall statistics
                         overall_stats = {
                             'Peak': 'Overall',
                             'Function_Type': 'Statistics',
@@ -1570,8 +1657,8 @@ class DataFittingTab(QWidget):
                         # Append the overall statistics row
                         params_df = pd.concat([params_df, pd.DataFrame([overall_stats])], ignore_index=True)
                         
-                        # Define the text file name and path
-                        params_file_name = f"{base_name}_fit_parameters.txt"
+                        # **Update the filename to include the Y column name**
+                        params_file_name = f"{base_name}_fit_parameters_{safe_y_col_name}.txt"
                         params_file_path = os.path.join(directory, params_file_name)
 
                         # Create a formatted string for peak fitting parameters
@@ -1622,12 +1709,11 @@ class DataFittingTab(QWidget):
                         params_text += f"  R-squared: {r_squared_str}\n"
                         params_text += f"  Reduced Chi-Squared: {reduced_chi_squared_str}\n"
 
-                        # Save the custom function definition
-                        function_str = params['function_str'] if 'function_str' in params else 'N/A'
-                        params_text += f"\nCustom Function:\n{function_str}\n"
+                        # Include the fit report for detailed information
+                        params_text += f"\nFit Report:\n{fit_info.get('fit_report', '')}\n"
 
-                        # Define the text file name and path
-                        params_file_name = f"{base_name}_fit_parameters.txt"
+                        # **Update the filename to include the Y column name**
+                        params_file_name = f"{base_name}_fit_parameters_{safe_y_col_name}.txt"
                         params_file_path = os.path.join(directory, params_file_name)
 
                         # Write the parameters to the text file
@@ -1674,8 +1760,8 @@ class DataFittingTab(QWidget):
                         # Include the fit report for detailed information
                         params_text += f"\nFit Report:\n{fit_info.get('fit_report', '')}\n"
 
-                        # Define the text file name and path
-                        params_file_name = f"{base_name}_fit_parameters.txt"
+                        # **Update the filename to include the Y column name**
+                        params_file_name = f"{base_name}_fit_parameters_{safe_y_col_name}.txt"
                         params_file_path = os.path.join(directory, params_file_name)
 
                         # Write the parameters to the text file
@@ -1692,8 +1778,8 @@ class DataFittingTab(QWidget):
                         zero_padding = fit_info.get('zero_padding', 0)
                         params_text += f"Window Function: {window_function}\n"
                         params_text += f"Zero Padding: {zero_padding}\n"
-                        # Define the text file name and path
-                        params_file_name = f"{base_name}_fft_parameters.txt"
+                        # **Update the filename to include the Y column name**
+                        params_file_name = f"{base_name}_fft_parameters_{safe_y_col_name}.txt"
                         params_file_path = os.path.join(directory, params_file_name)
                         # Write the parameters to the text file
                         with open(params_file_path, 'w') as f:
@@ -1701,7 +1787,7 @@ class DataFittingTab(QWidget):
                         print(f"FFT parameters saved to {params_file_path}")
 
                 except Exception as e:
-                    QMessageBox.warning(self, "Error Saving Fit Parameters", f"Error saving fit parameters for {base_name}:\n{e}")
+                    QMessageBox.warning(self, "Error Saving Fit Parameters", f"Error saving fit parameters for {base_name}: {e}")
                     print(f"Error saving fit parameters for {base_name}: {e}")
 
         QMessageBox.information(self, "Save Successful", f"Fitted data saved to {directory}")
@@ -2129,6 +2215,7 @@ class FittingMethodWindow(QDialog):
                 if df is not None:
                     columns = df.columns.tolist()
                     self.panel.set_data_columns(columns)
+                    print(f"{self.method_name} panel set with columns: {columns}")  # **ADDED DEBUG STATEMENT**
 
         # Connect panel signals to parent slots
         self.connect_panel_signals()
@@ -2156,6 +2243,10 @@ class FittingMethodWindow(QDialog):
             if hasattr(self.panel, 'show_equation_button'):
                 self.panel.show_equation_button.clicked.connect(self.panel.show_equation)
 
+ # **Connect 'parameters_changed' signal if it exists**
+                if hasattr(self.panel, 'parameters_changed'):
+                    self.panel.parameters_changed.connect(partial(parent.update_fitted_plot, self.panel))
+                    
     def closeEvent(self, event):
         """Handle the window close event."""
         self.closed.emit()

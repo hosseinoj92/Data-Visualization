@@ -36,6 +36,16 @@ class GaussianFittingPanel(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
+        # **Add Column Selection Section**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("Select X Column:"))
+        self.x_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.x_column_combo)
+        column_selection_layout.addWidget(QLabel("Select Y Column:"))
+        self.y_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.y_column_combo)
+        layout.addLayout(column_selection_layout)
+
         # Peak Parameters Table
         self.peak_table = QTableWidget(0, 6)
         self.peak_table.setHorizontalHeaderLabels(['Function', 'Param1', 'Param2', 'Param3', 'Param4', 'Enable'])
@@ -102,6 +112,10 @@ class GaussianFittingPanel(QWidget):
         self.run_peak_finder_button.clicked.connect(self.run_peak_finder)
         self.help_button.clicked.connect(self.show_help)
 
+        # Connect column combo boxes to emit parameter changes
+        self.x_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+        self.y_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+
         # Disconnect existing connections to prevent multiple connections
         try:
             self.peak_table.cellChanged.disconnect()
@@ -114,6 +128,14 @@ class GaussianFittingPanel(QWidget):
         self.save_button.setEnabled(False)
         self.send_to_data_panel_button.setEnabled(False)
 
+    def set_data_columns(self, columns):
+        """Populate the X and Y column combo boxes with available columns."""
+        self.x_column_combo.clear()
+        self.y_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.addItems(columns)
+        print(f"GaussianFittingPanel: Columns updated to {columns}")  # **ADDED DEBUG STATEMENT**
+  
     def manual_peak_picker(self):
         if self.manual_peak_picker_button.isChecked():
             # Emit the signal to notify the DataFittingTab to enter manual peak picking mode
@@ -390,12 +412,25 @@ class GaussianFittingPanel(QWidget):
                     QMessageBox.warning(self, "Invalid Input", f"Invalid numerical value in peak starting at row {row + 1}.")
                     return None
             row += 2  # Move to the next peak (skip the parameter row)
+    
         if not peaks:
             QMessageBox.warning(self, "No Peaks", "Please add and enable at least one peak.")
             return None
 
+        # **Add the following code to include selected X and Y columns**
+        x_column = self.x_column_combo.currentText()
+        y_column = self.y_column_combo.currentText()
+
+        if not x_column or not y_column:
+            QMessageBox.warning(self, "Column Selection", "Please select both X and Y columns for fitting.")
+            return None
+
         print("get_parameters: Retrieved peaks:", peaks)
-        return {'peaks': peaks}
+        return {
+            'peaks': peaks,
+            'x_column': x_column,
+            'y_column': y_column
+        }
 
 class ParameterWidget(QWidget):
     def __init__(self, param_value):
@@ -439,6 +474,16 @@ class PolynomialFittingPanel(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout()
+
+       # Add Column Selection Section
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("Select X Column:"))
+        self.x_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.x_column_combo)
+        column_selection_layout.addWidget(QLabel("Select Y Column:"))
+        self.y_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.y_column_combo)
+        layout.addLayout(column_selection_layout)
 
         # Fitting Type Selection
         layout.addWidget(QLabel("Select Fitting Type:"))
@@ -490,25 +535,44 @@ class PolynomialFittingPanel(QWidget):
         self.apply_button.clicked.connect(self.parameters_changed.emit)
         self.help_button.clicked.connect(self.show_help)
 
+        # Connect column combo boxes to emit parameter changes
+        self.x_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+        self.y_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+
     def toggle_degree_visibility(self):
         is_polynomial = self.polynomial_radio.isChecked()
         self.degree_label.setVisible(is_polynomial)
         self.degree_spinbox.setVisible(is_polynomial)
 
+    def set_data_columns(self, columns):
+        """Populate the X and Y column combo boxes with available columns."""
+        self.x_column_combo.clear()
+        self.y_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.addItems(columns)
+
     def get_parameters(self):
-        if self.linear_radio.isChecked():
-            fitting_type = 'linear'
-            degree = 1
-        else:
-            fitting_type = 'polynomial'
-            degree = self.degree_spinbox.value()
-        return {'fitting_type': fitting_type, 'degree': degree}
+        fitting_type = 'linear' if self.linear_radio.isChecked() else 'polynomial'
+        degree = self.degree_spinbox.value() if fitting_type == 'polynomial' else 1
+
+        # Get selected columns
+        x_column = self.x_column_combo.currentText()
+        y_column = self.y_column_combo.currentText()
+
+        if not x_column or not y_column:
+            QMessageBox.warning(self, "Column Selection", "Please select both X and Y columns for fitting.")
+            return None
+
+        return {
+            'fitting_type': fitting_type,
+            'degree': degree,
+            'x_column': x_column,
+            'y_column': y_column
+        }
 
     def show_help(self):
-            help_content = POLYNOMIAL_FITTING_HELP
-            dialog = HelpDialog("Polynomial Fitting Help", help_content, self)
-            dialog.exec_()
-
+        help_content = POLYNOMIAL_FITTING_HELP
+        QMessageBox.information(self, "Polynomial Fitting Help", help_content)
 
 
 
@@ -522,6 +586,16 @@ class CustomFittingPanel(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout()
+
+        # Add Column Selection Section
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("Select X Column:"))
+        self.x_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.x_column_combo)
+        column_selection_layout.addWidget(QLabel("Select Y Column:"))
+        self.y_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.y_column_combo)
+        layout.addLayout(column_selection_layout)
 
         # Instruction Label
         layout.addWidget(QLabel("Define your custom fitting function:"))
@@ -602,9 +676,19 @@ class CustomFittingPanel(QWidget):
         self.load_function_button.clicked.connect(self.load_function)
         self.show_equation_button.clicked.connect(self.show_equation)
 
+        # Connect column combo boxes to emit parameter changes
+        self.x_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+        self.y_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
 
         # Initialize parameters
         self.parameters = {}
+
+    def set_data_columns(self, columns):
+        """Populate the X and Y column combo boxes with available columns."""
+        self.x_column_combo.clear()
+        self.y_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.addItems(columns)
 
     def add_parameter(self):
         row_position = self.parameters_table.rowCount()
@@ -870,6 +954,14 @@ class CustomFittingPanel(QWidget):
             QMessageBox.warning(self, "No Function", "Please enter a custom function.")
             return None
 
+        # Get selected columns
+        x_column = self.x_column_combo.currentText()
+        y_column = self.y_column_combo.currentText()
+
+        if not x_column or not y_column:
+            QMessageBox.warning(self, "Column Selection", "Please select both X and Y columns for fitting.")
+            return None
+
         # Retrieve parameters and initial guesses
         params = {}
         for row in range(self.parameters_table.rowCount()):
@@ -902,7 +994,9 @@ class CustomFittingPanel(QWidget):
             'function_str': function_str,
             'params': params,
             'optimization_method': optimization_method,
-            'max_iterations': max_iterations
+            'max_iterations': max_iterations,
+            'x_column': x_column,
+            'y_column': y_column
         }
 
     def save_function(self):
@@ -994,7 +1088,17 @@ class LogExpPowerFittingPanel(QWidget):
         # Create main layout
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
-        
+
+        # Add Column Selection Section
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("Select X Column:"))
+        self.x_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.x_column_combo)
+        column_selection_layout.addWidget(QLabel("Select Y Column:"))
+        self.y_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.y_column_combo)
+        main_layout.addLayout(column_selection_layout)
+
         # Fitting type selection
         fitting_type_layout = QHBoxLayout()
         fitting_type_label = QLabel("Select Fitting Type:")
@@ -1058,7 +1162,19 @@ class LogExpPowerFittingPanel(QWidget):
         
         # Connect help button
         self.help_button.clicked.connect(self.show_help)
-    
+
+       # Connect column combo boxes to emit parameter changes
+        self.x_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+        self.y_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+
+
+    def set_data_columns(self, columns):
+        """Populate the X and Y column combo boxes with available columns."""
+        self.x_column_combo.clear()
+        self.y_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.addItems(columns)    
+
     def update_parameter_fields(self, fitting_type):
         # Clear existing parameter fields
         for i in reversed(range(self.parameter_layout.count())):
@@ -1118,12 +1234,23 @@ class LogExpPowerFittingPanel(QWidget):
                 'max': max_value
             }
         optimization_method = self.optimization_method_combo.currentText()
-        max_iterations = self.max_iterations_spin.value()
+        max_iterations = self.max_iterations_spinbox.value()
+
+        # Get selected columns
+        x_column = self.x_column_combo.currentText()
+        y_column = self.y_column_combo.currentText()
+
+        if not x_column or not y_column:
+            QMessageBox.warning(self, "Column Selection", "Please select both X and Y columns for fitting.")
+            return None
+
         return {
             'fitting_type': fitting_type,
             'params': params,
             'optimization_method': optimization_method,
-            'max_iterations': max_iterations
+            'max_iterations': max_iterations,
+            'x_column': x_column,
+            'y_column': y_column
         }
     
     
@@ -1144,6 +1271,16 @@ class FourierTransformPanel(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
+        # Add Column Selection Section
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("Select Time Column:"))
+        self.time_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.time_column_combo)
+        column_selection_layout.addWidget(QLabel("Select Data Column:"))
+        self.data_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.data_column_combo)
+        layout.addLayout(column_selection_layout)
+
         self.x_scale_label = QLabel("X-axis Scale:")
         self.x_scale_combo = QComboBox()
         self.x_scale_combo.addItems(['linear', 'log'])
@@ -1158,19 +1295,6 @@ class FourierTransformPanel(QWidget):
         layout.addWidget(self.y_scale_label)
         layout.addWidget(self.y_scale_combo)
 
-        # Data Selection Section
-        data_selection_layout = QHBoxLayout()
-        data_selection_layout.addWidget(QLabel("Select Data Column:"))
-        self.data_column_combo = QComboBox()
-        data_selection_layout.addWidget(self.data_column_combo)
-        layout.addLayout(data_selection_layout)
-
-        # **Add Time Column Selection**
-        time_selection_layout = QHBoxLayout()
-        time_selection_layout.addWidget(QLabel("Select Time Column:"))
-        self.time_column_combo = QComboBox()
-        time_selection_layout.addWidget(self.time_column_combo)
-        layout.addLayout(time_selection_layout)
 
         # Transform Type Selection
         transform_type_layout = QHBoxLayout()
@@ -1227,6 +1351,10 @@ class FourierTransformPanel(QWidget):
         # Connect Signals
         self.apply_button.clicked.connect(self.parameters_changed.emit)
         self.help_button.clicked.connect(self.show_help)
+
+        # Connect column combo boxes to emit parameter changes
+        self.time_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+        self.data_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
 
     def set_data_columns(self, columns):
         """Populate the data and time column combo boxes with available columns."""
