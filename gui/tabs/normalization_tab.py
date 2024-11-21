@@ -435,6 +435,10 @@ class NormalizationTab(QWidget):
 
         method = params['method']
 
+        # **Retrieve selected columns from parameters**
+        x_col = params.get('x_column', 0)
+        y_col = params.get('y_column', 1)
+
         # Process each data file
         for file_path in data_files:
             try:
@@ -443,10 +447,6 @@ class NormalizationTab(QWidget):
                 if df is None:
                     print(f"Skipping file {file_path} due to insufficient data.")
                     continue
-
-                plot_details = self.plot_details_panel.get_plot_details()
-                x_col = int(plot_details['x_axis_col']) - 1
-                y_col = int(plot_details['y_axis_col']) - 1
 
                 # Validate column indices
                 if x_col >= df.shape[1] or y_col >= df.shape[1]:
@@ -457,6 +457,14 @@ class NormalizationTab(QWidget):
                 # Extract selected columns
                 x_series = df.iloc[:, x_col]
                 y_series = df.iloc[:, y_col]
+
+                # **Store column names for later use**
+                x_col_name = df.columns[x_col]
+                y_col_name = df.columns[y_col]
+                if not hasattr(self, 'column_names'):
+                    self.column_names = {}
+                self.column_names[file_path] = (x_col_name, y_col_name)
+
 
                 # Handle missing data
                 if method == "Remove Rows with Missing Data":
@@ -559,6 +567,10 @@ class NormalizationTab(QWidget):
         uthresh = sigma * np.sqrt(2 * np.log(len(y)))
         coeffs[1:] = (pywt.threshold(i, value=uthresh, mode='soft') for i in coeffs[1:])
         return pywt.waverec(coeffs, wavelet)
+
+    def sanitize_filename(self, name):
+        """Sanitize the string to be filesystem-friendly."""
+        return ''.join(c if c.isalnum() or c == '_' else '_' for c in name)
 
     def apply_unit_conversion(self, x_series, y_series, x_formula, y_formula):
         """
@@ -814,6 +826,10 @@ class NormalizationTab(QWidget):
             "Baseline Correction with File"
         ]
 
+        # **Retrieve selected columns from parameters**
+        x_col = params.get('x_column', 0)
+        y_col = params.get('y_column', 1)
+
         # Process each data file
         for file_path in data_files:
             try:
@@ -822,10 +838,6 @@ class NormalizationTab(QWidget):
                 if df is None:
                     print(f"Skipping file {file_path} due to insufficient data.")
                     continue
-
-                plot_details = self.plot_details_panel.get_plot_details()
-                x_col = int(plot_details['x_axis_col']) - 1
-                y_col = int(plot_details['y_axis_col']) - 1
 
                 # Validate column indices
                 if x_col >= df.shape[1] or y_col >= df.shape[1]:
@@ -845,6 +857,13 @@ class NormalizationTab(QWidget):
                 if len(x) == 0 or len(y) == 0:
                     QMessageBox.warning(self, "No Valid Data", f"No valid numeric data found in selected columns of {file_path}.")
                     continue
+
+                # **Store column names for later use**
+                x_col_name = df.columns[x_col]
+                y_col_name = df.columns[y_col]
+                if not hasattr(self, 'column_names'):
+                    self.column_names = {}
+                self.column_names[file_path] = (x_col_name, y_col_name)
 
                 # Apply the appropriate normalization method
                 if panel.method_name == "Baseline Correction with File":
@@ -965,8 +984,8 @@ class NormalizationTab(QWidget):
             QMessageBox.warning(self, "No Data Selected", "Please select data files to save.")
             return
 
-        # Select normalization method for naming
-        method_name = panel.method_name.replace(" ", "_").replace("(", "").replace(")", "").replace("-", "").replace("/", "_")
+        # **Sanitize method name**
+        method_name = self.sanitize_filename(panel.method_name.replace(" ", "_"))
 
         # Ask user to select folder to save files
         directory = QFileDialog.getExistingDirectory(self, "Select Directory to Save Normalized Data")
@@ -980,7 +999,15 @@ class NormalizationTab(QWidget):
                 x, y_normalized = self.normalized_data[file_path]
                 try:
                     base_name = os.path.splitext(os.path.basename(file_path))[0]
-                    new_file_name = f"{base_name}_{method_name}.csv"
+
+                    # **Retrieve the Y column name**
+                    y_col_name = self.column_names.get(file_path, ('X', 'Y'))[1]
+
+                    # **Sanitize the Y column name**
+                    safe_y_col_name = self.sanitize_filename(y_col_name)
+
+                    # **Update the filename to include the Y column name**
+                    new_file_name = f"{base_name}_{method_name}_{safe_y_col_name}.csv"
                     new_file_path = os.path.join(directory, new_file_name)
 
                     plot_details = self.plot_details_panel.get_plot_details()
@@ -1122,6 +1149,7 @@ class NormalizationTab(QWidget):
 
         # Redraw the figure
         self.canvas.draw_idle()
+
     def send_normalized_data_to_data_panel(self, panel):
         if not self.normalized_data:
             QMessageBox.warning(self, "No Normalized Data", "Please apply normalization first.")
@@ -1133,12 +1161,12 @@ class NormalizationTab(QWidget):
             QMessageBox.warning(self, "No Data Selected", "Please select data files to send.")
             return
 
-        # Get method name for naming the files
-        method_name = panel.method_name.replace(" ", "_").replace("(", "").replace(")", "").replace("-", "").replace("/", "_")
+        # **Sanitize method name**
+        method_name = self.sanitize_filename(panel.method_name.replace(" ", "_"))
 
         # Create a temporary directory to save the files
         import tempfile
-        temp_dir = tempfile.mkdtemp(prefix='normalized_data_')
+        temp_dir = tempfile.gettempdir()
 
         normalized_file_paths = []
 
@@ -1147,7 +1175,15 @@ class NormalizationTab(QWidget):
                 x, y_normalized = self.normalized_data[file_path]
                 try:
                     base_name = os.path.splitext(os.path.basename(file_path))[0]
-                    new_file_name = f"{base_name}_{method_name}.csv"
+
+                    # **Retrieve the Y column name**
+                    y_col_name = self.column_names.get(file_path, ('X', 'Y'))[1]
+
+                    # **Sanitize the Y column name**
+                    safe_y_col_name = self.sanitize_filename(y_col_name)
+
+                    # **Update the filename to include the Y column name**
+                    new_file_name = f"{base_name}_{method_name}_{safe_y_col_name}.csv"
                     new_file_path = os.path.join(temp_dir, new_file_name)
 
                     plot_details = self.plot_details_panel.get_plot_details()

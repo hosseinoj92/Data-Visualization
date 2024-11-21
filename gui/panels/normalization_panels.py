@@ -272,6 +272,22 @@ class MinMaxNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
+
         # Custom Min-Max Range
         self.use_custom_range_checkbox = QCheckBox("Use custom min-max values")
         self.layout.addWidget(self.use_custom_range_checkbox)
@@ -340,6 +356,11 @@ class MinMaxNormalizationPanel(BaseNormalizationMethodPanel):
         else:
             params['custom_min'] = None
             params['custom_max'] = None
+            
+        # **Include selected column indices**
+        params['x_column'] = self.x_column_spinbox.value() - 1  # Adjust for 0-based indexing
+        params['y_column'] = self.y_column_spinbox.value() - 1  # Adjust for 0-based indexing
+       
         return params
 
 
@@ -373,6 +394,22 @@ class ZScoreNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
+
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
 
         # Parameters for Z-score
         self.layout.addWidget(QLabel("Z-score Parameters:"))
@@ -434,6 +471,10 @@ class ZScoreNormalizationPanel(BaseNormalizationMethodPanel):
             if params['std'] is not None and params['std'] == 0:
                 QMessageBox.warning(self, "Invalid Standard Deviation", "Standard deviation cannot be zero.")
                 return None
+            
+             # **Include selected column indices**
+            params['x_column'] = self.x_column_spinbox.value() - 1
+            params['y_column'] = self.y_column_spinbox.value() - 1
             return params
         except ValueError:
             QMessageBox.warning(self, "Invalid Input", "Please enter valid numerical values for mean and standard deviation.")
@@ -471,6 +512,23 @@ class AUCNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
+
         # Parameters for AUC Normalization
         self.layout.addWidget(QLabel("AUC Normalization Parameters:"))
 
@@ -498,6 +556,9 @@ class AUCNormalizationPanel(BaseNormalizationMethodPanel):
         params = {}
         # Check if sorting is enabled
         params['sort_data'] = self.sort_checkbox.isChecked()
+                # **Include selected column indices**
+        params['x_column'] = self.x_column_spinbox.value() - 1
+        params['y_column'] = self.y_column_spinbox.value() - 1
         return params
 
 
@@ -656,6 +717,22 @@ class RobustScalingNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
+
         # Parameters for Robust Scaling
         self.layout.addWidget(QLabel("Robust Scaling Parameters:"))
 
@@ -730,6 +807,10 @@ class RobustScalingNormalizationPanel(BaseNormalizationMethodPanel):
             if not (0 <= params['quantile_min'] < params['quantile_max'] <= 100):
                 QMessageBox.warning(self, "Invalid Quantile Range", "Quantile Min must be less than Quantile Max and both between 0 and 100.")
                 return None
+            
+            # **Include selected column indices**
+            params['x_column'] = self.x_column_spinbox.value() - 1
+            params['y_column'] = self.y_column_spinbox.value() - 1
             return params
         except ValueError:
             QMessageBox.warning(self, "Invalid Input", "Please enter valid numerical values for quantiles.")
@@ -767,6 +848,22 @@ class TotalIntensityNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
+
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
 
         # Parameters for Total Intensity Normalization
         self.layout.addWidget(QLabel("Total Intensity Normalization Parameters:"))
@@ -826,6 +923,11 @@ class TotalIntensityNormalizationPanel(BaseNormalizationMethodPanel):
         else:
             params['desired_total_intensity'] = 1.0  # Default scaling factor
 
+            
+        # **Include selected column indices**
+        params['x_column'] = self.x_column_spinbox.value() - 1
+        params['y_column'] = self.y_column_spinbox.value() - 1
+
         return params
     
 class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
@@ -860,6 +962,22 @@ class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
+
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
 
         # Parameters for Reference Peak Normalization
         self.layout.addWidget(QLabel("Reference Peak Normalization Parameters:"))
@@ -921,6 +1039,10 @@ class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
                 return None
             params['reference_peak_x'] = ref_peak
             params['desired_reference_intensity'] = desired_intensity
+
+                    # **Include selected column indices**
+            params['x_column'] = self.x_column_spinbox.value() - 1
+            params['y_column'] = self.y_column_spinbox.value() - 1
             return params
         except ValueError:
             QMessageBox.warning(self, "Invalid Input", "Please enter a valid numerical value for the Reference Peak X-Value.")
@@ -956,6 +1078,22 @@ class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
+
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
 
         # Parameters for Baseline Correction
         self.layout.addWidget(QLabel("Baseline Correction Parameters:"))
@@ -1072,6 +1210,23 @@ class BaselineCorrectionWithFileNormalizationPanel(BaseNormalizationMethodPanel)
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
+
         # File Selection for Reference Data
         self.layout.addWidget(QLabel("Select Reference File:"))
         file_selection_layout = QHBoxLayout()
@@ -1118,4 +1273,10 @@ class BaselineCorrectionWithFileNormalizationPanel(BaseNormalizationMethodPanel)
             QMessageBox.warning(self, "Invalid File", "Please select a valid reference file.")
             return None
         params['reference_file_path'] = reference_file_path
+
+        
+        # **Include selected column indices**
+        params['x_column'] = self.x_column_spinbox.value() - 1
+        params['y_column'] = self.y_column_spinbox.value() - 1
+        
         return params

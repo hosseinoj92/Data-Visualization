@@ -62,6 +62,23 @@ class CorrectMissingDataPanel(QWidget):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
+        
         # Options for Handling Missing Data
         self.layout.addWidget(QLabel("Choose how to handle missing data:"))
 
@@ -86,6 +103,10 @@ class CorrectMissingDataPanel(QWidget):
         params = {
             'method': self.method_combo.currentText()
         }
+
+        # **Include selected column indices**
+        params['x_column'] = self.x_column_spinbox.value() - 1
+        params['y_column'] = self.y_column_spinbox.value() - 1
         return params
 
 class NoiseReductionPanel(QWidget):
@@ -120,6 +141,22 @@ class NoiseReductionPanel(QWidget):
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
+
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
 
         # Options for Noise Reduction
         self.layout.addWidget(QLabel("Choose a noise reduction method:"))
@@ -235,6 +272,10 @@ class NoiseReductionPanel(QWidget):
             params['wavelet'] = wavelet
             params['level'] = level
 
+        # **Include selected column indices**
+        params['x_column'] = self.x_column_spinbox.value() - 1
+        params['y_column'] = self.y_column_spinbox.value() - 1
+
         return params
     
 class UnitConverterPanel(QWidget):
@@ -270,6 +311,23 @@ class UnitConverterPanel(QWidget):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
+
         # Instructions
         instructions = QLabel("Enter formulas to convert units for X and Y axes. Use 'x' or 'y' as variables.")
         instructions.setWordWrap(True)
@@ -300,6 +358,9 @@ class UnitConverterPanel(QWidget):
             'x_formula': self.x_formula_input.text().strip(),
             'y_formula': self.y_formula_input.text().strip()
         }
+                # **Include selected column indices**
+        params['x_column'] = self.x_column_spinbox.value() - 1
+        params['y_column'] = self.y_column_spinbox.value() - 1
         return params
 
 
@@ -335,6 +396,22 @@ class ShiftBaselinePanel(QWidget):
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
+
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
 
         # Instructions
         instructions = QLabel("Shift the baseline by adjusting the minimum Y-value to a desired value.")
@@ -379,6 +456,10 @@ class ShiftBaselinePanel(QWidget):
             'method': self.method_name,
             'desired_baseline': desired_baseline
         }
+
+         # **Include selected column indices**
+        params['x_column'] = self.x_column_spinbox.value() - 1
+        params['y_column'] = self.y_column_spinbox.value() - 1
         return params
     
 
@@ -414,6 +495,22 @@ class DataCuttingPanel(QWidget):
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
+
+        # **Add Column Selection Widgets**
+        column_selection_layout = QHBoxLayout()
+        column_selection_layout.addWidget(QLabel("X Column:"))
+        self.x_column_spinbox = QSpinBox()
+        self.x_column_spinbox.setMinimum(1)
+        self.x_column_spinbox.setValue(1)
+        column_selection_layout.addWidget(self.x_column_spinbox)
+
+        column_selection_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_spinbox = QSpinBox()
+        self.y_column_spinbox.setMinimum(1)
+        self.y_column_spinbox.setValue(2)
+        column_selection_layout.addWidget(self.y_column_spinbox)
+
+        self.layout.addLayout(column_selection_layout)
 
         # Instructions
         instructions = QLabel("Define the X interval to cut the data.\nOnly data points within [X Start, X End] will be retained.")
@@ -467,4 +564,7 @@ class DataCuttingPanel(QWidget):
             'x_start': x_start,
             'x_end': x_end
         }
+                # **Include selected column indices**
+        params['x_column'] = self.x_column_spinbox.value() - 1
+        params['y_column'] = self.y_column_spinbox.value() - 1
         return params
