@@ -567,8 +567,8 @@ class DataFittingTab(QWidget):
                     params = panel.get_parameters()
                     if params is None:
                         return  # User didn't select columns, or validation failed
-                    x_data = df[params['time_column']].values
-                    y_data = df[params['data_column']].values
+                    x_data = df[params['x_column']].values
+                    y_data = df[params['y_column']].values
                     # **Sort x_data and y_data if not already sorted**
                     sorted_indices = np.argsort(x_data)
                     x_data = x_data[sorted_indices]

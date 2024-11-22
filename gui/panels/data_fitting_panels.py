@@ -1080,6 +1080,8 @@ class CustomFittingPanel(QWidget):
 
 class LogExpPowerFittingPanel(QWidget):
     """Panel for Logarithmic, Exponential, and Power-law Fitting."""
+    parameters_changed = pyqtSignal()  # Add this line
+    
     def __init__(self):
         super().__init__()
         self.init_ui()
@@ -1135,7 +1137,7 @@ class LogExpPowerFittingPanel(QWidget):
         optimization_layout.addWidget(self.optimization_method_combo, 0, 1)
         
         # Maximum iterations
-        max_iterations_label = QLabel("Max Iterations:")
+        max_iterations_label = QLabel("Max Iterations:") 
         self.max_iterations_spin = QSpinBox()
         self.max_iterations_spin.setRange(1, 1000000)
         self.max_iterations_spin.setValue(1000)
@@ -1234,7 +1236,7 @@ class LogExpPowerFittingPanel(QWidget):
                 'max': max_value
             }
         optimization_method = self.optimization_method_combo.currentText()
-        max_iterations = self.max_iterations_spinbox.value()
+        max_iterations = self.max_iterations_spin.value()
 
         # Get selected columns
         x_column = self.x_column_combo.currentText()
@@ -1271,14 +1273,14 @@ class FourierTransformPanel(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
-        # Add Column Selection Section
+        # Column Selection Section
         column_selection_layout = QHBoxLayout()
-        column_selection_layout.addWidget(QLabel("Select Time Column:"))
-        self.time_column_combo = QComboBox()
-        column_selection_layout.addWidget(self.time_column_combo)
-        column_selection_layout.addWidget(QLabel("Select Data Column:"))
-        self.data_column_combo = QComboBox()
-        column_selection_layout.addWidget(self.data_column_combo)
+        column_selection_layout.addWidget(QLabel("Select X Column:"))  # Changed label
+        self.x_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.x_column_combo)
+        column_selection_layout.addWidget(QLabel("Select Y Column:"))  # Changed label
+        self.y_column_combo = QComboBox()
+        column_selection_layout.addWidget(self.y_column_combo)
         layout.addLayout(column_selection_layout)
 
         self.x_scale_label = QLabel("X-axis Scale:")
@@ -1353,33 +1355,35 @@ class FourierTransformPanel(QWidget):
         self.help_button.clicked.connect(self.show_help)
 
         # Connect column combo boxes to emit parameter changes
-        self.time_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
-        self.data_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+        self.x_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+        self.y_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+
 
     def set_data_columns(self, columns):
-        """Populate the data and time column combo boxes with available columns."""
-        self.data_column_combo.clear()
-        self.data_column_combo.addItems(columns)
-        self.time_column_combo.clear()
-        self.time_column_combo.addItems(columns)
+        """Populate the X and Y column combo boxes with available columns."""
+        self.x_column_combo.clear()
+        self.y_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.addItems(columns)
 
     def get_parameters(self):
         # Ensure columns are selected
-        if not self.time_column_combo.currentText():
-            QMessageBox.warning(self, "No Time Column Selected", "Please select a time column.")
+        if not self.x_column_combo.currentText():
+            QMessageBox.warning(self, "No X Column Selected", "Please select an X column.")
             return None
-        if not self.data_column_combo.currentText():
-            QMessageBox.warning(self, "No Data Column Selected", "Please select a data column.")
+        if not self.y_column_combo.currentText():
+            QMessageBox.warning(self, "No Y Column Selected", "Please select a Y column.")
             return None
 
         parameters = {
-            'data_column': self.data_column_combo.currentText(),
-            'time_column': self.time_column_combo.currentText(),
+            'x_column': self.x_column_combo.currentText(),  # Changed key
+            'y_column': self.y_column_combo.currentText(),  # Changed key
             'transform_type': self.transform_type_combo.currentText(),
             'window_function': self.window_function_combo.currentText(),
             'zero_padding': self.zero_padding_spinbox.value(),
         }
         return parameters
+
 
 
     def show_help(self):
