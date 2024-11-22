@@ -349,7 +349,7 @@ class NormalizationTab(QWidget):
                 print(f"Collapsing section '{section.toggle_button.text()}'")
                 section.toggle_button.setChecked(False)
         self.is_collapsing = False
-
+            
     def open_normalization_window(self, method_name, panel_class):
         # Check if the window is already open
         if method_name in self.normalization_method_windows:
@@ -361,6 +361,22 @@ class NormalizationTab(QWidget):
         # Create the panel
         panel = panel_class(parent=self)
         panel.method_name = method_name  # Set the method_name attribute if needed
+
+        # Retrieve selected data files and set data columns
+        data_files = self.selected_data_panel.get_selected_files()
+        if data_files:
+            # Read the first selected file to get the columns
+            file_path = data_files[0]
+            df, _, _ = self.read_numeric_data(file_path)
+            if df is not None:
+                columns = df.columns.tolist()
+                panel.set_data_columns(columns)
+            else:
+                QMessageBox.warning(self, "Data Error", f"Could not read data from {file_path}.")
+                return
+        else:
+            QMessageBox.warning(self, "No Data Selected", "Please select at least one data file.")
+            return
 
         # Create a new window
         window = QDialog(self)
@@ -384,6 +400,7 @@ class NormalizationTab(QWidget):
             del self.normalization_method_windows[method_name]
         window.finished.connect(on_window_closed)
 
+
     def open_basic_correction_window(self, method_name, panel_class):
         # Check if the window is already open
         if method_name in self.basic_corrections_windows:
@@ -395,6 +412,22 @@ class NormalizationTab(QWidget):
         # Create the panel
         panel = panel_class(parent=self)
         panel.method_name = method_name  # Set the method_name attribute if needed
+
+        # Retrieve selected data files and set data columns
+        data_files = self.selected_data_panel.get_selected_files()
+        if data_files:
+            # Read the first selected file to get the columns
+            file_path = data_files[0]
+            df, _, _ = self.read_numeric_data(file_path)
+            if df is not None:
+                columns = df.columns.tolist()
+                panel.set_data_columns(columns)
+            else:
+                QMessageBox.warning(self, "Data Error", f"Could not read data from {file_path}.")
+                return
+        else:
+            QMessageBox.warning(self, "No Data Selected", "Please select at least one data file.")
+            return
 
         # Create a new window
         window = QDialog(self)
@@ -418,6 +451,7 @@ class NormalizationTab(QWidget):
             del self.basic_corrections_windows[method_name]
         window.finished.connect(on_window_closed)
 
+
     def apply_basic_correction(self, panel):
         # Clear the previous normalized data
         self.normalized_data = {}
@@ -434,6 +468,7 @@ class NormalizationTab(QWidget):
             return  # Error message already shown
 
         method = params['method']
+        apply_for_batch = params.get('apply_for_batch', False)
 
         # Process each data file
         for file_path in data_files:
@@ -444,69 +479,79 @@ class NormalizationTab(QWidget):
                     print(f"Skipping file {file_path} due to insufficient data.")
                     continue
 
-                plot_details = self.plot_details_panel.get_plot_details()
-                x_col = int(plot_details['x_axis_col']) - 1
-                y_col = int(plot_details['y_axis_col']) - 1
+                if apply_for_batch:
+                    x_col_index = params.get('x_column_index', 0)
+                    y_col_index = params.get('y_column_index', 1)
 
-                # Validate column indices
-                if x_col >= df.shape[1] or y_col >= df.shape[1]:
-                    print(f"Selected columns do not exist in {file_path}.")
-                    QMessageBox.warning(self, "Invalid Columns", f"Selected columns do not exist in {file_path}.")
-                    continue
+                    if x_col_index >= df.shape[1] or y_col_index >= df.shape[1]:
+                        print(f"Selected column indices do not exist in {file_path}.")
+                        QMessageBox.warning(self, "Invalid Columns", f"Selected column indices do not exist in {file_path}.")
+                        continue
+
+                    x_column_name = df.columns[x_col_index]
+                    y_column_name = df.columns[y_col_index]
+                else:
+                    x_column_name = params.get('x_column')
+                    y_column_name = params.get('y_column')
+
+                    if x_column_name not in df.columns or y_column_name not in df.columns:
+                        print(f"Selected columns '{x_column_name}' or '{y_column_name}' do not exist in {file_path}.")
+                        QMessageBox.warning(self, "Invalid Columns", f"Selected columns '{x_column_name}' or '{y_column_name}' do not exist in {file_path}.")
+                        continue
 
                 # Extract selected columns
-                x_series = df.iloc[:, x_col]
-                y_series = df.iloc[:, y_col]
+                x_series = df[x_column_name]
+                y_series = df[y_column_name]
 
                 # Handle missing data
                 if method == "Remove Rows with Missing Data":
-                    df_cleaned = df.dropna(subset=[df.columns[x_col], df.columns[y_col]])
+                    df_cleaned = df.dropna(subset=[x_column_name, y_column_name])
                 elif method in ["Replace with Mean", "Replace with Median"]:
                     # Use the helper function for localized replacement
                     y_series = self.interpolate_missing_values(y_series, method=method.split()[-1].lower())
-                    df_cleaned = pd.DataFrame({df.columns[x_col]: x_series, df.columns[y_col]: y_series})
-                
+                    df_cleaned = pd.DataFrame({x_column_name: x_series, y_column_name: y_series})
+
                 elif method == "Moving Average Smoothing":
                     window_size = params['window_size']
                     y_series = y_series.rolling(window=window_size, center=True).mean()
-                    df_cleaned = pd.DataFrame({df.columns[x_col]: x_series, df.columns[y_col]: y_series})
+                    df_cleaned = pd.DataFrame({x_column_name: x_series, y_column_name: y_series})
                 elif method == "Savitzky-Golay Filter":
                     window_size = params['window_size']
                     poly_order = params['poly_order']
                     y_filtered = self.savitzky_golay_filter(y_series.values, window_size, poly_order)
                     y_series = pd.Series(y_filtered)
-                    df_cleaned = pd.DataFrame({df.columns[x_col]: x_series, df.columns[y_col]: y_series})
+                    df_cleaned = pd.DataFrame({x_column_name: x_series, y_column_name: y_series})
                 elif method == "Wavelet Denoising":
                     wavelet = params['wavelet']
                     level = params['level']
                     y_filtered = self.wavelet_denoising(y_series.values, wavelet, level)
                     y_series = pd.Series(y_filtered[:len(y_series)])  # Ensure length matches
-                    df_cleaned = pd.DataFrame({df.columns[x_col]: x_series, df.columns[y_col]: y_series})
-            
+                    df_cleaned = pd.DataFrame({x_column_name: x_series, y_column_name: y_series})
+
                 elif method == "Unit Converter":
                     x_formula = params['x_formula']
                     y_formula = params['y_formula']
 
                     x_series_converted, y_series_converted = self.apply_unit_conversion(
-                    x_series, y_series, x_formula, y_formula)
+                        x_series, y_series, x_formula, y_formula)
 
                     if x_series_converted is None or y_series_converted is None:
                         # Error already shown
                         continue
 
                     df_cleaned = pd.DataFrame({
-                        df.columns[x_col]: x_series_converted,
-                        df.columns[y_col]: y_series_converted
+                        x_column_name: x_series_converted,
+                        y_column_name: y_series_converted
                     })
-                
+
                 elif method == "Shift Baseline":
                     desired_baseline = params['desired_baseline']
                     y_min = y_series.min()
                     shift_value = desired_baseline - y_min
                     y_series_shifted = y_series + shift_value
                     df_cleaned = pd.DataFrame({
-                        df.columns[x_col]: x_series,
-                        df.columns[y_col]: y_series_shifted
+                        x_column_name: x_series,
+                        y_column_name: y_series_shifted
                     })
 
                 elif method == "Data Cutting":
@@ -514,15 +559,15 @@ class NormalizationTab(QWidget):
                     x_start = params.get('x_start')
                     x_end = params.get('x_end')
                     mask = (x_series >= x_start) & (x_series <= x_end)
-                    df_cleaned = df[mask]
-                    
+                    df_cleaned = df[mask][[x_column_name, y_column_name]]
+
                 else:
                     QMessageBox.warning(self, "Unknown Method", f"Unknown method: {method}")
                     continue
 
                 # Convert to numeric and drop NaNs resulting from conversion
-                x_series = pd.to_numeric(df_cleaned.iloc[:, 0], errors='coerce')
-                y_series = pd.to_numeric(df_cleaned.iloc[:, 1], errors='coerce')
+                x_series = pd.to_numeric(df_cleaned[x_column_name], errors='coerce')
+                y_series = pd.to_numeric(df_cleaned[y_column_name], errors='coerce')
                 valid_mask = x_series.notna() & y_series.notna()
                 x = x_series[valid_mask].values
                 y = y_series[valid_mask].values
@@ -531,8 +576,13 @@ class NormalizationTab(QWidget):
                     QMessageBox.warning(self, "No Valid Data", f"No valid numeric data found after correction in {file_path}.")
                     continue
 
-                # Store corrected data
-                self.normalized_data[file_path] = (x, y)
+                # Store corrected data, including column names
+                self.normalized_data[file_path] = {
+                    'x': x,
+                    'y': y,
+                    'x_column_name': x_column_name,
+                    'y_column_name': y_column_name
+                }
 
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Error processing file {file_path}: {e}")
@@ -543,7 +593,8 @@ class NormalizationTab(QWidget):
         panel.save_button.setEnabled(True)
         panel.send_to_data_panel_button.setEnabled(True)
 
-    
+
+        
     def moving_average_smoothing(self, y, window_size):
         return np.convolve(y, np.ones(window_size)/window_size, mode='same')
 
@@ -770,7 +821,7 @@ class NormalizationTab(QWidget):
             return self.normalization_functions[method_index]
         else:
             return None
-        
+
     def apply_normalization(self, panel):
         # Clear the previous normalized data
         self.normalized_data = {}
@@ -809,10 +860,21 @@ class NormalizationTab(QWidget):
             "Baseline Correction Normalization"
         ]
 
-        # Define which methods require a reference file
-        methods_requiring_reference_file = [
-            "Baseline Correction with File"
-        ]
+        # Define which parameters are expected for each method
+        method_params_map = {
+            "Min-Max Normalization": ['use_custom', 'custom_min', 'custom_max'],
+            "Z-score Normalization": ['mean', 'std'],
+            "Robust Scaling Normalization": ['quantile_min', 'quantile_max'],
+            "AUC Normalization": ['sort_data'],
+            "Interval AUC Normalization": ['desired_auc', 'interval_start', 'interval_end'],
+            "Total Intensity Normalization": ['desired_total_intensity'],
+            "Reference Peak Normalization": ['reference_peak_x', 'desired_reference_intensity'],
+            "Baseline Correction Normalization": ['lambda_', 'p', 'niter'],
+            "Baseline Correction with File": ['reference_file_path']
+        }
+
+        # Check if batch mode is enabled
+        apply_for_batch = params.get('apply_for_batch', False)
 
         # Process each data file
         for file_path in data_files:
@@ -823,28 +885,46 @@ class NormalizationTab(QWidget):
                     print(f"Skipping file {file_path} due to insufficient data.")
                     continue
 
-                plot_details = self.plot_details_panel.get_plot_details()
-                x_col = int(plot_details['x_axis_col']) - 1
-                y_col = int(plot_details['y_axis_col']) - 1
+                if apply_for_batch:
+                    x_col_index = params.get('x_column_index', 0)
+                    y_col_index = params.get('y_column_index', 1)
 
-                # Validate column indices
-                if x_col >= df.shape[1] or y_col >= df.shape[1]:
-                    print(f"Selected columns do not exist in {file_path}.")
-                    QMessageBox.warning(self, "Invalid Columns", f"Selected columns do not exist in {file_path}.")
-                    continue
+                    if x_col_index >= df.shape[1] or y_col_index >= df.shape[1]:
+                        print(f"Selected column indices do not exist in {file_path}.")
+                        QMessageBox.warning(self, "Invalid Columns", f"Selected column indices do not exist in {file_path}.")
+                        continue
 
-                # Extract selected columns and convert to numeric
-                x_series = pd.to_numeric(df.iloc[:, x_col], errors='coerce')
-                y_series = pd.to_numeric(df.iloc[:, y_col], errors='coerce')
+                    x_column_name = df.columns[x_col_index]
+                    y_column_name = df.columns[y_col_index]
+                else:
+                    x_column_name = params.get('x_column')
+                    y_column_name = params.get('y_column')
 
-                # Drop rows where x or y is NaN
+                    if x_column_name not in df.columns or y_column_name not in df.columns:
+                        print(f"Selected columns '{x_column_name}' or '{y_column_name}' do not exist in {file_path}.")
+                        QMessageBox.warning(self, "Invalid Columns", f"Selected columns '{x_column_name}' or '{y_column_name}' do not exist in {file_path}.")
+                        continue
+
+                # Extract selected columns
+                x_series = df[x_column_name]
+                y_series = df[y_column_name]
+
+                # Convert to numeric and drop NaNs resulting from conversion
+                x_series = pd.to_numeric(x_series, errors='coerce')
+                y_series = pd.to_numeric(y_series, errors='coerce')
                 valid_mask = x_series.notna() & y_series.notna()
-                x = x_series[valid_mask].values
-                y = y_series[valid_mask].values
+                x_series = x_series[valid_mask]
+                y_series = y_series[valid_mask]
+                x = x_series.values
+                y = y_series.values
 
                 if len(x) == 0 or len(y) == 0:
                     QMessageBox.warning(self, "No Valid Data", f"No valid numeric data found in selected columns of {file_path}.")
                     continue
+
+                # Prepare parameters for the normalization function
+                expected_params = method_params_map.get(panel.method_name, [])
+                func_params = {k: params[k] for k in expected_params if k in params}
 
                 # Apply the appropriate normalization method
                 if panel.method_name == "Baseline Correction with File":
@@ -860,14 +940,30 @@ class NormalizationTab(QWidget):
                         QMessageBox.warning(self, "Reference Data Error", "Failed to read the reference data file or insufficient data.")
                         continue
 
-                    # Extract selected columns from reference data
-                    ref_x_series = pd.to_numeric(ref_df.iloc[:, x_col], errors='coerce')
-                    ref_y_series = pd.to_numeric(ref_df.iloc[:, y_col], errors='coerce')
+                    if apply_for_batch:
+                        if x_col_index >= ref_df.shape[1] or y_col_index >= ref_df.shape[1]:
+                            print(f"Selected column indices do not exist in reference file {reference_file_path}.")
+                            QMessageBox.warning(self, "Invalid Columns", f"Selected column indices do not exist in reference file {reference_file_path}.")
+                            continue
 
-                    # Drop rows where x or y is NaN in reference data
+                        ref_x_column_name = ref_df.columns[x_col_index]
+                        ref_y_column_name = ref_df.columns[y_col_index]
+                    else:
+                        ref_x_column_name = x_column_name
+                        ref_y_column_name = y_column_name
+
+                    # Extract selected columns from reference data
+                    ref_x_series = ref_df[ref_x_column_name]
+                    ref_y_series = ref_df[ref_y_column_name]
+
+                    # Convert to numeric
+                    ref_x_series = pd.to_numeric(ref_x_series, errors='coerce')
+                    ref_y_series = pd.to_numeric(ref_y_series, errors='coerce')
                     ref_valid_mask = ref_x_series.notna() & ref_y_series.notna()
-                    ref_x = ref_x_series[ref_valid_mask].values
-                    ref_y = ref_y_series[ref_valid_mask].values
+                    ref_x_series = ref_x_series[ref_valid_mask]
+                    ref_y_series = ref_y_series[ref_valid_mask]
+                    ref_x = ref_x_series.values
+                    ref_y = ref_y_series.values
 
                     if len(ref_x) == 0 or len(ref_y) == 0:
                         QMessageBox.warning(self, "No Valid Reference Data", f"No valid numeric data found in selected columns of the reference file.")
@@ -885,59 +981,54 @@ class NormalizationTab(QWidget):
                         continue
 
                     # Store normalized data
-                    self.normalized_data[file_path] = (x, y_normalized)
+                    self.normalized_data[file_path] = {
+                        'x': x,
+                        'y': y_normalized,
+                        'x_column_name': x_column_name,
+                        'y_column_name': y_column_name
+                    }
 
                 elif panel.method_name == "Baseline Correction Normalization":
                     # Apply Baseline Correction Normalization
-                    y_corrected, baseline = method_func(
-                        y=y,
-                        x=x,
-                        lambda_=params.get('lambda_', 1e6),
-                        p=params.get('p', 0.01),
-                        niter=params.get('niter', 10)
-                    )
+                    y_corrected, baseline = method_func(y=y, x=x, **func_params)
                     if y_corrected is None:
                         QMessageBox.warning(self, "Normalization Failed", f"Baseline Correction failed for file {file_path}.")
                         continue
                     # Store normalized data
-                    self.normalized_data[file_path] = (x, y_corrected)
+                    self.normalized_data[file_path] = {
+                        'x': x,
+                        'y': y_corrected,
+                        'x_column_name': x_column_name,
+                        'y_column_name': y_column_name
+                    }
 
                 elif panel.method_name in methods_accepting_x:
                     # Methods that require 'x'
-                    if panel.method_name == "AUC Normalization":
-                        y_normalized = method_func(y, x=x, sort_data=params.get('sort_data', True))
-                    elif panel.method_name == "Interval AUC Normalization":
-                        y_normalized = method_func(
-                            y,
-                            x=x,
-                            desired_auc=params.get('desired_auc', 1.0),
-                            interval_start=params.get('interval_start', x.min()),
-                            interval_end=params.get('interval_end', x.max())
-                        )
-                    elif panel.method_name == "Reference Peak Normalization":
-                        y_normalized = method_func(
-                            y,
-                            x=x,
-                            reference_peak_x=params.get('reference_peak_x', x[np.argmax(y)]),
-                            desired_reference_intensity=params.get('desired_reference_intensity', 1.0)
-                        )
-                    else:
-                        y_normalized = method_func(y, x=x, **params)
-
+                    y_normalized = method_func(y, x=x, **func_params)
                     if y_normalized is None:
                         QMessageBox.warning(self, "Normalization Failed", f"Normalization failed for file {file_path}.")
                         continue
                     # Store normalized data
-                    self.normalized_data[file_path] = (x, y_normalized)
+                    self.normalized_data[file_path] = {
+                        'x': x,
+                        'y': y_normalized,
+                        'x_column_name': x_column_name,
+                        'y_column_name': y_column_name
+                    }
 
                 else:
                     # Methods that do not require 'x'
-                    y_normalized = method_func(y, **params)
+                    y_normalized = method_func(y, **func_params)
                     if y_normalized is None:
                         QMessageBox.warning(self, "Normalization Failed", f"Normalization failed for file {file_path}.")
                         continue
                     # Store normalized data
-                    self.normalized_data[file_path] = (x, y_normalized)
+                    self.normalized_data[file_path] = {
+                        'x': x,
+                        'y': y_normalized,
+                        'x_column_name': x_column_name,
+                        'y_column_name': y_column_name
+                    }
 
             except TypeError as te:
                 QMessageBox.warning(self, "Type Error", f"Type error in file {file_path}: {te}")
@@ -952,8 +1043,6 @@ class NormalizationTab(QWidget):
         panel.send_to_data_panel_button.setEnabled(True)
 
 
-
-
     def save_normalized_data(self, panel):
         if not self.normalized_data:
             QMessageBox.warning(self, "No Normalized Data", "Please apply normalization first.")
@@ -965,7 +1054,7 @@ class NormalizationTab(QWidget):
             QMessageBox.warning(self, "No Data Selected", "Please select data files to save.")
             return
 
-        # Select normalization method for naming
+        # Get method name for naming the files
         method_name = panel.method_name.replace(" ", "_").replace("(", "").replace(")", "").replace("-", "").replace("/", "_")
 
         # Ask user to select folder to save files
@@ -977,19 +1066,20 @@ class NormalizationTab(QWidget):
 
         for file_path in data_files:
             if file_path in self.normalized_data:
-                x, y_normalized = self.normalized_data[file_path]
+                data = self.normalized_data[file_path]
+                x = data['x']
+                y = data['y']
+                x_column_name = data.get('x_column_name', 'X')
+                y_column_name = data.get('y_column_name', 'Y')
+
                 try:
                     base_name = os.path.splitext(os.path.basename(file_path))[0]
-                    new_file_name = f"{base_name}_{method_name}.csv"
+                    new_file_name = f"{base_name}_{method_name}_{x_column_name}_{y_column_name}.csv"
                     new_file_path = os.path.join(directory, new_file_name)
 
-                    plot_details = self.plot_details_panel.get_plot_details()
-                    x_label = plot_details.get('x_label', 'X')
-                    y_label = plot_details.get('y_label', 'Y')
-
                     df = pd.DataFrame({
-                        x_label: x,
-                        y_label: y_normalized
+                        x_column_name: x,
+                        y_column_name: y
                     })
 
                     df.to_csv(new_file_path, index=False)
@@ -998,12 +1088,6 @@ class NormalizationTab(QWidget):
                 except Exception as e:
                     QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
 
-
-        #if normalized_file_paths:
-            # **Feature: Add Normalized Files to Selected Data Panel**
-            #self.selected_data_panel.add_files(normalized_file_paths)  # Assuming this method exists
-            #print(f"Normalized files added to Selected Data panel: {normalized_file_paths}")
-
         QMessageBox.information(self, "Save Successful", f"Normalized data saved to {directory}")
         print("All normalized files saved successfully.")
 
@@ -1011,13 +1095,13 @@ class NormalizationTab(QWidget):
         if not self.normalized_data:
             QMessageBox.warning(self, "No Normalized Data", "Please apply normalization first.")
             return
-        
+
         # Get currently selected files
         data_files = self.selected_data_panel.get_selected_files()
         if not data_files:
             QMessageBox.warning(self, "No Data Selected", "Please select data files to plot.")
             return
-            
+
         # Gather plot settings
         plot_details = self.plot_details_panel.get_plot_details()
         axis_details = self.axis_details_panel.get_axis_details()
@@ -1030,7 +1114,12 @@ class NormalizationTab(QWidget):
         ax = self.figure.add_subplot(111, projection='3d' if self.plot_type == "3D" else None)
 
         # Plot each normalized data
-        for i, (file_path, (x, y_normalized)) in enumerate(self.normalized_data.items()):
+        for i, (file_path, data) in enumerate(self.normalized_data.items()):
+            x = data['x']
+            y_normalized = data['y']
+            x_column_name = data.get('x_column_name', 'X')
+            y_column_name = data.get('y_column_name', 'Y')
+
             label = os.path.splitext(os.path.basename(file_path))[0] + "_normalized"
             line_style = {'Solid': '-', 'Dashed': '--', 'Dash-Dot': '-.'}.get(plot_details['line_style'], '-')
             point_style = {
@@ -1122,6 +1211,7 @@ class NormalizationTab(QWidget):
 
         # Redraw the figure
         self.canvas.draw_idle()
+
     def send_normalized_data_to_data_panel(self, panel):
         if not self.normalized_data:
             QMessageBox.warning(self, "No Normalized Data", "Please apply normalization first.")
@@ -1144,19 +1234,20 @@ class NormalizationTab(QWidget):
 
         for file_path in data_files:
             if file_path in self.normalized_data:
-                x, y_normalized = self.normalized_data[file_path]
+                data = self.normalized_data[file_path]
+                x = data['x']
+                y = data['y']
+                x_column_name = data.get('x_column_name', 'X')
+                y_column_name = data.get('y_column_name', 'Y')
+
                 try:
                     base_name = os.path.splitext(os.path.basename(file_path))[0]
-                    new_file_name = f"{base_name}_{method_name}.csv"
+                    new_file_name = f"{base_name}_{method_name}_{x_column_name}_{y_column_name}.csv"
                     new_file_path = os.path.join(temp_dir, new_file_name)
 
-                    plot_details = self.plot_details_panel.get_plot_details()
-                    x_label = plot_details.get('x_label', 'X')
-                    y_label = plot_details.get('y_label', 'Y')
-
                     df = pd.DataFrame({
-                        x_label: x,
-                        y_label: y_normalized
+                        x_column_name: x,
+                        y_column_name: y
                     })
 
                     df.to_csv(new_file_path, index=False)

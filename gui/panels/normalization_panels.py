@@ -3,7 +3,9 @@
 
 from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QPushButton, QCheckBox, QLabel, 
-    QDoubleSpinBox, QLineEdit, QSpinBox, QFileDialog,QMessageBox,QListWidgetItem, QGroupBox,QWidget
+    QDoubleSpinBox, QLineEdit,
+      QSpinBox, QFileDialog,QMessageBox,
+      QListWidgetItem, QGroupBox,QWidget, QComboBox
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
@@ -272,6 +274,42 @@ class MinMaxNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column Index:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setValue(1)  # Default to column 1
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column Index:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setValue(2)  # Default to column 2
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+        self.layout.addLayout(batch_layout)
+
+        # X and Y column selection
+        x_y_layout = QHBoxLayout()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        self.x_column_combo = QComboBox()
+        x_y_layout.addWidget(self.x_column_combo)
+
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # Custom Min-Max Range
         self.use_custom_range_checkbox = QCheckBox("Use custom min-max values")
         self.layout.addWidget(self.use_custom_range_checkbox)
@@ -299,6 +337,25 @@ class MinMaxNormalizationPanel(BaseNormalizationMethodPanel):
         self.custom_max_spinbox.valueChanged.connect(self.validate_inputs)
 
         self.setLayout(self.layout)
+    def toggle_batch_mode(self, state):
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        # Disable x_column_combo and y_column_combo when batch mode is enabled
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+        if columns:
+            self.x_column_combo.setCurrentIndex(0)  # Set X column to first column
+            self.y_column_combo.setCurrentIndex(1 if len(columns) > 1 else 0)  # Set Y column to second column if available
+
 
     def show_help(self):
         help_content = MIN_MAX_NORMALIZATION_HELP
@@ -340,6 +397,14 @@ class MinMaxNormalizationPanel(BaseNormalizationMethodPanel):
         else:
             params['custom_min'] = None
             params['custom_max'] = None
+
+        params['apply_for_batch'] = self.apply_for_batch_checkbox.isChecked()
+        if params['apply_for_batch']:
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1  # Zero-based index
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1  # Zero-based index
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
         return params
 
 
@@ -374,6 +439,43 @@ class ZScoreNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column Index:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setValue(1)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column Index:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setValue(2)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+        self.layout.addLayout(batch_layout)
+
+        # X and Y column selection
+        x_y_layout = QHBoxLayout()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        self.x_column_combo = QComboBox()
+        x_y_layout.addWidget(self.x_column_combo)
+
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # Parameters for Z-score
         self.layout.addWidget(QLabel("Z-score Parameters:"))
 
@@ -394,6 +496,25 @@ class ZScoreNormalizationPanel(BaseNormalizationMethodPanel):
         self.std_input.textChanged.connect(self.validate_inputs)
 
         self.setLayout(self.layout)
+
+    def toggle_batch_mode(self, state):
+        # Same as in MinMaxNormalizationPanel
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+        if columns:
+            self.x_column_combo.setCurrentIndex(0)  # Set X column to first column
+            self.y_column_combo.setCurrentIndex(1 if len(columns) > 1 else 0)  # Set Y column to second column if available
 
     def show_help(self):
         help_content = Z_SCORE_NORMALIZATION_HELP
@@ -439,17 +560,39 @@ class ZScoreNormalizationPanel(BaseNormalizationMethodPanel):
             QMessageBox.warning(self, "Invalid Input", "Please enter valid numerical values for mean and standard deviation.")
             return None
 
+    def get_parameters(self):
+        params = {}
+        mean_text = self.mean_input.text()
+        std_text = self.std_input.text()
+        try:
+            params['mean'] = float(mean_text) if mean_text else None
+            params['std'] = float(std_text) if std_text else None
+            if params['std'] is not None and params['std'] == 0:
+                QMessageBox.warning(self, "Invalid Standard Deviation", "Standard deviation cannot be zero.")
+                return None
+        except ValueError:
+            QMessageBox.warning(self, "Invalid Input", "Please enter valid numerical values for mean and standard deviation.")
+            return None
 
+        params['apply_for_batch'] = self.apply_for_batch_checkbox.isChecked()
+        if params['apply_for_batch']:
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
+        return params
 class AUCNormalizationPanel(BaseNormalizationMethodPanel):
     def __init__(self, parent=None):
         super().__init__("AUC Normalization", parent)
+        # No need to call self.init_ui() here as the base class does it
 
     def init_ui(self):
         self.layout = QVBoxLayout()
 
         # Help Button
         help_button = QPushButton("Help")
-        help_icon = QIcon("gui/resources/help_icon.png")  # Use resource path
+        help_icon = QIcon(resource_path("gui/resources/help_icon.png"))
         help_button.setIcon(help_icon)
         help_button.clicked.connect(self.show_help)
         self.layout.addWidget(help_button)
@@ -471,10 +614,46 @@ class AUCNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # "Apply for Batch" Checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+
+        # Batch Mode X and Y Column Inputs
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column Index:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setValue(1)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column Index:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setValue(2)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+        self.layout.addLayout(batch_layout)
+
+        # X and Y Column Selection
+        x_y_layout = QHBoxLayout()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        self.x_column_combo = QComboBox()
+        x_y_layout.addWidget(self.x_column_combo)
+
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # Parameters for AUC Normalization
         self.layout.addWidget(QLabel("AUC Normalization Parameters:"))
 
-        # Input for Sorting (optional, to ensure x-values are sorted)
+        # Sort Checkbox
         self.sort_checkbox = QCheckBox("Sort data by X-axis")
         self.sort_checkbox.setChecked(True)  # Enabled by default
         self.layout.addWidget(self.sort_checkbox)
@@ -483,6 +662,27 @@ class AUCNormalizationPanel(BaseNormalizationMethodPanel):
         self.sort_checkbox.stateChanged.connect(self.on_sort_checkbox_changed)
 
         self.setLayout(self.layout)
+
+        # Initial validation
+        self.validate_inputs()
+
+    def toggle_batch_mode(self, state):
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+        if columns:
+            self.x_column_combo.setCurrentIndex(0)  # Set X column to first column
+            self.y_column_combo.setCurrentIndex(1 if len(columns) > 1 else 0)  # Set Y column to second column if available
 
     def show_help(self):
         help_content = AUC_NORMALIZATION_HELP
@@ -494,10 +694,22 @@ class AUCNormalizationPanel(BaseNormalizationMethodPanel):
         self.save_button.setEnabled(False)  # Disable Save until normalization is applied
         self.apply_button.setEnabled(True)  # Enable Apply button
 
+    def validate_inputs(self):
+        # Since there are no additional inputs, always enable Apply button
+        self.apply_button.setEnabled(True)
+
     def get_parameters(self):
         params = {}
-        # Check if sorting is enabled
+        # Removed references to mean_input and std_input
+
         params['sort_data'] = self.sort_checkbox.isChecked()
+        params['apply_for_batch'] = self.apply_for_batch_checkbox.isChecked()
+        if params['apply_for_batch']:
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
         return params
 
 
@@ -532,6 +744,42 @@ class IntervalAUCNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
+
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column Index:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setValue(1)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column Index:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setValue(2)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+        self.layout.addLayout(batch_layout)
+
+        # X and Y column selection
+        x_y_layout = QHBoxLayout()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        self.x_column_combo = QComboBox()
+        x_y_layout.addWidget(self.x_column_combo)
+
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
 
         # Parameters for Interval AUC Normalization
         self.layout.addWidget(QLabel("Interval AUC Normalization Parameters:"))
@@ -579,6 +827,26 @@ class IntervalAUCNormalizationPanel(BaseNormalizationMethodPanel):
         # **Invoke validation upon initialization**
         self.validate_inputs()
 
+    def toggle_batch_mode(self, state):
+        # Same as in MinMaxNormalizationPanel
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+        if columns:
+            self.x_column_combo.setCurrentIndex(0)  # Set X column to first column
+            self.y_column_combo.setCurrentIndex(1 if len(columns) > 1 else 0)  # Set Y column to second column if available
+
+
     def show_help(self):
         help_content = INTERVAL_AUC_NORMALIZATION_HELP
         dialog = HelpDialog("Interval AUC Normalization Help", help_content, self)
@@ -600,6 +868,7 @@ class IntervalAUCNormalizationPanel(BaseNormalizationMethodPanel):
         else:
             self.apply_button.setEnabled(False)
 
+
     def get_parameters(self):
         params = {}
         enabled = self.enable_desired_auc_checkbox.isChecked()
@@ -620,6 +889,13 @@ class IntervalAUCNormalizationPanel(BaseNormalizationMethodPanel):
         params['interval_start'] = start
         params['interval_end'] = end
 
+        params['apply_for_batch'] = self.apply_for_batch_checkbox.isChecked()
+        if params['apply_for_batch']:
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
         return params
 
 
@@ -656,6 +932,42 @@ class RobustScalingNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column Index:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setValue(1)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column Index:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setValue(2)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+        self.layout.addLayout(batch_layout)
+
+        # X and Y column selection
+        x_y_layout = QHBoxLayout()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        self.x_column_combo = QComboBox()
+        x_y_layout.addWidget(self.x_column_combo)
+
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # Parameters for Robust Scaling
         self.layout.addWidget(QLabel("Robust Scaling Parameters:"))
 
@@ -675,6 +987,26 @@ class RobustScalingNormalizationPanel(BaseNormalizationMethodPanel):
         self.quantile_max_input.textChanged.connect(self.validate_inputs)
 
         self.setLayout(self.layout)
+
+    def toggle_batch_mode(self, state):
+        # Same as in MinMaxNormalizationPanel
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+        if columns:
+            self.x_column_combo.setCurrentIndex(0)  # Set X column to first column
+            self.y_column_combo.setCurrentIndex(1 if len(columns) > 1 else 0)  # Set Y column to second column if available
+
 
     def show_help(self):
         help_content = ROBUST_SCALING_NORMALIZATION_HELP
@@ -730,10 +1062,20 @@ class RobustScalingNormalizationPanel(BaseNormalizationMethodPanel):
             if not (0 <= params['quantile_min'] < params['quantile_max'] <= 100):
                 QMessageBox.warning(self, "Invalid Quantile Range", "Quantile Min must be less than Quantile Max and both between 0 and 100.")
                 return None
-            return params
         except ValueError:
             QMessageBox.warning(self, "Invalid Input", "Please enter valid numerical values for quantiles.")
             return None
+
+        params['apply_for_batch'] = self.apply_for_batch_checkbox.isChecked()
+        if params['apply_for_batch']:
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
+        return params
+    
+
         
 class TotalIntensityNormalizationPanel(BaseNormalizationMethodPanel):
     def __init__(self, parent=None):
@@ -768,6 +1110,42 @@ class TotalIntensityNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column Index:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setValue(1)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column Index:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setValue(2)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+        self.layout.addLayout(batch_layout)
+
+        # X and Y column selection
+        x_y_layout = QHBoxLayout()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        self.x_column_combo = QComboBox()
+        x_y_layout.addWidget(self.x_column_combo)
+
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # Parameters for Total Intensity Normalization
         self.layout.addWidget(QLabel("Total Intensity Normalization Parameters:"))
 
@@ -793,6 +1171,26 @@ class TotalIntensityNormalizationPanel(BaseNormalizationMethodPanel):
 
         # **Invoke validation upon initialization**
         self.validate_inputs()
+
+    def toggle_batch_mode(self, state):
+        # Same as in MinMaxNormalizationPanel
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+        if columns:
+            self.x_column_combo.setCurrentIndex(0)  # Set X column to first column
+            self.y_column_combo.setCurrentIndex(1 if len(columns) > 1 else 0)  # Set Y column to second column if available
+
 
     def show_help(self):
         help_content = TOTAL_INTENSITY_NORMALIZATION_HELP
@@ -826,7 +1224,15 @@ class TotalIntensityNormalizationPanel(BaseNormalizationMethodPanel):
         else:
             params['desired_total_intensity'] = 1.0  # Default scaling factor
 
+        params['apply_for_batch'] = self.apply_for_batch_checkbox.isChecked()
+        if params['apply_for_batch']:
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
         return params
+    
     
 class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
     def __init__(self, parent=None):
@@ -861,6 +1267,42 @@ class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column Index:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setValue(1)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column Index:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setValue(2)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+        self.layout.addLayout(batch_layout)
+
+        # X and Y column selection
+        x_y_layout = QHBoxLayout()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        self.x_column_combo = QComboBox()
+        x_y_layout.addWidget(self.x_column_combo)
+
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # Parameters for Reference Peak Normalization
         self.layout.addWidget(QLabel("Reference Peak Normalization Parameters:"))
 
@@ -890,6 +1332,25 @@ class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
 
         # **Invoke validation upon initialization**
         self.validate_inputs()
+        
+    def toggle_batch_mode(self, state):
+        # Same as in MinMaxNormalizationPanel
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+        if columns:
+            self.x_column_combo.setCurrentIndex(0)  # Set X column to first column
+            self.y_column_combo.setCurrentIndex(1 if len(columns) > 1 else 0)  # Set Y column to second column if available
 
     def show_help(self):
         help_content = REFERENCE_PEAK_NORMALIZATION_HELP
@@ -921,11 +1382,20 @@ class ReferencePeakNormalizationPanel(BaseNormalizationMethodPanel):
                 return None
             params['reference_peak_x'] = ref_peak
             params['desired_reference_intensity'] = desired_intensity
-            return params
         except ValueError:
             QMessageBox.warning(self, "Invalid Input", "Please enter a valid numerical value for the Reference Peak X-Value.")
             return None
-        
+
+        params['apply_for_batch'] = self.apply_for_batch_checkbox.isChecked()
+        if params['apply_for_batch']:
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
+        return params
+    
+
 class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
     def __init__(self, parent=None):
         super().__init__("Baseline Correction Normalization", parent)
@@ -956,6 +1426,43 @@ class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
         button_layout.addWidget(self.save_button)
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
+
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column Index:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setValue(1)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column Index:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setValue(2)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+        self.layout.addLayout(batch_layout)
+
+        # X and Y column selection
+        x_y_layout = QHBoxLayout()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        self.x_column_combo = QComboBox()
+        x_y_layout.addWidget(self.x_column_combo)
+
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
 
         # Parameters for Baseline Correction
         self.layout.addWidget(QLabel("Baseline Correction Parameters:"))
@@ -994,6 +1501,26 @@ class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
         # **Invoke validation upon initialization**
         self.validate_inputs()
 
+    def toggle_batch_mode(self, state):
+        # Same as in MinMaxNormalizationPanel
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+        if columns:
+            self.x_column_combo.setCurrentIndex(0)  # Set X column to first column
+            self.y_column_combo.setCurrentIndex(1 if len(columns) > 1 else 0)  # Set Y column to second column if available
+
+
     def show_help(self):
         help_content = BASELINE_CORRECTION_NORMALIZATION_HELP
         dialog = HelpDialog("Baseline Correction Normalization Help", help_content, self)
@@ -1019,7 +1546,7 @@ class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
             if lambda_val <= 0 or not (0 < p_val < 1) or niter_val <= 0:
                 QMessageBox.warning(self, "Invalid Parameters", "Please enter valid parameter values.")
                 return None
-            return {
+            params = {
                 'lambda_': lambda_val,
                 'p': p_val,
                 'niter': niter_val
@@ -1027,6 +1554,15 @@ class BaselineCorrectionNormalizationPanel(BaseNormalizationMethodPanel):
         except ValueError:
             QMessageBox.warning(self, "Invalid Inputs", "Please enter numeric values for all parameters.")
             return None
+
+        params['apply_for_batch'] = self.apply_for_batch_checkbox.isChecked()
+        if params['apply_for_batch']:
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
+        return params
         
 
 class BaselineCorrectionWithFileNormalizationPanel(BaseNormalizationMethodPanel):
@@ -1072,6 +1608,17 @@ class BaselineCorrectionWithFileNormalizationPanel(BaseNormalizationMethodPanel)
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # X and Y column selection
+        x_y_layout = QHBoxLayout()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        self.x_column_combo = QComboBox()
+        x_y_layout.addWidget(self.x_column_combo)
+
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # File Selection for Reference Data
         self.layout.addWidget(QLabel("Select Reference File:"))
         file_selection_layout = QHBoxLayout()
@@ -1088,6 +1635,16 @@ class BaselineCorrectionWithFileNormalizationPanel(BaseNormalizationMethodPanel)
         # Connect signals
         self.file_path_display.textChanged.connect(self.validate_inputs)
 
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+        if columns:
+            self.x_column_combo.setCurrentIndex(0)  # Set X column to first column
+            self.y_column_combo.setCurrentIndex(1 if len(columns) > 1 else 0)  # Set Y column to second column if available
+
+        
     def show_help(self):
         help_content = SUBTRACTION_NORMALIZATION_HELP
         dialog = HelpDialog("Baseline Correction with File Help", help_content, self)
@@ -1118,4 +1675,7 @@ class BaselineCorrectionWithFileNormalizationPanel(BaseNormalizationMethodPanel)
             QMessageBox.warning(self, "Invalid File", "Please select a valid reference file.")
             return None
         params['reference_file_path'] = reference_file_path
+
+        params['x_column'] = self.x_column_combo.currentText()
+        params['y_column'] = self.y_column_combo.currentText()
         return params

@@ -62,6 +62,41 @@ class CorrectMissingDataPanel(QWidget):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+
+        self.layout.addLayout(batch_layout)
+
+        # Add X and Y column selection
+        self.layout.addWidget(QLabel("Select X and Y Columns:"))
+        x_y_layout = QHBoxLayout()
+        self.x_column_combo = QComboBox()
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        x_y_layout.addWidget(self.x_column_combo)
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # Options for Handling Missing Data
         self.layout.addWidget(QLabel("Choose how to handle missing data:"))
 
@@ -70,6 +105,23 @@ class CorrectMissingDataPanel(QWidget):
         self.layout.addWidget(self.method_combo)
 
         self.setLayout(self.layout)
+
+    def toggle_batch_mode(self, state):
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        # Disable x_column_combo and y_column_combo when batch mode is enabled
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+
 
     def show_help(self):
         help_content = (
@@ -82,11 +134,20 @@ class CorrectMissingDataPanel(QWidget):
         dialog = HelpDialog("Correct Missing Data Help", help_content, self)
         dialog.exec_()
 
+
     def get_parameters(self):
         params = {
-            'method': self.method_combo.currentText()
+            'method': self.method_combo.currentText(),
+            'apply_for_batch': self.apply_for_batch_checkbox.isChecked(),
         }
+        if self.apply_for_batch_checkbox.isChecked():
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1  # zero-based index
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1  # zero-based index
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
         return params
+
 
 class NoiseReductionPanel(QWidget):
     def __init__(self, parent=None):
@@ -121,6 +182,41 @@ class NoiseReductionPanel(QWidget):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+
+        self.layout.addLayout(batch_layout)
+
+        # Add X and Y column selection
+        self.layout.addWidget(QLabel("Select X and Y Columns:"))
+        x_y_layout = QHBoxLayout()
+        self.x_column_combo = QComboBox()
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        x_y_layout.addWidget(self.x_column_combo)
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # Options for Noise Reduction
         self.layout.addWidget(QLabel("Choose a noise reduction method:"))
 
@@ -143,6 +239,23 @@ class NoiseReductionPanel(QWidget):
         self.method_combo.currentIndexChanged.connect(self.on_method_change)
 
         self.setLayout(self.layout)
+
+    def toggle_batch_mode(self, state):
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        # Disable x_column_combo and y_column_combo when batch mode is enabled
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+
 
     def init_parameters(self):
         self.parameter_widgets = {}
@@ -206,9 +319,17 @@ class NoiseReductionPanel(QWidget):
         dialog = HelpDialog("Noise Reduction Help", help_content, self)
         dialog.exec_()
 
+
     def get_parameters(self):
         method = self.method_combo.currentText()
-        params = {'method': method}
+        params = {'method': method, 'apply_for_batch': self.apply_for_batch_checkbox.isChecked()}
+
+        if self.apply_for_batch_checkbox.isChecked():
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1  # Zero-based index
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1  # Zero-based index
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
 
         if method == "Moving Average Smoothing":
             window_size = self.ma_window_size_spin.value()
@@ -270,6 +391,41 @@ class UnitConverterPanel(QWidget):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+
+        self.layout.addLayout(batch_layout)
+
+        # Add X and Y column selection
+        self.layout.addWidget(QLabel("Select X and Y Columns:"))
+        x_y_layout = QHBoxLayout()
+        self.x_column_combo = QComboBox()
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        x_y_layout.addWidget(self.x_column_combo)
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # Instructions
         instructions = QLabel("Enter formulas to convert units for X and Y axes. Use 'x' or 'y' as variables.")
         instructions.setWordWrap(True)
@@ -289,18 +445,45 @@ class UnitConverterPanel(QWidget):
 
         self.setLayout(self.layout)
 
+
+    def toggle_batch_mode(self, state):
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        # Disable x_column_combo and y_column_combo when batch mode is enabled
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+
+
     def show_help(self):
         help_content = UNIT_CONVERTER_HELP
         dialog = HelpDialog("Unit Converter Help", help_content, self)
         dialog.exec_()
 
+
     def get_parameters(self):
         params = {
-            'method': self.method_name,  # Include the method name
+            'method': self.method_name,
             'x_formula': self.x_formula_input.text().strip(),
-            'y_formula': self.y_formula_input.text().strip()
+            'y_formula': self.y_formula_input.text().strip(),
+            'apply_for_batch': self.apply_for_batch_checkbox.isChecked()
         }
+        if self.apply_for_batch_checkbox.isChecked():
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1  # Zero-based index
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1  # Zero-based index
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
         return params
+
 
 
 class ShiftBaselinePanel(QWidget):
@@ -336,6 +519,41 @@ class ShiftBaselinePanel(QWidget):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+
+        self.layout.addLayout(batch_layout)
+
+        # Add X and Y column selection
+        self.layout.addWidget(QLabel("Select X and Y Columns:"))
+        x_y_layout = QHBoxLayout()
+        self.x_column_combo = QComboBox()
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        x_y_layout.addWidget(self.x_column_combo)
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # Instructions
         instructions = QLabel("Shift the baseline by adjusting the minimum Y-value to a desired value.")
         instructions.setWordWrap(True)
@@ -352,6 +570,23 @@ class ShiftBaselinePanel(QWidget):
         self.layout.addLayout(input_layout)
 
         self.setLayout(self.layout)
+
+    def toggle_batch_mode(self, state):
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        # Disable x_column_combo and y_column_combo when batch mode is enabled
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+
 
     def show_help(self):
         help_content = SHIFT_BASELINE_HELP  
@@ -377,10 +612,16 @@ class ShiftBaselinePanel(QWidget):
 
         params = {
             'method': self.method_name,
-            'desired_baseline': desired_baseline
+            'desired_baseline': desired_baseline,
+            'apply_for_batch': self.apply_for_batch_checkbox.isChecked()
         }
+        if self.apply_for_batch_checkbox.isChecked():
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1  # Zero-based index
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1  # Zero-based index
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
         return params
-    
 
 class DataCuttingPanel(QWidget):
     def __init__(self, parent=None):
@@ -415,6 +656,42 @@ class DataCuttingPanel(QWidget):
         button_layout.addWidget(self.send_to_data_panel_button)
         self.layout.addLayout(button_layout)
 
+        # Add "Apply for Batch" checkbox
+        self.apply_for_batch_checkbox = QCheckBox("Apply for Batch")
+        self.apply_for_batch_checkbox.stateChanged.connect(self.toggle_batch_mode)
+        self.layout.addWidget(self.apply_for_batch_checkbox)
+
+        # Batch mode X and Y column input
+        batch_layout = QHBoxLayout()
+        self.batch_x_label = QLabel("X Column:")
+        self.batch_x_spinbox = QSpinBox()
+        self.batch_x_spinbox.setRange(1, 100)
+        self.batch_x_spinbox.setEnabled(False)
+
+        self.batch_y_label = QLabel("Y Column:")
+        self.batch_y_spinbox = QSpinBox()
+        self.batch_y_spinbox.setRange(1, 100)
+        self.batch_y_spinbox.setEnabled(False)
+
+        batch_layout.addWidget(self.batch_x_label)
+        batch_layout.addWidget(self.batch_x_spinbox)
+        batch_layout.addWidget(self.batch_y_label)
+        batch_layout.addWidget(self.batch_y_spinbox)
+
+        self.layout.addLayout(batch_layout)
+
+
+        # Add X and Y column selection
+        self.layout.addWidget(QLabel("Select X and Y Columns:"))
+        x_y_layout = QHBoxLayout()
+        self.x_column_combo = QComboBox()
+        self.y_column_combo = QComboBox()
+        x_y_layout.addWidget(QLabel("X Column:"))
+        x_y_layout.addWidget(self.x_column_combo)
+        x_y_layout.addWidget(QLabel("Y Column:"))
+        x_y_layout.addWidget(self.y_column_combo)
+        self.layout.addLayout(x_y_layout)
+
         # Instructions
         instructions = QLabel("Define the X interval to cut the data.\nOnly data points within [X Start, X End] will be retained.")
         instructions.setWordWrap(True)
@@ -438,11 +715,27 @@ class DataCuttingPanel(QWidget):
 
         self.setLayout(self.layout)
 
+    def toggle_batch_mode(self, state):
+        is_checked = (state == Qt.Checked)
+        self.batch_x_spinbox.setEnabled(is_checked)
+        self.batch_y_spinbox.setEnabled(is_checked)
+        self.batch_x_label.setEnabled(is_checked)
+        self.batch_y_label.setEnabled(is_checked)
+        # Disable x_column_combo and y_column_combo when batch mode is enabled
+        self.x_column_combo.setEnabled(not is_checked)
+        self.y_column_combo.setEnabled(not is_checked)
+        
+    def set_data_columns(self, columns):
+        self.x_column_combo.clear()
+        self.x_column_combo.addItems(columns)
+        self.y_column_combo.clear()
+        self.y_column_combo.addItems(columns)
+
+
     def show_help(self):
         help_content = DATA_CUTTING_HELP
         dialog = HelpDialog("Data Cutting Help", help_content, self)
         dialog.exec_()
-
     def get_parameters(self):
         """
         Retrieve parameters entered by the user.
@@ -465,6 +758,13 @@ class DataCuttingPanel(QWidget):
         params = {
             'method': self.method_name,
             'x_start': x_start,
-            'x_end': x_end
+            'x_end': x_end,
+            'apply_for_batch': self.apply_for_batch_checkbox.isChecked()
         }
+        if self.apply_for_batch_checkbox.isChecked():
+            params['x_column_index'] = self.batch_x_spinbox.value() - 1  # Zero-based index
+            params['y_column_index'] = self.batch_y_spinbox.value() - 1  # Zero-based index
+        else:
+            params['x_column'] = self.x_column_combo.currentText()
+            params['y_column'] = self.y_column_combo.currentText()
         return params
