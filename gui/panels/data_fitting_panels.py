@@ -605,7 +605,7 @@ class CustomFittingPanel(QWidget):
         self.function_text_edit.setPlaceholderText("Enter your function here, e.g., a * np.sin(b * x) + c")
         layout.addWidget(self.function_text_edit)
 
-        # **Add "Show Equation" Button**
+        # Add "Show Equation" Button
         self.show_equation_button = QPushButton("Show Equation")
         layout.addWidget(self.show_equation_button)
 
@@ -669,19 +669,45 @@ class CustomFittingPanel(QWidget):
         # Connect Signals
         self.add_param_button.clicked.connect(self.add_parameter)
         self.remove_param_button.clicked.connect(self.remove_parameter)
-        self.function_text_edit.textChanged.connect(self.parameters_changed.emit)
-        self.apply_button.clicked.connect(self.parameters_changed.emit)
+        self.function_text_edit.textChanged.connect(self.on_parameters_changed)
+        self.apply_button.clicked.connect(self.on_apply_clicked)
         self.help_button.clicked.connect(self.show_help)
         self.save_function_button.clicked.connect(self.save_function)
         self.load_function_button.clicked.connect(self.load_function)
         self.show_equation_button.clicked.connect(self.show_equation)
 
         # Connect column combo boxes to emit parameter changes
-        self.x_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
-        self.y_column_combo.currentIndexChanged.connect(self.parameters_changed.emit)
+        self.x_column_combo.currentIndexChanged.connect(self.on_parameters_changed)
+        self.y_column_combo.currentIndexChanged.connect(self.on_parameters_changed)
 
         # Initialize parameters
         self.parameters = {}
+        
+    def on_parameters_changed(self):
+        """
+        This method is called whenever a parameter is changed in the UI.
+        It attempts to retrieve the parameters without showing warnings.
+        If parameters are valid, it emits the parameters_changed signal to notify the main application.
+        """
+        parameters = self.get_parameters(show_warnings=False)
+        if parameters is not None:
+            self.parameters_changed.emit()
+
+    def on_custom_fitting_apply_clicked(self):
+        # Get parameters from the panel
+        params = self.panel.get_parameters(show_warnings=True)
+        if params is None:
+            return  # Parameters are invalid; do not proceed
+
+        # Proceed with fitting
+        self.apply_fitting(self.panel)
+        
+    def on_apply_clicked(self):
+        parameters = self.get_parameters(show_warnings=True)
+        if parameters is not None:
+            # Parameters are complete and valid; proceed with fitting
+            self.parameters_changed.emit()
+
 
     def set_data_columns(self, columns):
         """Populate the X and Y column combo boxes with available columns."""
@@ -704,7 +730,7 @@ class CustomFittingPanel(QWidget):
         self.parameters_table.setItem(row_position, 2, min_item)
         max_item = QTableWidgetItem("inf")
         self.parameters_table.setItem(row_position, 3, max_item)
-        self.parameters_changed.emit()
+        self.on_parameters_changed()
 
     def show_equation(self):
         # Get the function string from the input
@@ -939,6 +965,7 @@ class CustomFittingPanel(QWidget):
             QMessageBox.warning(self, "Rendering Error", f"Failed to render the equation:\n{e}")
             return
 
+
     def remove_parameter(self):
         current_row = self.parameters_table.currentRow()
         if current_row >= 0:
@@ -946,12 +973,22 @@ class CustomFittingPanel(QWidget):
             self.parameters_changed.emit()
         else:
             QMessageBox.warning(self, "Remove Parameter", "Please select a parameter to remove.")
+            
+    def get_parameters(self, show_warnings=False):
+        """
+        Retrieve the fitting parameters from the UI.
 
-    def get_parameters(self):
+        Parameters:
+            show_warnings (bool): If True, display warning messages for incomplete or invalid parameters.
+
+        Returns:
+            dict or None: A dictionary of parameters if valid, otherwise None.
+        """
         # Retrieve the function string
         function_str = self.function_text_edit.toPlainText()
         if not function_str.strip():
-            QMessageBox.warning(self, "No Function", "Please enter a custom function.")
+            if show_warnings:
+                QMessageBox.warning(self, "No Function", "Please enter a custom function.")
             return None
 
         # Get selected columns
@@ -959,7 +996,8 @@ class CustomFittingPanel(QWidget):
         y_column = self.y_column_combo.currentText()
 
         if not x_column or not y_column:
-            QMessageBox.warning(self, "Column Selection", "Please select both X and Y columns for fitting.")
+            if show_warnings:
+                QMessageBox.warning(self, "Column Selection", "Please select both X and Y columns for fitting.")
             return None
 
         # Retrieve parameters and initial guesses
@@ -972,18 +1010,23 @@ class CustomFittingPanel(QWidget):
             if param_name_item and initial_guess_item and min_item and max_item:
                 param_name = param_name_item.text().strip()
                 if not param_name.isidentifier():
-                    QMessageBox.warning(self, "Invalid Parameter Name", f"'{param_name}' is not a valid parameter name.")
+                    if show_warnings:
+                        QMessageBox.warning(self, "Invalid Parameter Name", f"'{param_name}' is not a valid parameter name.")
                     return None
                 try:
                     initial_guess = float(initial_guess_item.text())
-                    min_val = float(min_item.text()) if min_item.text().strip() not in ['', '-inf'] else -np.inf
-                    max_val = float(max_item.text()) if max_item.text().strip() not in ['', 'inf'] else np.inf
+                    min_text = min_item.text().strip()
+                    max_text = max_item.text().strip()
+                    min_val = float(min_text) if min_text not in ['', '-inf'] else -np.inf
+                    max_val = float(max_text) if max_text not in ['', 'inf'] else np.inf
                 except ValueError:
-                    QMessageBox.warning(self, "Invalid Parameter Value", f"Invalid value for parameter '{param_name}'.")
+                    if show_warnings:
+                        QMessageBox.warning(self, "Invalid Parameter Value", f"Invalid value for parameter '{param_name}'.")
                     return None
                 params[param_name] = {'value': initial_guess, 'min': min_val, 'max': max_val}
             else:
-                QMessageBox.warning(self, "Incomplete Parameters", "Please complete all parameter fields.")
+                if show_warnings:
+                    QMessageBox.warning(self, "Incomplete Parameters", "Please complete all parameter fields.")
                 return None
 
         # Retrieve optimization method and max iterations
@@ -1037,8 +1080,14 @@ class CustomFittingPanel(QWidget):
                 QMessageBox.information(self, "Load Successful", f"Custom function loaded from:\n{file_path}")
             except Exception as e:
                 QMessageBox.warning(self, "Load Failed", f"Failed to load custom function:\n{e}")
-
+  
     def set_parameters(self, function_data):
+        """
+        Load parameters from a saved JSON file into the UI.
+
+        Parameters:
+            function_data (dict): The dictionary containing saved function data.
+        """
         # Set function string
         self.function_text_edit.setText(function_data.get('function_str', ''))
 

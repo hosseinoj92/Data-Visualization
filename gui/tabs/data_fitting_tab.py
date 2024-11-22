@@ -554,9 +554,14 @@ class DataFittingTab(QWidget):
                 if isinstance(panel, PolynomialFittingPanel):
                     # Perform polynomial fitting
                     fitted_y, fit_info = self.perform_polynomial_fitting(x, y, params)
+                           # Perform custom fitting
+
                 elif isinstance(panel, CustomFittingPanel):
-                    # Perform custom fitting
                     fitted_y, fit_info = self.perform_custom_fitting(x, y, params)
+                    if fitted_y is None or fit_info is None:
+                        print(f"Fitting failed for file {file_path}.")
+                        continue  # Skip this file
+                    self.fitted_data[file_path] = (x, y, fitted_y, fit_info)
 
                 elif isinstance(panel, LogExpPowerFittingPanel):
                     # Perform log/exp/power fitting
@@ -718,16 +723,14 @@ class DataFittingTab(QWidget):
 
         # Prepare the custom function
         try:
-            # Compile the function string into code object
             code = compile(function_str, '<string>', 'eval')
 
-            # Define the custom function
             def custom_func(x, **kwargs):
-                # Available namespaces
                 allowed_names = {'x': x, 'np': np, 'math': math}
                 allowed_names.update(kwargs)
                 return eval(code, {"__builtins__": None}, allowed_names)
         except Exception as e:
+            print(f"Error in custom function definition: {e}")
             QMessageBox.warning(self, "Function Error", f"Error in custom function definition:\n{e}")
             return None, None
 
@@ -2243,10 +2246,11 @@ class FittingMethodWindow(QDialog):
             if hasattr(self.panel, 'show_equation_button'):
                 self.panel.show_equation_button.clicked.connect(self.panel.show_equation)
 
- # **Connect 'parameters_changed' signal if it exists**
+                # Only connect parameters_changed for panels other than CustomFittingPanel
                 if hasattr(self.panel, 'parameters_changed'):
-                    self.panel.parameters_changed.connect(partial(parent.update_fitted_plot, self.panel))
-                    
+                    if not isinstance(self.panel, CustomFittingPanel):
+                        self.panel.parameters_changed.connect(partial(self.update_fitted_plot, self.panel))
+
     def closeEvent(self, event):
         """Handle the window close event."""
         self.closed.emit()
