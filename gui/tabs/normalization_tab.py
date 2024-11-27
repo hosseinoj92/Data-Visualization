@@ -50,6 +50,7 @@ import math
 from scipy.signal import savgol_filter  # For Savitzky-Golay Filter
 import pywt  # For Wavelet Denoising
 from functools import partial
+import re
 
 
 # Add resource_path function
@@ -74,6 +75,10 @@ class NormalizationTab(QWidget):
         self.is_collapsing = False  # Flag to prevent recursive signal handling
         self.init_ui()
         self.expanded_window = None  # To track the expanded window
+
+        # Initialize last_directory and last_save_directory
+        self.last_directory = os.path.expanduser("~")  
+        self.last_save_directory = os.path.expanduser("~")  # Initialize last save directory
 
         # Apply global stylesheet
         self.apply_stylesheet()
@@ -1041,8 +1046,7 @@ class NormalizationTab(QWidget):
         self.update_normalized_plot()
         panel.save_button.setEnabled(True)
         panel.send_to_data_panel_button.setEnabled(True)
-
-
+        
     def save_normalized_data(self, panel):
         if not self.normalized_data:
             QMessageBox.warning(self, "No Normalized Data", "Please apply normalization first.")
@@ -1057,39 +1061,90 @@ class NormalizationTab(QWidget):
         # Get method name for naming the files
         method_name = panel.method_name.replace(" ", "_").replace("(", "").replace(")", "").replace("-", "").replace("/", "_")
 
-        # Ask user to select folder to save files
-        directory = QFileDialog.getExistingDirectory(self, "Select Directory to Save Normalized Data")
-        if not directory:
-            return
+        # Check if batch mode is enabled
+        apply_for_batch = panel.apply_for_batch_checkbox.isChecked()
 
-        normalized_file_paths = []
+        if apply_for_batch:
+            # Ask user to select folder to save files
+            directory = QFileDialog.getExistingDirectory(self, "Select Directory to Save Normalized Data", self.last_save_directory)
+            if not directory:
+                return
+            self.last_save_directory = directory  # Remember the last directory
 
-        for file_path in data_files:
-            if file_path in self.normalized_data:
-                data = self.normalized_data[file_path]
-                x = data['x']
-                y = data['y']
-                x_column_name = data.get('x_column_name', 'X')
-                y_column_name = data.get('y_column_name', 'Y')
+            normalized_file_paths = []
 
-                try:
-                    base_name = os.path.splitext(os.path.basename(file_path))[0]
-                    new_file_name = f"{base_name}_{method_name}_{x_column_name}_{y_column_name}.csv"
-                    new_file_path = os.path.join(directory, new_file_name)
+            for file_path in data_files:
+                if file_path in self.normalized_data:
+                    data = self.normalized_data[file_path]
+                    x = data['x']
+                    y = data['y']
+                    x_column_name = data.get('x_column_name', 'X')
+                    y_column_name = data.get('y_column_name', 'Y')
 
-                    df = pd.DataFrame({
-                        x_column_name: x,
-                        y_column_name: y
-                    })
+                    try:
+                        base_name = os.path.splitext(os.path.basename(file_path))[0]
+                        # Only append the method name to the file name
+                        new_file_name = f"{base_name}_{method_name}.csv"
+                        new_file_path = os.path.join(directory, new_file_name)
 
-                    df.to_csv(new_file_path, index=False)
-                    normalized_file_paths.append(new_file_path)
+                        df = pd.DataFrame({
+                            x_column_name: x,
+                            y_column_name: y
+                        })
 
-                except Exception as e:
-                    QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
+                        df.to_csv(new_file_path, index=False)
+                        normalized_file_paths.append(new_file_path)
 
-        QMessageBox.information(self, "Save Successful", f"Normalized data saved to {directory}")
-        print("All normalized files saved successfully.")
+                    except Exception as e:
+                        QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
+
+            QMessageBox.information(self, "Save Successful", f"Normalized data saved to {directory}")
+            print("All normalized files saved successfully.")
+
+        else:
+            # Non-batch mode: Prompt user to specify file names individually
+            for file_path in data_files:
+                if file_path in self.normalized_data:
+                    data = self.normalized_data[file_path]
+                    x = data['x']
+                    y = data['y']
+                    x_column_name = data.get('x_column_name', 'X')
+                    y_column_name = data.get('y_column_name', 'Y')
+
+                    try:
+                        base_name = os.path.splitext(os.path.basename(file_path))[0]
+                        # Default file name is the original file name
+                        default_file_name = f"{base_name}_{method_name}.csv"
+
+                        # Prompt the user to specify the file name
+                        options = QFileDialog.Options()
+                        options |= QFileDialog.DontUseNativeDialog
+                        file_name, _ = QFileDialog.getSaveFileName(
+                            self,
+                            "Save Normalized Data",
+                            os.path.join(self.last_save_directory, default_file_name),
+                            "CSV Files (*.csv);;All Files (*)",
+                            options=options
+                        )
+                        if not file_name:
+                            continue  # Skip saving this file if user cancels
+
+                        # Update last_save_directory
+                        self.last_save_directory = os.path.dirname(file_name)
+
+                        df = pd.DataFrame({
+                            x_column_name: x,
+                            y_column_name: y
+                        })
+
+                        df.to_csv(file_name, index=False)
+                        print(f"File saved: {file_name}")
+
+                    except Exception as e:
+                        QMessageBox.warning(self, "Error", f"Error saving file {file_name}: {e}")
+
+            QMessageBox.information(self, "Save Successful", "Normalized data saved successfully.")
+            print("All normalized files saved successfully.")
 
     def update_normalized_plot(self):
         if not self.normalized_data:
@@ -1212,6 +1267,41 @@ class NormalizationTab(QWidget):
         # Redraw the figure
         self.canvas.draw_idle()
 
+    def prompt_for_new_file_name(self, default_file_name):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Specify New File Name")
+        layout = QVBoxLayout(dialog)
+        label = QLabel("New File Name:")
+        line_edit = QLineEdit()
+        line_edit.setText(default_file_name)
+        send_button = QPushButton("Send")
+        cancel_button = QPushButton("Cancel")
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(send_button)
+        button_layout.addWidget(cancel_button)
+
+        layout.addWidget(label)
+        layout.addWidget(line_edit)
+        layout.addLayout(button_layout)
+
+        send_button.clicked.connect(dialog.accept)
+        cancel_button.clicked.connect(dialog.reject)
+
+        if dialog.exec_() == QDialog.Accepted:
+            new_file_name = line_edit.text()
+            # Sanitize the file name to remove any invalid characters
+            new_file_name = self.sanitize_filename(new_file_name)
+            return new_file_name
+        else:
+            return None
+
+
+    def sanitize_filename(self, filename):
+        # Remove any invalid characters for file names
+        return re.sub(r'[<>:"/\\|?*]', '_', filename)
+
+
     def send_normalized_data_to_data_panel(self, panel):
         if not self.normalized_data:
             QMessageBox.warning(self, "No Normalized Data", "Please apply normalization first.")
@@ -1226,35 +1316,74 @@ class NormalizationTab(QWidget):
         # Get method name for naming the files
         method_name = panel.method_name.replace(" ", "_").replace("(", "").replace(")", "").replace("-", "").replace("/", "_")
 
+        # Check if batch mode is enabled
+        apply_for_batch = panel.apply_for_batch_checkbox.isChecked()
+
         # Create a temporary directory to save the files
         import tempfile
         temp_dir = tempfile.mkdtemp(prefix='normalized_data_')
 
         normalized_file_paths = []
 
-        for file_path in data_files:
-            if file_path in self.normalized_data:
-                data = self.normalized_data[file_path]
-                x = data['x']
-                y = data['y']
-                x_column_name = data.get('x_column_name', 'X')
-                y_column_name = data.get('y_column_name', 'Y')
+        if apply_for_batch:
+            # Batch mode: Append method name to original file names
+            for file_path in data_files:
+                if file_path in self.normalized_data:
+                    data = self.normalized_data[file_path]
+                    x = data['x']
+                    y = data['y']
+                    x_column_name = data.get('x_column_name', 'X')
+                    y_column_name = data.get('y_column_name', 'Y')
 
-                try:
-                    base_name = os.path.splitext(os.path.basename(file_path))[0]
-                    new_file_name = f"{base_name}_{method_name}_{x_column_name}_{y_column_name}.csv"
-                    new_file_path = os.path.join(temp_dir, new_file_name)
+                    try:
+                        base_name = os.path.splitext(os.path.basename(file_path))[0]
+                        new_file_name = f"{base_name}_{method_name}.csv"
+                        new_file_path = os.path.join(temp_dir, new_file_name)
 
-                    df = pd.DataFrame({
-                        x_column_name: x,
-                        y_column_name: y
-                    })
+                        df = pd.DataFrame({
+                            x_column_name: x,
+                            y_column_name: y
+                        })
 
-                    df.to_csv(new_file_path, index=False)
-                    normalized_file_paths.append(new_file_path)
+                        df.to_csv(new_file_path, index=False)
+                        normalized_file_paths.append(new_file_path)
 
-                except Exception as e:
-                    QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
+                    except Exception as e:
+                        QMessageBox.warning(self, "Error", f"Error saving file {new_file_path}: {e}")
+
+        else:
+            # Non-batch mode: Prompt user to specify file names individually
+            for file_path in data_files:
+                if file_path in self.normalized_data:
+                    data = self.normalized_data[file_path]
+                    x = data['x']
+                    y = data['y']
+                    x_column_name = data.get('x_column_name', 'X')
+                    y_column_name = data.get('y_column_name', 'Y')
+
+                    try:
+                        base_name = os.path.splitext(os.path.basename(file_path))[0]
+                        # Default file name is the original file name with method name
+                        default_file_name = f"{base_name}_{method_name}.csv"
+
+                        # Prompt the user to specify the file name using a custom dialog
+                        new_file_name = self.prompt_for_new_file_name(default_file_name)
+                        if not new_file_name:
+                            continue  # User canceled
+
+                        # Save to a temporary file
+                        new_file_path = os.path.join(temp_dir, new_file_name)
+
+                        df = pd.DataFrame({
+                            x_column_name: x,
+                            y_column_name: y
+                        })
+
+                        df.to_csv(new_file_path, index=False)
+                        normalized_file_paths.append(new_file_path)
+
+                    except Exception as e:
+                        QMessageBox.warning(self, "Error", f"Error saving file {new_file_name}: {e}")
 
         if normalized_file_paths:
             # Add normalized files to Selected Data panel
@@ -1262,7 +1391,6 @@ class NormalizationTab(QWidget):
             QMessageBox.information(self, "Send Successful", "Normalized data sent to Selected Data panel.")
         else:
             QMessageBox.warning(self, "No Data Sent", "No normalized data was sent to the Selected Data panel.")
-
 
     def connect_signals(self):
         # Access panels
